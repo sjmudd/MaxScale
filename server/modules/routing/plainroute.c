@@ -382,13 +382,6 @@ int                     i;
         client_rses->rses_chk_tail = CHK_NUM_ROUTER_SES;
 #endif
 
-	
-	/**
-	 * Find a backend server to connect to. This is the extent of the
-	 * load balancing algorithm we need to implement for this simple
-	 * connection router.
-	 */
-
 	/*
 	 * Loop over all the servers and find any that have fewer connections
          * than the candidate server.

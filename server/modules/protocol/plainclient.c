@@ -34,7 +34,7 @@
 
 MODULE_INFO info = {
 	MODULE_API_PROTOCOL,
-	MODULE_GA,
+	MODULE_EXPERIMENTAL,
 	GWPROTOCOL_VERSION,
 	"The plain client protocol"
 };
@@ -216,7 +216,7 @@ return_1:
 }
 
 /**
- * set listener for mysql protocol, retur 1 on success and 0 in failure
+ * set listener for plain protocol, return 1 on success and 0 in failure
  */
 int plain_listen(
         DCB  *listen_dcb,
@@ -330,12 +330,12 @@ int plain_listen(
         rc = listen(l_so, 10 * SOMAXCONN);
 
         if (rc == 0) {
-		LOGIF(LM, (skygw_log_write_flush(LOGFILE_MESSAGE,"Listening MySQL connections at %s", config_bind)));
+		LOGIF(LM, (skygw_log_write_flush(LOGFILE_MESSAGE,"Listening to connections at %s", config_bind)));
         } else {
                 int eno = errno;
                 errno = 0;
                 fprintf(stderr,
-                        "\n* Failed to start listening MySQL due error %d, %s\n\n",
+                        "\n* Failed to start listening due error %d, %s\n\n",
                         eno,
                         strerror(eno));
 		close(l_so);
@@ -353,9 +353,6 @@ int plain_listen(
                     strerror(errno));
 		return 0;
         }
-#if defined(FAKE_CODE)
-        conn_open[l_so] = true;
-#endif /* FAKE_CODE */
 	listen_dcb->func.accept = plain_accept;
 
 	return 1;
@@ -587,12 +584,7 @@ int plain_accept(DCB *listener)
                                 client_dcb->fd)));
                 }
         } /**< while 1 */
-#if defined(SS_DEBUG)
-        if (rc == 0) {
-                CHK_DCB(client_dcb);
-                CHK_PROTOCOL(((PlainProtocol *)client_dcb->protocol));
-        }
-#endif
+
 return_rc:
 	
         return rc;
@@ -633,15 +625,7 @@ plain_client_close(DCB *dcb)
         SESSION*       session;
         ROUTER_OBJECT* router;
         void*          router_instance;
-#if defined(SS_DEBUG)
-        PlainProtocol* protocol = (PlainProtocol *)dcb->protocol;
-        if (dcb->state == DCB_STATE_POLLING ||
-            dcb->state == DCB_STATE_NOPOLLING ||
-            dcb->state == DCB_STATE_ZOMBIE)
-        {
-		if (!DCB_IS_CLONE(dcb)) CHK_PROTOCOL(protocol);
-        }
-#endif
+
 	LOGIF(LD, (skygw_log_write(LOGFILE_DEBUG,
 				"%lu [plain_client_close]",
 				pthread_self())));                                
