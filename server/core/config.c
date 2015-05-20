@@ -43,8 +43,9 @@
  * 20/02/15	Markus Mäkelä		Added connection_timeout parameter for services
  * 05/03/15	Massimiliano Pinto	Added notification_feedback support
  * 20/04/15	Guillaume Lefranc	Added available_when_donor parameter
- * 22/04/15	Martin Brampton		Added disable_master_role_setting parameter
- * 19/05/15	Massimiliano Pinto	Code cleanup for process_config_update()
+ * 22/04/15     Martin Brampton         Added disable_master_role_setting parameter
+ * 19/05/15     Massimiliano Pinto	Code cleanup for process_config_update()
+ * 20/05/15     Massimiliano Pinto	Addition of monitor update routines
  *
  * @endverbatim
  */
@@ -101,11 +102,13 @@ void config_service_update(CONFIG_CONTEXT *obj);
 void config_server_update(CONFIG_CONTEXT *obj);
 void config_listener_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
 void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
+void config_monitor_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
+int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *running);
 static	char		*config_file = NULL;
 static	GATEWAY_CONF	gateway;
 static	FEEDBACK_CONF	feedback;
 char			*version_string = NULL;
-
+static HASHTABLE	*monitorhash;
 
 /**
  * Trim whitespace from the front and rear of a string
@@ -307,7 +310,6 @@ process_config_context(CONFIG_CONTEXT *context)
 {
 CONFIG_CONTEXT		*obj;
 int			error_count = 0;
-HASHTABLE* monitorhash;
 
 if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 {
@@ -898,127 +900,7 @@ hashtable_memory_fns(monitorhash,strdup,NULL,free,NULL);
 		}
 		else if (!strcmp(type, "monitor"))
 		{
-                        char *module;
-			char *servers;
-			char *user;
-			char *passwd;
-			unsigned long interval = 0;
-			int connect_timeout = 0;
-			int read_timeout = 0;
-			int write_timeout = 0;
-
-                        module = config_get_value(obj->parameters, "module");
-			servers = config_get_value(obj->parameters, "servers");
-			user = config_get_value(obj->parameters, "user");
-			passwd = config_get_value(obj->parameters, "passwd");
-			if (config_get_value(obj->parameters, "monitor_interval")) {
-				interval = strtoul(config_get_value(obj->parameters, "monitor_interval"), NULL, 10);
-			}
-
-			if (config_get_value(obj->parameters, "backend_connect_timeout")) {
-				connect_timeout = atoi(config_get_value(obj->parameters, "backend_connect_timeout"));
-			}
-			if (config_get_value(obj->parameters, "backend_read_timeout")) {
-				read_timeout = atoi(config_get_value(obj->parameters, "backend_read_timeout"));
-			}
-			if (config_get_value(obj->parameters, "backend_write_timeout")) {
-				write_timeout = atoi(config_get_value(obj->parameters, "backend_write_timeout"));
-			}
-			
-                        if (module)
-			{
-				obj->element = monitor_alloc(obj->object, module);
-				if (servers && obj->element)
-				{
-					char *s, *lasts;
-
-					/* if id is not set, compute it now with pid only */
-					if (gateway.id == 0) {
-						gateway.id = getpid();
-					}
-
-					monitorStart(obj->element,obj->parameters);
-
-					/* set monitor interval */
-					if (interval > 0)
-						monitorSetInterval(obj->element, interval);
-					else
-					    skygw_log_write(LOGFILE_ERROR,"Warning: Monitor '%s' "
-						    "missing monitor_interval parameter, "
-						    "default value of 10000 miliseconds.",obj->object);
-
-					/* set timeouts */
-					if (connect_timeout > 0)
-						monitorSetNetworkTimeout(obj->element, MONITOR_CONNECT_TIMEOUT, connect_timeout);
-					if (read_timeout > 0)
-						monitorSetNetworkTimeout(obj->element, MONITOR_READ_TIMEOUT, read_timeout);
-					if (write_timeout > 0)
-						monitorSetNetworkTimeout(obj->element, MONITOR_WRITE_TIMEOUT, write_timeout);
-
-					/* get the servers to monitor */
-					s = strtok_r(servers, ",", &lasts);
-					while (s)
-					{
-						CONFIG_CONTEXT *obj1 = context;
-						int		found = 0;
-						while (obj1)
-						{
-							if (strcmp(trim(s), obj1->object) == 0 &&
-                                                            obj->element && obj1->element)
-                                                        {
-								found = 1;
-								if(hashtable_add(monitorhash,obj1->object,"") == 0)
-								{
-								    skygw_log_write(LOGFILE_ERROR,
-									     "Warning: Multiple monitors are monitoring server [%s]. "
-									    "This will cause undefined behavior.",
-									     obj1->object);
-								}
-								monitorAddServer(
-                                                                        obj->element,
-                                                                        obj1->element);
-                                                        }
-							obj1 = obj1->next;
-						}
-						if (!found)
-							LOGIF(LE,
-							(skygw_log_write_flush(
-		                                        LOGFILE_ERROR,
-							"Error: Unable to find "
-							"server '%s' that is "
-							"configured in the "
-							"monitor '%s'.",
-							s, obj->object)));
-
-						s = strtok_r(NULL, ",", &lasts);
-					}
-				}
-				if (obj->element && user && passwd)
-				{
-					monitorAddUser(obj->element,
-                                                       user,
-                                                       passwd);
-				}
-				else if (obj->element && user)
-				{
-					LOGIF(LE, (skygw_log_write_flush(
-						LOGFILE_ERROR, "Error: "
-						"Monitor '%s' defines a "
-						"username with no password.",
-						obj->object)));
-					error_count++;
-				}
-			}
-			else
-			{
-				obj->element = NULL;
-				LOGIF(LE, (skygw_log_write_flush(
-                                        LOGFILE_ERROR,
-                                        "Error : Monitor '%s' is missing a "
-                                        "require module parameter.",
-                                        obj->object)));
-				error_count++;
-			}
+			error_count += config_add_monitor(obj, context, NULL);
 		}
 		else if (strcmp(type, "server") != 0
 			&& strcmp(type, "filter") != 0)
@@ -1035,7 +917,6 @@ hashtable_memory_fns(monitorhash,strdup,NULL,free,NULL);
 	} /*< while */
 	/** TODO: consistency check function */
 
-	hashtable_free(monitorhash);
         /**
          * error_count += consistency_checks();
          */
@@ -1499,6 +1380,10 @@ CONFIG_CONTEXT		*obj;
 		else if (!strcmp(type, "listener"))
 		{
 			config_listener_update(obj, context);
+		}
+		else if (!strcmp(type, "monitor"))
+		{
+			config_monitor_update(obj, context);
 		}
 		else if (strcmp(type, "server") != 0 &&
                          strcmp(type, "monitor") != 0 &&
@@ -2410,5 +2295,170 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 				}
 			}
 			if (filters && obj->element)
-				serviceUpdateFilters(obj->element,context);
+				serviceSetFilters(obj->element, filters);
+}
+
+/*
+ * Update a running monitor or create it if it's a new one
+ *
+ * @param obj		The config (type=service) object to update
+ * @param context	The configuration data
+ * @param running	Running montor to update or NULL to craete it
+ *
+ */
+
+void config_monitor_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context) {
+MONITOR *running;
+
+	running = monitor_find(obj->object);
+
+	if (running) {
+		monitorStop(running);
+		config_add_monitor(obj, context, running);
+	} else {
+		fprintf(stderr, "Monitor [%s] was not found\n", obj->object);
+		config_add_monitor(obj, context, NULL);
+	}
+}
+
+
+/*
+ * Create/Updates a monitor object
+ *
+ * @param obj		The config (type=service) object to update
+ * @param context	The configuration data
+ * @param running	Running montor to update or NULL to craete it
+ *
+ */
+
+int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *running) {
+	int	error_count = 0;
+	char	*module;
+	char	*servers;
+	char	*user;
+	char	*passwd;
+	unsigned long interval = 0;
+	int connect_timeout = 0;
+	int read_timeout = 0;
+	int write_timeout = 0;
+
+	module = config_get_value(obj->parameters, "module");
+	servers = config_get_value(obj->parameters, "servers");
+	user = config_get_value(obj->parameters, "user");
+	passwd = config_get_value(obj->parameters, "passwd");
+
+	if (config_get_value(obj->parameters, "monitor_interval")) {
+		interval = strtoul(config_get_value(obj->parameters, "monitor_interval"), NULL, 10);
+	}
+
+	if (config_get_value(obj->parameters, "backend_connect_timeout")) {
+		connect_timeout = atoi(config_get_value(obj->parameters, "backend_connect_timeout"));
+	}
+	if (config_get_value(obj->parameters, "backend_read_timeout")) {
+		read_timeout = atoi(config_get_value(obj->parameters, "backend_read_timeout"));
+	}
+	if (config_get_value(obj->parameters, "backend_write_timeout")) {
+		write_timeout = atoi(config_get_value(obj->parameters, "backend_write_timeout"));
+	}
+		
+	if (module) {
+		/* get running monitor pointer or allocate a new one */
+		if (running) {
+			obj->element = running;
+		} else {
+			obj->element = monitor_alloc(obj->object, module);
+		}
+
+		if (servers && obj->element) {
+			char *s, *lasts;
+
+			/* if id is not set, compute it now with pid only */
+			if (gateway.id == 0) {
+				gateway.id = getpid();
+			}
+
+			monitorStart(obj->element,obj->parameters);
+
+			/* set monitor interval */
+			if (interval > 0)
+				monitorSetInterval(obj->element, interval);
+			else
+				skygw_log_write(LOGFILE_ERROR,"Warning: Monitor '%s' "
+					    "missing monitor_interval parameter, "
+					    "default value of 10000 miliseconds.",obj->object);
+
+			/* set timeouts */
+			if (connect_timeout > 0)
+				monitorSetNetworkTimeout(obj->element, MONITOR_CONNECT_TIMEOUT, connect_timeout);
+			if (read_timeout > 0)
+				monitorSetNetworkTimeout(obj->element, MONITOR_READ_TIMEOUT, read_timeout);
+			if (write_timeout > 0)
+				monitorSetNetworkTimeout(obj->element, MONITOR_WRITE_TIMEOUT, write_timeout);
+
+			/* get the servers to monitor */
+			s = strtok_r(servers, ",", &lasts);
+			while (s)
+			{
+				CONFIG_CONTEXT *obj1 = context;
+				int		found = 0;
+				while (obj1)
+				{
+					if (strcmp(trim(s), obj1->object) == 0 &&
+						obj->element && obj1->element)
+					{
+						found = 1;
+						if(hashtable_add(monitorhash,obj1->object,"") == 0)
+						{
+						    skygw_log_write(LOGFILE_ERROR,
+							"Warning: Multiple monitors are monitoring server [%s]. "
+							"This will cause undefined behavior.",
+							obj1->object);
+						}
+						monitorAddServer(
+							obj->element,
+							obj1->element);
+					}
+					obj1 = obj1->next;
+				}
+				if (!found)
+					LOGIF(LE,
+						(skygw_log_write_flush(
+							LOGFILE_ERROR,
+							"Error: Unable to find "
+							"server '%s' that is "
+							"configured in the "
+							"monitor '%s'.",
+							s, obj->object)));
+
+				s = strtok_r(NULL, ",", &lasts);
+			}
+		}
+		if (obj->element && user && passwd)
+		{
+			monitorAddUser(obj->element,
+				user,
+				passwd);
+		}
+		else if (obj->element && user)
+		{
+			LOGIF(LE, (skygw_log_write_flush(
+				LOGFILE_ERROR, "Error: "
+				"Monitor '%s' defines a "
+				"username with no password.",
+				obj->object)));
+			error_count++;
+		}
+	}
+	else
+	{
+		obj->element = NULL;
+		LOGIF(LE, (skygw_log_write_flush(
+			LOGFILE_ERROR,
+			"Error : Monitor '%s' is missing a "
+			"require module parameter.",
+			obj->object)));
+		error_count++;
+	}
+
+	return error_count;
 }
