@@ -1871,231 +1871,215 @@ void config_add_param(CONFIG_CONTEXT* obj, char* key,char* value)
  */
 
 void config_service_update(CONFIG_CONTEXT *obj) {
-SERVICE			*service;
-SERVER			*server;
-char *router = config_get_value(obj->parameters, "router");
+	SERVICE			*service;
+	SERVER			*server;
+	char *router = config_get_value(obj->parameters, "router");
 
-			if (router)
-			{
-				if ((service = service_find(obj->object)) != NULL)
-				{
-                                        char *user;
-					char *auth;
-					char *enable_root_user;
+	if (router)
+	{
+		if ((service = service_find(obj->object)) != NULL)
+		{
+			char *user;
+			char *auth;
+			char *enable_root_user;
 
-					char *connection_timeout;
+			char *connection_timeout;
 
-					char* auth_all_servers;
-					char* optimize_wildcard;
-					char* strip_db_esc;
-					char* max_slave_conn_str;
-					char* max_slave_rlag_str;
-					char *version_string;
-					char *allow_localhost_match_wildcard_host;
+			char* auth_all_servers;
+			char* optimize_wildcard;
+			char* strip_db_esc;
+			char* max_slave_conn_str;
+			char* max_slave_rlag_str;
+			char *version_string;
+			char *allow_localhost_match_wildcard_host;
 
-					enable_root_user = config_get_value(obj->parameters, "enable_root_user");
+			enable_root_user = config_get_value(obj->parameters, "enable_root_user");
 
-					connection_timeout = config_get_value(obj->parameters, "connection_timeout");
-					user = config_get_value(obj->parameters,
-								"user");
-					auth = config_get_value(obj->parameters,
-								"passwd");
+			connection_timeout = config_get_value(obj->parameters, "connection_timeout");
+			user = config_get_value(obj->parameters, "user");
+			auth = config_get_value(obj->parameters, "passwd");
                     
-					auth_all_servers = config_get_value(obj->parameters, "auth_all_servers");
-					optimize_wildcard = config_get_value(obj->parameters, "optimize_wildcard");
-					strip_db_esc = config_get_value(obj->parameters, "strip_db_esc");
-					version_string = config_get_value(obj->parameters, "version_string");
-					allow_localhost_match_wildcard_host = config_get_value(obj->parameters, "localhost_match_wildcard_host");
+			auth_all_servers = config_get_value(obj->parameters, "auth_all_servers");
+			optimize_wildcard = config_get_value(obj->parameters, "optimize_wildcard");
+			strip_db_esc = config_get_value(obj->parameters, "strip_db_esc");
+			version_string = config_get_value(obj->parameters, "version_string");
+			allow_localhost_match_wildcard_host = config_get_value(obj->parameters, "localhost_match_wildcard_host");
 
-					if (version_string) {
-						if (service->version_string) {
-							free(service->version_string);
-						}
-						service->version_string = strdup(version_string);
+			if (version_string) {
+				if (service->version_string) {
+					free(service->version_string);
+				}
+				service->version_string = strdup(version_string);
+			}
+
+			if (user && auth) {
+				service_update(service, router, user, auth);
+
+				if (enable_root_user)
+					serviceEnableRootUser(service, config_truth_value(enable_root_user));
+
+				if (connection_timeout)
+					serviceSetTimeout(service, config_truth_value(connection_timeout));
+
+
+				if (auth_all_servers)
+					serviceAuthAllServers(service, config_truth_value(auth_all_servers));
+
+				if (optimize_wildcard)
+					serviceOptimizeWildcard(service, config_truth_value(optimize_wildcard));
+
+				if (strip_db_esc)
+					serviceStripDbEsc(service, config_truth_value(strip_db_esc));
+
+				if (allow_localhost_match_wildcard_host)
+					serviceEnableLocalhostMatchWildcardHost(
+						service,
+						config_truth_value(allow_localhost_match_wildcard_host));
+                                               
+				/** Read, validate and set max_slave_connections */        
+				max_slave_conn_str = config_get_value(
+							obj->parameters, 
+							"max_slave_connections");
+
+				if (max_slave_conn_str != NULL)
+				{
+					CONFIG_PARAMETER* param;
+					bool              succp;
+                           
+					param = config_get_param(obj->parameters, 
+						"max_slave_connections");
+
+					if (param == NULL)
+					{
+						succp = false;
 					}
-
-					if (user && auth) {
-						service_update(service, router,
-                                                               user,
-                                                               auth);
-						if (enable_root_user)
-							serviceEnableRootUser(service, config_truth_value(enable_root_user));
-
-						if (connection_timeout)
-							serviceSetTimeout(service, config_truth_value(connection_timeout));
-
-
-                                                if(auth_all_servers)
-                                                    serviceAuthAllServers(service, config_truth_value(auth_all_servers));
-						if(optimize_wildcard)
-                                                    serviceOptimizeWildcard(service, config_truth_value(optimize_wildcard));
-						if(strip_db_esc)
-                                                    serviceStripDbEsc(service, config_truth_value(strip_db_esc));
-
-						if (allow_localhost_match_wildcard_host)
-							serviceEnableLocalhostMatchWildcardHost(
+					else 
+					{
+						succp = service_set_param_value(
 								service,
-								config_truth_value(allow_localhost_match_wildcard_host));
-                                                
-                                                /** Read, validate and set max_slave_connections */        
-                                                max_slave_conn_str = 
-                                                        config_get_value(
-                                                                obj->parameters, 
-                                                                "max_slave_connections");
-
-                                                if (max_slave_conn_str != NULL)
-                                                {
-                                                        CONFIG_PARAMETER* param;
-                                                        bool              succp;
-                                                        
-                                                        param = config_get_param(obj->parameters, 
-                                                                        "max_slave_connections");
-                                                        
-							if (param == NULL)
-							{
-								succp = false;
-							}
-							else 
-							{
-								succp = service_set_param_value(
-										service,
-										param,
-										max_slave_conn_str, 
-										COUNT_ATMOST,
-										(PERCENT_TYPE|COUNT_TYPE));
-							}
-							
-                                                        if (!succp && param != NULL)
-                                                        {
-                                                                LOGIF(LM, (skygw_log_write(
-                                                                        LOGFILE_MESSAGE,
-                                                                        "* Warning : invalid value type "
-                                                                        "for parameter \'%s.%s = %s\'\n\tExpected "
-                                                                        "type is either <int> for slave connection "
-                                                                        "count or\n\t<int>%% for specifying the "
-                                                                        "maximum percentage of available the "
-                                                                        "slaves that will be connected.",
-                                                                        ((SERVICE*)obj->element)->name,
-                                                                                                param->name,
-                                                                                                param->value)));
-                                                        }
-                                                }
-                                                /** Read, validate and set max_slave_replication_lag */
-                                                max_slave_rlag_str = 
-                                                        config_get_value(obj->parameters, 
-                                                                 "max_slave_replication_lag");
-                                                
-                                                if (max_slave_rlag_str != NULL)
-                                                {
-                                                        CONFIG_PARAMETER* param;
-                                                        bool              succp;
-                                                        
-                                                        param = config_get_param(
-                                                                        obj->parameters, 
-                                                                        "max_slave_replication_lag");
-                                                        
-							if (param == NULL)
-							{
-								succp = false;
-							}
-							else 
-							{
-								succp = service_set_param_value(
-										service,
-										param,
-										max_slave_rlag_str,
-										COUNT_ATMOST,
-										COUNT_TYPE);
-							}
-							
-                                                        if (!succp)
-                                                        {
-															if(param){
-                                                                LOGIF(LM, (skygw_log_write(
-                                                                        LOGFILE_MESSAGE,
-                                                                        "* Warning : invalid value type "
-                                                                        "for parameter \'%s.%s = %s\'\n\tExpected "
-                                                                        "type is <int> for maximum "
-                                                                        "slave replication lag.",
-                                                                        ((SERVICE*)obj->element)->name,
-                                                                        param->name,
-                                                                        param->value)));                                                                
-															}else{
-                                                                LOGIF(LE, (skygw_log_write(
-                                                                        LOGFILE_ERROR,
-                                                                        "Error : parameter was NULL")));                                                                
-															}
-                                                        }
-                                                }
+								param,
+								max_slave_conn_str, 
+								COUNT_ATMOST,
+								(PERCENT_TYPE|COUNT_TYPE));
 					}
 
-					obj->element = service;
+					if (!succp && param != NULL)
+					{
+						LOGIF(LM, (skygw_log_write(
+							LOGFILE_MESSAGE,
+							"* Warning : invalid value type "
+							"for parameter \'%s.%s = %s\'\n\tExpected "
+							"type is either <int> for slave connection "
+							"count or\n\t<int>%% for specifying the "
+							"maximum percentage of available the "
+							"slaves that will be connected.",
+							((SERVICE*)obj->element)->name,
+							param->name,
+							param->value)));
+					}
 				}
-				else
+				/** Read, validate and set max_slave_replication_lag */
+				max_slave_rlag_str = config_get_value(obj->parameters, 
+							"max_slave_replication_lag");
+
+				if (max_slave_rlag_str != NULL)
 				{
-					char *user;
-					char *auth;
-					char *enable_root_user;
-					char *connection_timeout;
-					char *allow_localhost_match_wildcard_host;
-					char *auth_all_servers;
-					char *optimize_wildcard;
-					char *strip_db_esc;
+					CONFIG_PARAMETER* param;
+					bool              succp;
 
-					enable_root_user = 
-                                                config_get_value(obj->parameters, 
-                                                                 "enable_root_user");
+					param = config_get_param(obj->parameters, 
+							"max_slave_replication_lag");
 
-					connection_timeout = config_get_value(obj->parameters,
-                                                          "connection_timeout");
-					
-					auth_all_servers = 
-                                                config_get_value(obj->parameters, 
-                                                                 "auth_all_servers");
-					optimize_wildcard =
-                                                config_get_value(obj->parameters,
-                                                                 "optimize_wildcard");
-					strip_db_esc = 
-                                                config_get_value(obj->parameters, 
-                                                                 "strip_db_esc");
-
-					allow_localhost_match_wildcard_host = 
-						config_get_value(obj->parameters, "localhost_match_wildcard_host");
-                    
-					user = config_get_value(obj->parameters,
-                                            "user");
-					auth = config_get_value(obj->parameters,
-                                            "passwd");
-					obj->element = service_alloc(obj->object,
-                                                 router);
-                    
-					if (obj->element && user && auth)
-                                        {
-						serviceSetUser(obj->element,
-                                                               user,
-                                                               auth);
-						if (enable_root_user)
-							serviceEnableRootUser(obj->element, config_truth_value(enable_root_user));
-
-						if (connection_timeout)
-							serviceSetTimeout(obj->element, atoi(connection_timeout));
-
-						if (allow_localhost_match_wildcard_host)
-							serviceEnableLocalhostMatchWildcardHost(
-								obj->element,
-								config_truth_value(allow_localhost_match_wildcard_host));
-                                        }
+					if (param == NULL)
+					{
+						succp = false;
+					}
+					else 
+					{
+						succp = service_set_param_value(
+								service,
+								param,
+								max_slave_rlag_str,
+								COUNT_ATMOST,
+								COUNT_TYPE);
+					}
+							
+					if (!succp)
+					{
+						if (param) {
+							LOGIF(LM, (skygw_log_write(
+								LOGFILE_MESSAGE,
+								"* Warning : invalid value type "
+								"for parameter \'%s.%s = %s\'\n\tExpected "
+								"type is <int> for maximum "
+								"slave replication lag.",
+								((SERVICE*)obj->element)->name,
+								param->name,
+								param->value)));
+						} else {
+								LOGIF(LE, (skygw_log_write(
+									LOGFILE_ERROR,
+									"Error : parameter was NULL")));                                                                
+						}
+					}
 				}
 			}
-			else
+
+			obj->element = service;
+		}
+		else
+		{
+			char *user;
+			char *auth;
+			char *enable_root_user;
+			char *connection_timeout;
+			char *allow_localhost_match_wildcard_host;
+			char *auth_all_servers;
+			char *optimize_wildcard;
+			char *strip_db_esc;
+
+			enable_root_user = config_get_value(obj->parameters, "enable_root_user");
+
+			connection_timeout = config_get_value(obj->parameters, "connection_timeout");
+					
+			auth_all_servers = config_get_value(obj->parameters, "auth_all_servers");
+			optimize_wildcard = config_get_value(obj->parameters, "optimize_wildcard");
+			strip_db_esc = config_get_value(obj->parameters, "strip_db_esc");
+
+			allow_localhost_match_wildcard_host = config_get_value(obj->parameters, "localhost_match_wildcard_host");
+                    
+			user = config_get_value(obj->parameters, "user");
+
+			auth = config_get_value(obj->parameters, "passwd");
+
+			obj->element = service_alloc(obj->object, router);
+                    
+			if (obj->element && user && auth)
 			{
-				obj->element = NULL;
-				LOGIF(LE, (skygw_log_write_flush(
-                                        LOGFILE_ERROR,
-                                        "Error : No router defined for service "
-                                        "'%s'.",
-                                        obj->object)));
+				serviceSetUser(obj->element, user, auth);
+
+				if (enable_root_user)
+					serviceEnableRootUser(obj->element, config_truth_value(enable_root_user));
+
+				if (connection_timeout)
+					serviceSetTimeout(obj->element, atoi(connection_timeout));
+
+				if (allow_localhost_match_wildcard_host)
+					serviceEnableLocalhostMatchWildcardHost(
+						obj->element,
+						config_truth_value(allow_localhost_match_wildcard_host));
 			}
+		}
+	}
+	else
+	{
+		obj->element = NULL;
+		LOGIF(LE, (skygw_log_write_flush(
+			LOGFILE_ERROR,
+			"Error : No router defined for service "
+			"'%s'.",
+			obj->object)));
+	}
 }
 
 /*
@@ -2106,59 +2090,56 @@ char *router = config_get_value(obj->parameters, "router");
  */
 
 void config_server_update(CONFIG_CONTEXT *obj) {
-SERVER                  *server;
+	SERVER *server;
+	char *address;
+	char *port;
+	char *protocol;
+	char *monuser;
+	char *monpw;
 
-                        char *address;
-			char *port;
-			char *protocol;
-			char *monuser;
-			char *monpw;
+	address = config_get_value(obj->parameters, "address");
+	port = config_get_value(obj->parameters, "port");
+	protocol = config_get_value(obj->parameters, "protocol");
+	monuser = config_get_value(obj->parameters, "monitoruser");
+	monpw = config_get_value(obj->parameters, "monitorpw");
 
-			address = config_get_value(obj->parameters, "address");
-			port = config_get_value(obj->parameters, "port");
-			protocol = config_get_value(obj->parameters, "protocol");
-			monuser = config_get_value(obj->parameters,
-                                                   "monitoruser");
-			monpw = config_get_value(obj->parameters, "monitorpw");
+	if (address && port && protocol)
+	{
+		if ((server = server_find(address, atoi(port))) != NULL)
+		{
+			server_update(server,
+				protocol,
+				monuser,
+				monpw);
+			obj->element = server;
+		}
+		else
+		{
+			obj->element = server_alloc(address,
+				protocol,
+				atoi(port));
 
-                        if (address && port && protocol)
+			server_set_unique_name(obj->element, obj->object);
+
+			if (obj->element && monuser && monpw)
 			{
-				if ((server =
-                                     server_find(address, atoi(port))) != NULL)
-				{
-					server_update(server,
-                                                      protocol,
-                                                      monuser,
-                                                      monpw);
-					obj->element = server;
-				}
-				else
-				{
-					obj->element = server_alloc(address,
-                                                                    protocol,
-                                                                    atoi(port));
-
-					server_set_unique_name(obj->element, obj->object);
-
-					if (obj->element && monuser && monpw)
-                                        {
-						serverAddMonUser(obj->element,
-                                                                 monuser,
-                                                                 monpw);
-                                        }
-				}
+				serverAddMonUser(obj->element,
+					monuser,
+					monpw);
 			}
-			else
-                        {
-				LOGIF(LE, (skygw_log_write_flush(
-                                        LOGFILE_ERROR,
-                                        "Error : Server '%s' is missing a "
-                                        "required "
-                                        "configuration parameter. A server must "
-                                        "have address, port and protocol "
-                                        "defined.",
-                                        obj->object)));
-                        }
+		}
+	}
+	else
+	{
+		LOGIF(LE, (skygw_log_write_flush(
+			LOGFILE_ERROR,
+			"Error : Server '%s' is missing a "
+			"required "
+			"configuration parameter. A server must "
+			"have address, port and protocol "
+			"defined.",
+			obj->object)));
+	}
 }
 
 
@@ -2172,63 +2153,55 @@ SERVER                  *server;
  */
 
 void config_listener_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context) {
-                        char *service;
-			char *port;
-			char *protocol;
-			char *address;
-			char *socket;
+	char *service;
+	char *port;
+	char *protocol;
+	char *address;
+	char *socket;
 
-                        service = config_get_value(obj->parameters, "service");
-			address = config_get_value(obj->parameters, "address");
-			port = config_get_value(obj->parameters, "port");
-			protocol = config_get_value(obj->parameters, "protocol");
-			socket = config_get_value(obj->parameters, "socket");
+	service = config_get_value(obj->parameters, "service");
+	address = config_get_value(obj->parameters, "address");
+	port = config_get_value(obj->parameters, "port");
+	protocol = config_get_value(obj->parameters, "protocol");
+	socket = config_get_value(obj->parameters, "socket");
 
-                        if (service && socket && protocol)
-			{
-				CONFIG_CONTEXT *ptr = context;
-				while (ptr && strcmp(ptr->object, service) != 0)
-					ptr = ptr->next;
+	if (service && socket && protocol)
+	{
+		CONFIG_CONTEXT *ptr = context;
+		while (ptr && strcmp(ptr->object, service) != 0)
+			ptr = ptr->next;
                                 
-				if (ptr &&
-                                    ptr->element &&
-                                    serviceHasProtocol(ptr->element,
-                                                       protocol,
-                                                       0) == 0)
-				{
-					serviceAddProtocol(ptr->element,
-                                                           protocol,
-							   socket,
-                                                           0);
-					serviceStartProtocol(ptr->element,
-                                                             protocol,
-                                                             0);
-				}
-			}
+		if (ptr &&
+			ptr->element &&
+			serviceHasProtocol(ptr->element, protocol, 0) == 0)
+		{
+			serviceAddProtocol(ptr->element, protocol, socket, 0);
 
-                        if (service && port && protocol)
-			{
-				CONFIG_CONTEXT *ptr = context;
-				while (ptr && strcmp(ptr->object, service) != 0)
-					ptr = ptr->next;
+			serviceStartProtocol(ptr->element, protocol, 0);
+		}
+	}
+
+	if (service && port && protocol)
+	{
+		CONFIG_CONTEXT *ptr = context;
+		while (ptr && strcmp(ptr->object, service) != 0)
+			ptr = ptr->next;
                                 
-				if (ptr &&
-                                    ptr->element &&
-                                    serviceHasProtocol(ptr->element,
-                                                       protocol,
-                                                       atoi(port)) == 0)
-				{
-					serviceAddProtocol(ptr->element,
-                                                           protocol,
-							   address,
-                                                           atoi(port));
-					serviceStartProtocol(ptr->element,
-                                                             protocol,
-                                                             atoi(port));
-				}
-			}
+		if (ptr &&
+			ptr->element &&
+			serviceHasProtocol(ptr->element, protocol, atoi(port)) == 0)
+		{
+			serviceAddProtocol(ptr->element,
+				protocol,
+				address,
+				atoi(port));
+
+			serviceStartProtocol(ptr->element,
+				protocol,
+				atoi(port));
+		}
+	}
 }
-
 
 /*
  * Service update backend servers and filters
@@ -2239,63 +2212,65 @@ void config_listener_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context) {
  */
 
 void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context) {
-                        char *servers;
-			char *roptions;
-			char *filters;
+	char *servers;
+	char *roptions;
+	char *filters;
 
-			servers = config_get_value(obj->parameters, "servers");
-			roptions = config_get_value(obj->parameters,
-                                                    "router_options");
-			filters = config_get_value(obj->parameters, "filters");
-			if (servers && obj->element)
+	servers = config_get_value(obj->parameters, "servers");
+	roptions = config_get_value(obj->parameters, "router_options");
+	filters = config_get_value(obj->parameters, "filters");
+
+	if (servers && obj->element)
+	{
+		char *lasts;
+		char *s = strtok_r(servers, ",", &lasts);
+		while (s)
+		{
+			CONFIG_CONTEXT *obj1 = context;
+			int		found = 0;
+
+			while (obj1)
 			{
-				char *lasts;
-				char *s = strtok_r(servers, ",", &lasts);
-				while (s)
+				if (strcmp(trim(s), obj1->object) == 0 &&
+					obj->element && obj1->element)
 				{
-					CONFIG_CONTEXT *obj1 = context;
-					int		found = 0;
-					while (obj1)
+					found = 1;
+					if (!serviceHasBackend(obj->element, obj1->element))
 					{
-						if (strcmp(trim(s), obj1->object) == 0 &&
-                                                    obj->element && obj1->element)
-                                                {
-							found = 1;
-							if (!serviceHasBackend(obj->element, obj1->element))
-                                                        {
-								serviceAddBackend(
-                                                                        obj->element,
-                                                                        obj1->element);
-                                                        }
-                                                }
-						obj1 = obj1->next;
+						serviceAddBackend(
+							obj->element,
+							obj1->element);
 					}
-					if (!found)
-					{
-						LOGIF(LE, (skygw_log_write_flush(
-		                                        LOGFILE_ERROR,
-							"Error: Unable to find "
-							"server '%s' that is "
-							"configured as part of "
-							"service '%s'.",
-							s, obj->object)));
-					}
-					s = strtok_r(NULL, ",", &lasts);
 				}
+				obj1 = obj1->next;
 			}
-			if (roptions && obj->element)
+
+			if (!found)
 			{
-				char *lasts;
-				char *s = strtok_r(roptions, ",", &lasts);
-				serviceClearRouterOptions(obj->element);
-				while (s)
-				{
-					serviceAddRouterOption(obj->element, s);
-					s = strtok_r(NULL, ",", &lasts);
-				}
+				LOGIF(LE, (skygw_log_write_flush(
+                                        LOGFILE_ERROR,
+					"Error: Unable to find "
+					"server '%s' that is "
+					"configured as part of "
+					"service '%s'.",
+					s, obj->object)));
 			}
-			if (filters && obj->element)
-				serviceSetFilters(obj->element, filters);
+			s = strtok_r(NULL, ",", &lasts);
+		}
+	}
+	if (roptions && obj->element)
+	{
+		char *lasts;
+		char *s = strtok_r(roptions, ",", &lasts);
+		serviceClearRouterOptions(obj->element);
+		while (s)
+		{
+			serviceAddRouterOption(obj->element, s);
+			s = strtok_r(NULL, ",", &lasts);
+		}
+	}
+	if (filters && obj->element)
+		serviceSetFilters(obj->element, filters);
 }
 
 /*
@@ -2303,12 +2278,11 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
  *
  * @param obj		The config (type=service) object to update
  * @param context	The configuration data
- * @param running	Running montor to update or NULL to craete it
  *
  */
 
 void config_monitor_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context) {
-MONITOR *running;
+	MONITOR *running;
 
 	running = monitor_find(obj->object);
 
@@ -2316,7 +2290,6 @@ MONITOR *running;
 		monitorStop(running);
 		config_add_monitor(obj, context, running);
 	} else {
-		fprintf(stderr, "Monitor [%s] was not found\n", obj->object);
 		config_add_monitor(obj, context, NULL);
 	}
 }
