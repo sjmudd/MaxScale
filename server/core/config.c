@@ -97,13 +97,13 @@ static	int	internalService(char *router);
 int	config_get_ifaddr(unsigned char *output);
 int	config_get_release_string(char* release);
 FEEDBACK_CONF * config_get_feedback_data();
-void config_add_param(CONFIG_CONTEXT*,char*,char*);
-void config_service_update(CONFIG_CONTEXT *obj);
-void config_server_update(CONFIG_CONTEXT *obj);
-void config_listener_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
-void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
-void config_monitor_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
-int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *running);
+void	config_add_param(CONFIG_CONTEXT*,char*,char*);
+void	config_service_update(CONFIG_CONTEXT *obj);
+void	config_server_update(CONFIG_CONTEXT *obj);
+void	config_listener_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
+void	config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
+void	config_monitor_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
+int	config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *running);
 static	char		*config_file = NULL;
 static	GATEWAY_CONF	gateway;
 static	FEEDBACK_CONF	feedback;
@@ -2409,9 +2409,12 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 							"This will cause undefined behavior.",
 							obj1->object);
 						}
-						monitorAddServer(
-							obj->element,
-							obj1->element);
+						if (!monitorHasBackend(obj->element, obj1->element))
+                                        	{
+							monitorAddServer(
+								obj->element,
+								obj1->element);
+						}
 					}
 					obj1 = obj1->next;
 				}

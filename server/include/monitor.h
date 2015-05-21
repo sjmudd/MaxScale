@@ -38,6 +38,7 @@
  * 30/10/14	Massimiliano Pinto	Addition of disableMasterFailback
  * 07/11/14	Massimiliano Pinto	Addition of setNetworkTimeout
  * 19/02/15	Mark Riddoch		Addition of monitorGetList
+ * 21/05/15	Massimiliano Pinto	Addition of monitorHasBackend
  *
  * @endverbatim
  */
@@ -168,4 +169,5 @@ extern void	monitorList(DCB *);
 extern void     monitorSetInterval (MONITOR *, unsigned long);
 extern void     monitorSetNetworkTimeout(MONITOR *, int, int);
 extern RESULTSET *monitorGetList();
+extern int	monitorHasBackend(MONITOR *, SERVER *);
 #endif

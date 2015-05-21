@@ -28,7 +28,8 @@
  * 					and monitor id
  * 30/10/14	Massimiliano Pinto	Addition of disable_master_failback parameter
  * 07/11/14	Massimiliano Pinto	Addition of monitor network timeouts
- * 08/05/15     Markus Makela           Moved common monitor variables to MONITOR struct
+ * 08/05/15	Markus Makela		Moved common monitor variables to MONITOR struct
+ * 21/05/15	Massimiliano Pinto      Addition of monitorHasBackend routine
  *
  * @endverbatim
  */
@@ -445,4 +446,25 @@ int		*data;
 	resultset_add_column(set, "Status", 10, COL_TYPE_VARCHAR);
 
 	return set;
+}
+
+/**
+ * Test if a server is part of a monitor
+ *
+ * @param monitor       The monitor to add the server to
+ * @param server        The server to add
+ * @return              Non-zero if the server is already part of the monitor
+ */
+int
+monitorHasBackend(MONITOR *monitor, SERVER *server)
+{
+MONITOR_SERVERS *ptr;
+
+	spinlock_acquire(&monitor->lock);
+	ptr = monitor->databases;
+	while (ptr && ptr->server != server)
+		ptr = ptr->next;
+	spinlock_release(&monitor->lock);
+
+	return ptr != NULL;
 }
