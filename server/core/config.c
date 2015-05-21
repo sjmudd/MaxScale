@@ -1463,6 +1463,8 @@ static char *monitor_params[] =
                 "servers",
                 "user",
                 "passwd",
+		"script",
+		"events",
 		"monitor_interval",
 		"detect_replication_lag",
 		"detect_stale_master",
