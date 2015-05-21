@@ -345,7 +345,7 @@ struct subcommand clearoptions[] = {
 
 static void reload_dbusers(DCB *dcb, SERVICE *service);
 static void reload_config(DCB *dcb);
-
+static void reload_filter(DCB *dcb, FILTER_DEF *filter);
 /**
  * The subcommands of the reload command
  */
@@ -354,6 +354,10 @@ struct subcommand reloadoptions[] = {
 		"Reload the configuration data for MaxScale.",
 		"Reload the configuration data for MaxScale.",
 				{0, 0, 0} },
+	{ "filter",	1, reload_filter,
+		"Reload the configuration data for a filter.",
+		"Reload the configuration data for a filter.",
+				{ARG_TYPE_FILTER, 0, 0} },
 	{ "dbusers",	1, reload_dbusers,
 		"Reload the dbuser data for a service. E.g. reload dbusers \"splitter service\"",
 		"Reload the dbuser data for a service. E.g. reload dbusers 0x849420",
@@ -550,6 +554,7 @@ struct subcommand addoptions[] = {
 
 
 static void telnetdRemoveUser(DCB *, char *, char *);
+static void remove_filter(DCB *, char *);
 /**
  * The subcommands of the remove command
  */
@@ -561,6 +566,14 @@ struct subcommand removeoptions[] = {
             "Remove existing maxscale user. Example : remove user john johnpwd",
             "Remove existing maxscale user. Example : remove user john johnpwd",
             {ARG_TYPE_STRING, ARG_TYPE_STRING, 0}
+        },
+	{
+            "filter",
+            1,
+            remove_filter,
+            "Remove existing maxscale user. Example : remove user john johnpwd",
+            "Remove existing maxscale user. Example : remove user john johnpwd",
+            {ARG_TYPE_STRING, 0, 0}
         },
 	{
             NULL, 0, NULL, NULL, NULL, {0, 0, 0}
@@ -1095,6 +1108,33 @@ reload_dbusers(DCB *dcb, SERVICE *service)
 }
 
 /**
+ * 
+ * @param dcb
+ * @param filter
+ */
+static void
+reload_filter(DCB *dcb, FILTER_DEF *filter)
+{
+    CONFIG_CONTEXT ctx;
+    int rval = 0;
+    config_read_config(&ctx);
+    rval = serviceUpdateNamedFilter(filter->name,ctx.next);
+    config_free_config(ctx.next);
+
+    if(rval == 0)
+    {
+	dcb_printf(dcb, "Reloaded filter %s for all services.\n",
+		 filter->name);
+    }
+    else
+    {
+	dcb_printf(dcb, "Failed to reload filter %s!\n"
+		"Please confirm that the filter definition is found in the "
+		"configuration file and that the configuration is correct.\n",
+		 filter->name);
+    }
+}
+/**
  * Relaod the configuration data from the config file
  *
  * @param dcb		DCB to use to send output
@@ -1160,7 +1200,24 @@ static void telnetdRemoveUser(
         }
 }
 
-
+/**
+ * Remove a filter from MaxScale.
+ * @param dcb Client DCB
+ * @param filter Name of the filter
+ */
+static void remove_filter(DCB *dcb, char *filter)
+{
+    FILTER_DEF* def = filter_find(filter);
+    if(def)
+    {
+	filter_free(def);
+	dcb_printf(dcb, "Removed filter %s.\n",filter);
+    }
+    else
+    {
+	dcb_printf(dcb, "Could not removed filter %s. Filter was not found.\n",filter);
+    }
+}
 
 /**
  * Print the adminsitration users

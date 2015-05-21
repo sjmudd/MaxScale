@@ -179,6 +179,7 @@ extern	int	serviceSetUser(SERVICE *, char *, char *);
 extern	int	serviceGetUser(SERVICE *, char **, char **);
 extern	void	serviceSetFilters(SERVICE *, char *);
 extern  void    serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context);
+extern  int     serviceUpdateNamedFilter(char* name, CONFIG_CONTEXT *context);
 extern	int	serviceEnableRootUser(SERVICE *, int );
 extern	int	serviceSetTimeout(SERVICE *, int );
 extern	void	serviceWeightBy(SERVICE *, char *);

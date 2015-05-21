@@ -298,6 +298,26 @@ int		rval;
 	return rval;
 }
 
+int
+config_read_config(CONFIG_CONTEXT* context)
+{
+    if (!config_file)
+	return -1;
+
+    context->object = "";
+    context->next = NULL;
+
+    if (ini_parse(config_file, handler, context) < 0)
+	return -1;
+
+    return 0;
+}
+
+void
+config_free_config(CONFIG_CONTEXT* context)
+{
+    free_config_context(context);
+}
 /**
  * Process a configuration context and turn it into the set of object
  * we need.
@@ -2270,7 +2290,7 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 		}
 	}
 	if (filters && obj->element)
-		serviceSetFilters(obj->element, filters);
+		serviceUpdateFilters(obj->element, context);
 }
 
 /*

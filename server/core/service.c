@@ -957,14 +957,16 @@ int		n = 0;
 					)));
 			n--;
 		}
-		if(filterLoad(flist[n-1]) != 0)
+		else
 		{
-		    LOGIF(LE, (skygw_log_write_flush(
-			    LOGFILE_ERROR,
-			    "Error : Failed to load filter '%s' for service '%s'. This filter will not be used.\n",
-			    trim(ptr), service->name
-			    )));
-		    n--;
+		    if(filterLoad(flist[n-1]) != 0)
+		    {
+			LOGIF(LE, (skygw_log_write_flush(
+				LOGFILE_ERROR,
+				"Error : Failed to load filter '%s' for service '%s'. This filter will not be used.\n",
+				trim(ptr), service->name)));
+			n--;
+		    }
 		}
 		flist[n] = NULL;
 		ptr = strtok_r(NULL, "|", &brkt);
@@ -975,6 +977,141 @@ int		n = 0;
 }
 
 /**
+ * Update a filter's configuration
+ *
+ * ReparseFilterConfig reads a configuration context and finds the matching section
+ * for a filter. If the filter is found, the parameters and options for the filter are updated
+ * and applied to the filter definition.
+ * @param context Configuration context
+ * @param filter Filter definition
+ * @return 0 on successful update of the configuration. If there was no configuration
+ * that matched the name of the filter, nothing is done and -1 will be returned.
+ */
+int
+ReparseFilterConfig(CONFIG_CONTEXT *context,FILTER_DEF* filter)
+{
+    CONFIG_CONTEXT * ptr;
+    CONFIG_PARAMETER* param;
+    CONFIG_PARAMETER* optparam;
+    char* options;
+    char *tok,*saveptr;
+    int x;
+
+    ptr = context;
+    while(ptr && strcmp(ptr->object,filter->name) != 0)
+    {
+	ptr = ptr->next;
+    }
+
+    if(ptr == NULL)
+    {
+
+	skygw_log_write_flush(
+		LOGFILE_ERROR,
+		"Error : Failed find filter '%s' in configuration file.\n",
+		filter->name);
+	return -1;
+    }
+
+    optparam = config_get_param(context->parameters,"options");
+
+    if(optparam)
+    {
+	options = optparam->value;
+	tok = strtok_r(options,",",&saveptr);
+
+	if(tok)
+	{
+	    for(x = 0;filter->options[x];x++)
+		free(filter->options[x]);
+
+	    if(filter->options)
+		filter->options[0] = NULL;
+
+	    while(tok)
+	    {
+		filterAddOption(filter,tok);
+		tok = strtok_r(NULL,",",&saveptr);
+	    }
+	}
+    }
+
+    for(x = 0;filter->parameters && filter->parameters[x];x++)
+    {
+	free(filter->parameters[x]->name);
+	free(filter->parameters[x]->value);
+	free(filter->parameters[x]);
+    }
+
+    if(filter->parameters)
+	filter->parameters[0] = NULL;
+    param = ptr->parameters;
+
+    while(param)
+    {
+	filterAddParameter(filter,param->name,param->value);
+	param = param->next;
+    }
+    return 0;
+}
+
+/**
+ * Update a single filter in all the services
+ * 
+ * If the filter is found in the context, update the filter's configuration parameters
+ * and options based on the context and call the filter's updateInstace function.
+ * @param name
+ * @param context
+ * @return 0 on success and -1 if the filter is not found from the context
+ */
+int
+serviceUpdateNamedFilter(char* name, CONFIG_CONTEXT *context)
+{
+    CONFIG_CONTEXT *ctx;
+    SERVICE* service;
+    int i,rval = 0;
+
+    ctx = context;
+    while(ctx && strcmp(ctx->object,name) != 0)
+    {
+	ctx = ctx->next;
+    }
+
+    if(ctx == NULL)
+	return -1;
+
+    spinlock_acquire(&service_spin);
+    service = allServices;
+    spinlock_release(&service_spin);
+
+    while(service)
+    {
+	spinlock_acquire(&service->spin);
+	for(i = 0;i < service->n_filters;i++)
+	{
+	    if(strcmp(service->filters[i]->name,name) == 0)
+	    {
+		ReparseFilterConfig(ctx,service->filters[i]);
+		if(filterUpdate(service->filters[i]) != 0)
+		{
+		    skygw_log_write_flush(
+			    LOGFILE_ERROR,
+			    "Error : Failed to update filter '%s' for service '%s'.\n",
+			    service->filters[i]->name, service->name);
+		    rval = 1;
+		}
+	    }
+	}
+	spinlock_release(&service->spin);
+
+	spinlock_acquire(&service_spin);
+	service = service->next;
+	spinlock_release(&service_spin);
+    }
+    return rval;
+}
+
+/**
  * Updates the filters used by the service
  *
  * @param service	The service itself
@@ -982,81 +1119,22 @@ int		n = 0;
 void
 serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context)
 {
-    CONFIG_CONTEXT * ptr;
-    CONFIG_PARAMETER* param;
-    CONFIG_PARAMETER* optparam;
-    char* options;
-    char *tok,*saveptr;
-    int i,x;
+    int i;
 
+    spinlock_acquire(&service->spin);
     for(i = 0;i < service->n_filters;i++)
     {
-	ptr = context;
-	while(ptr && strcmp(ptr->object,service->filters[i]->name) != 0)
-	{
-	    ptr = ptr->next;
-	}
-
-	if(ptr == NULL)
-	{
-
-	    LOGIF(LE, (skygw_log_write_flush(
-			    LOGFILE_ERROR,
-			    "Error : Failed find filter '%s' for service '%s' in configuration file.\n",
-			    service->filters[i]->name, service->name
-			    )));
-	    continue;
-	}
-
-	optparam = config_get_param(context->parameters,"options");
-
-	if(optparam)
-	{
-	    options = optparam->value;
-	    tok = strtok_r(options,",",&saveptr);
-
-	    if(tok)
-	    {
-		for(x = 0;service->filters[i]->options[x];x++)
-		    free(service->filters[i]->options[x]);
-
-		if(service->filters[i]->options)
-		    service->filters[i]->options[0] = NULL;
-
-		while(tok)
-		{
-		    filterAddOption(service->filters[i],tok);
-		    tok = strtok_r(NULL,",",&saveptr);
-		}
-	    }
-	}
-
-	for(x = 0;service->filters[i]->parameters[x];x++)
-	{
-	    free(service->filters[i]->parameters[x]->name);
-	    free(service->filters[i]->parameters[x]->value);
-	    free(service->filters[i]->parameters[x]);
-	}
-
-	if(service->filters[i]->parameters)
-	    service->filters[i]->parameters[0] = NULL;
-	param = ptr->parameters;
-
-	while(param)
-	{
-	    filterAddParameter(service->filters[i],param->name,param->value);
-	    param = param->next;
-	}
+	ReparseFilterConfig(context,service->filters[i]);
 
 	if(filterUpdate(service->filters[i]) != 0)
 	{
-	    LOGIF(LE, (skygw_log_write_flush(
-			    LOGFILE_ERROR,
-			    "Error : Failed to update filter '%s' for service '%s'.\n",
-			    service->filters[i]->name, service->name
-			    )));
+	    skygw_log_write_flush(
+		    LOGFILE_ERROR,
+		    "Error : Failed to update filter '%s' for service '%s'.\n",
+		    service->filters[i]->name, service->name);
 	}
     }
+    spinlock_release(&service->spin);
 }
 /**
  * Return a named service
