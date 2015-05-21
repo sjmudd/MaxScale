@@ -916,8 +916,6 @@ static void* newSession(ROUTER*  router_inst,SESSION* session)
 #if defined(SS_DEBUG)
 	backend_ref[i].bref_chk_top = CHK_NUM_BACKEND_REF;
 	backend_ref[i].bref_chk_tail = CHK_NUM_BACKEND_REF;
-	backend_ref[i].bref_sescmd_cur.scmd_cur_chk_top  = CHK_NUM_SESCMD_CUR;
-	backend_ref[i].bref_sescmd_cur.scmd_cur_chk_tail = CHK_NUM_SESCMD_CUR;
 #endif
 	backend_ref[i].bref_state = 0;
 	backend_ref[i].n_mapping_eof = 0;

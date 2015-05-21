@@ -583,7 +583,6 @@ getAllUsers(SERVICE *service, USERS *users)
 						sizeof(char) + 
 						MYSQL_DATABASE_MAXLEN;
 	int		dbnames = 0;
-	int		db_grants = 0;
 	
 	if (serviceGetUser(service, &service_user, &service_passwd) == 0)
 	{
@@ -884,7 +883,6 @@ getAllUsers(SERVICE *service, USERS *users)
                  * users successfully loaded with db grants.
                  */
                 skygw_log_write(LOGFILE_DEBUG,"[%s] Loading users with db grants.",service->name);
-		db_grants = 1;
             }
             
             result = mysql_store_result(con);

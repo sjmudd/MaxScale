@@ -310,7 +310,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
     return 0;
 }
 
-hashtable_memory_fns(monitorhash,strdup,NULL,free,NULL);
+hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
 	/**
 	 * Process the data and create the services and servers defined
 	 * in the data.
@@ -1313,19 +1313,19 @@ handle_global_item(const char *name, const char *value)
 int i;
 	if (strcmp(name, "threads") == 0)
 	{
-		gateway.n_threads = atoi(value);
+		gateway.n_threads = atoi((char*)value);
 	}
 	else if (strcmp(name, "non_blocking_polls") == 0)
 	{ 
-		gateway.n_nbpoll = atoi(value);
+		gateway.n_nbpoll = atoi((char*)value);
 	}
 	else if (strcmp(name, "poll_sleep") == 0)
 	{
-		gateway.pollsleep = atoi(value);
+		gateway.pollsleep = atoi((char*)value);
         }
 	else if (strcmp(name, "ms_timestamp") == 0)
 	{
-		skygw_set_highp(config_truth_value(value));
+		skygw_set_highp(config_truth_value((char*)value));
 	}
 	else
 	{
@@ -1333,7 +1333,7 @@ int i;
 		{
 			if (strcasecmp(name, lognames[i].logname) == 0)
 			{
-				if (config_truth_value(value))
+				if (config_truth_value((char*)value))
 					skygw_log_enable(lognames[i].logfile);
 				else
 					skygw_log_disable(lognames[i].logfile);
@@ -1631,9 +1631,6 @@ SERVER			*server;
 					char *enable_root_user;
 					char *connection_timeout;
 					char *allow_localhost_match_wildcard_host;
-					char *auth_all_servers;
-					char *optimize_wildcard;
-					char *strip_db_esc;
 
 					enable_root_user = 
                                                 config_get_value(obj->parameters, 
@@ -1641,16 +1638,6 @@ SERVER			*server;
 
 					connection_timeout = config_get_value(obj->parameters,
                                                           "connection_timeout");
-					
-					auth_all_servers = 
-                                                config_get_value(obj->parameters, 
-                                                                 "auth_all_servers");
-					optimize_wildcard =
-                                                config_get_value(obj->parameters,
-                                                                 "optimize_wildcard");
-					strip_db_esc = 
-                                                config_get_value(obj->parameters, 
-                                                                 "strip_db_esc");
 
 					allow_localhost_match_wildcard_host = 
 						config_get_value(obj->parameters, "localhost_match_wildcard_host");
