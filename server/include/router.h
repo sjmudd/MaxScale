@@ -73,6 +73,7 @@ typedef enum error_action {
  */
 typedef struct router_object {
 	ROUTER	*(*createInstance)(SERVICE *service, char **options);
+        int     (*updateInstance)(ROUTER *instance, SERVICE *service, char **options);
 	void	*(*newSession)(ROUTER *instance, SESSION *session);
 	void 	(*closeSession)(ROUTER *instance, void *router_session);
         void 	(*freeSession)(ROUTER *instance, void *router_session);
@@ -94,7 +95,7 @@ typedef struct router_object {
  * must update these versions numbers in accordance with the rules in
  * modinfo.h.
  */
-#define	ROUTER_VERSION	{ 1, 0, 0 }
+#define	ROUTER_VERSION	{ 1, 1, 0 }
 
 /**
  * Router capability type. Indicates what kind of input router accepts.

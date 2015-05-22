@@ -91,6 +91,7 @@ static  uint8_t getCapabilities (ROUTER* inst, void* router_session);
 /** The module object definition */
 static ROUTER_OBJECT MyObject = {
     createInstance,
+    NULL,
     newSession,
     closeSession,
     freeSession,

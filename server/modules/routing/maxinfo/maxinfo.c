@@ -98,6 +98,7 @@ static  void             handleError(
 /** The module object definition */
 static ROUTER_OBJECT MyObject = {
     createInstance,
+    NULL,
     newSession,
     closeSession,
     freeSession,

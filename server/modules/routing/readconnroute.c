@@ -107,6 +107,7 @@ static char *version_str = "V1.1.0";
 
 /* The router entry points */
 static	ROUTER	*createInstance(SERVICE *service, char **options);
+static	int	 updateInstance(ROUTER *instance, SERVICE *service, char **options);
 static	void	*newSession(ROUTER *instance, SESSION *session);
 static	void 	closeSession(ROUTER *instance, void *router_session);
 static	void 	freeSession(ROUTER *instance, void *router_session);
@@ -130,6 +131,7 @@ static  uint8_t getCapabilities (ROUTER* inst, void* router_session);
 /** The module object definition */
 static ROUTER_OBJECT MyObject = {
     createInstance,
+    updateInstance,
     newSession,
     closeSession,
     freeSession,
@@ -190,6 +192,58 @@ ROUTER_OBJECT *
 GetModuleObject()
 {
 	return &MyObject;
+}
+
+/**
+ * Process router options
+ * @param Router instance
+ * @param Router options
+ */
+void process_options(ROUTER_INSTANCE* inst, char** options)
+{
+    int i;
+
+    if(options == NULL)
+	return;
+
+    for (i = 0; options[i]; i++)
+    {
+	if (!strcasecmp(options[i], "master"))
+	{
+	    inst->bitmask |= (SERVER_MASTER|SERVER_SLAVE);
+	    inst->bitvalue |= SERVER_MASTER;
+	}
+	else if (!strcasecmp(options[i], "slave"))
+	{
+	    inst->bitmask |= (SERVER_MASTER|SERVER_SLAVE);
+	    inst->bitvalue |= SERVER_SLAVE;
+	}
+	else if (!strcasecmp(options[i], "running"))
+	{
+	    inst->bitmask |= (SERVER_RUNNING);
+	    inst->bitvalue |= SERVER_RUNNING;
+	}
+	else if (!strcasecmp(options[i], "synced"))
+	{
+	    inst->bitmask |= (SERVER_JOINED);
+	    inst->bitvalue |= SERVER_JOINED;
+	}
+	else if (!strcasecmp(options[i], "ndb"))
+	{
+	    inst->bitmask |= (SERVER_NDB);
+	    inst->bitvalue |= SERVER_NDB;
+	}
+	else
+	{
+	    LOGIF(LM, (skygw_log_write(
+		    LOGFILE_MESSAGE,
+				     "* Warning : Unsupported router "
+		    "option \'%s\' for readconnroute. "
+		    "Expected router options are "
+		    "[slave|master|synced|ndb]",
+				     options[i])));
+	}
+    }
 }
 
 /**
@@ -297,48 +351,15 @@ char		*weightby;
 	/*
 	 * Process the options
 	 */
+
+
+
 	inst->bitmask = 0;
 	inst->bitvalue = 0;
 	if (options)
 	{
-		for (i = 0; options[i]; i++)
-		{
-			if (!strcasecmp(options[i], "master"))
-			{
-				inst->bitmask |= (SERVER_MASTER|SERVER_SLAVE);
-				inst->bitvalue |= SERVER_MASTER;
-			}
-			else if (!strcasecmp(options[i], "slave"))
-			{
-				inst->bitmask |= (SERVER_MASTER|SERVER_SLAVE);
-				inst->bitvalue |= SERVER_SLAVE;
-			}
-			else if (!strcasecmp(options[i], "running"))
-			{
-				inst->bitmask |= (SERVER_RUNNING);
-				inst->bitvalue |= SERVER_RUNNING;
-			}
-			else if (!strcasecmp(options[i], "synced"))
-			{
-				inst->bitmask |= (SERVER_JOINED);
-				inst->bitvalue |= SERVER_JOINED;
-			}
-			else if (!strcasecmp(options[i], "ndb"))
-			{
-				inst->bitmask |= (SERVER_NDB);
-				inst->bitvalue |= SERVER_NDB;
-			}
-			else
-			{
-                            LOGIF(LM, (skygw_log_write(
-                                          LOGFILE_MESSAGE,
-                                           "* Warning : Unsupported router "
-                                           "option \'%s\' for readconnroute. "
-                                           "Expected router options are "
-                                           "[slave|master|synced|ndb]",
-                                               options[i])));
-			}
-		}
+	    	process_options(inst,options);
+		
 	}
 	if(inst->bitmask == 0 && inst->bitvalue == 0)
 	{
@@ -357,6 +378,33 @@ char		*weightby;
 	spinlock_release(&instlock);
 
 	return (ROUTER *)inst;
+}
+
+/**
+ * 
+ * @param instance
+ * @param service
+ * @param options
+ * @return 
+ */
+static	int
+updateInstance(ROUTER *instance, SERVICE *service, char **options)
+{
+    ROUTER_INSTANCE * inst = (ROUTER_INSTANCE*)instance;
+
+    inst->bitmask = 0;
+    inst->bitvalue = 0;
+    if (options)
+    {
+	process_options(inst,options);
+
+    }
+    if(inst->bitmask == 0 && inst->bitvalue == 0)
+    {
+	/** No parameters given, use RUNNING as a valid server */
+	inst->bitmask |= (SERVER_RUNNING);
+	inst->bitvalue |= SERVER_RUNNING;
+    }
 }
 
 /**

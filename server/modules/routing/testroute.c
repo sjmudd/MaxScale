@@ -46,6 +46,7 @@ static void handleError(
 
 static ROUTER_OBJECT MyObject = {
     createInstance,
+    NULL,
     newSession,
     closeSession,
     freeSession,

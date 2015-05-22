@@ -63,6 +63,7 @@ extern __thread log_info_t tls_log_info;
 static char *version_str = "V1.0.0";
 
 static	ROUTER* createInstance(SERVICE *service, char **options);
+static	int     updateInstance(ROUTER *instance,SERVICE *service, char **options);
 static	void*   newSession(ROUTER *instance, SESSION *session);
 static	void    closeSession(ROUTER *instance, void *session);
 static	void    freeSession(ROUTER *instance, void *session);
@@ -107,6 +108,7 @@ static bool get_shard_dcb(
 
 static ROUTER_OBJECT MyObject = {
         createInstance,
+	updateInstance,
         newSession,
         closeSession,
         freeSession,
@@ -690,6 +692,53 @@ ROUTER_OBJECT* GetModuleObject()
 }
 
 /**
+ * Parse the router options.
+ * @param router Router instance
+ * @param options Router options
+ * @return true if successful and false if parsing failed or unexpected values were encountered.
+ */
+bool parse_router_options(ROUTER_INSTANCE* router,char** options)
+{
+    int i;
+    bool failure = false;
+
+    for(i=0;options && options[i];i++)
+    {
+	char* value;
+	if((value = strchr(options[i],'=')) == NULL)
+	{
+	    skygw_log_write(LOGFILE_ERROR,"Error: Unknown router options for Schemarouter: %s",options[i]);
+	    failure = true;
+	    break;
+	}
+	*value = '\0';
+	value++;
+	if(strcmp(options[i],"max_sescmd_history") == 0)
+	{
+	    router->schemarouter_config.max_sescmd_hist = atoi(value);
+	}
+	else if(strcmp(options[i],"disable_sescmd_history") == 0)
+	{
+	    router->schemarouter_config.disable_sescmd_hist = config_truth_value(value);
+	}
+	else
+	{
+	    skygw_log_write(LOGFILE_ERROR,"Error: Unknown router options for Schemarouter: %s",options[i]);
+	    failure = true;
+	    break;
+	}
+    }
+
+    /** Setting a limit to the history size is not needed if it is disabled.*/
+    if(router->schemarouter_config.disable_sescmd_hist && router->schemarouter_config.max_sescmd_hist > 0)
+    {
+	router->schemarouter_config.max_sescmd_hist = 0;
+    }
+
+    return failure;
+}
+
+/**
  * Create an instance of schemarouter router within the MaxScale.
  *
  * 
@@ -732,38 +781,9 @@ createInstance(SERVICE *service, char **options)
 	    service->users_from_all = true;
 	}
 
-	bool failure = false;
+	bool failure;
 
-	for(i=0;options && options[i];i++)
-	{
-	    char* value;
-	    if((value = strchr(options[i],'=')) == NULL)
-	    {
-		skygw_log_write(LOGFILE_ERROR,"Error: Unknown router options for Schemarouter: %s",options[i]);
-		failure = true;
-		break;
-	    }
-	    *value = '\0';
-	    value++;
-	    if(strcmp(options[i],"max_sescmd_history") == 0)
-	    {
-		router->schemarouter_config.max_sescmd_hist = atoi(value);
-	    }
-	    else if(strcmp(options[i],"disable_sescmd_history") == 0)
-	    {
-		router->schemarouter_config.disable_sescmd_hist = config_truth_value(value);
-	    }
-	    else
-	    {
-		skygw_log_write(LOGFILE_ERROR,"Error: Unknown router options for Schemarouter: %s",options[i]);
-		failure = true;
-		break;
-	    }
-	}
-
-	/** Setting a limit to the history size is not needed if it is disabled.*/
-	if(router->schemarouter_config.disable_sescmd_hist && router->schemarouter_config.max_sescmd_hist > 0)
-	    router->schemarouter_config.max_sescmd_hist = 0;
+	failure = parse_router_options(router,options);
 
 	if(failure)
 	{
@@ -819,10 +839,6 @@ createInstance(SERVICE *service, char **options)
                 server = server->next;
         }
         router->servers[nservers] = NULL;
-   
-	/**
-	 * Process the options
-	 */
 	router->bitmask = 0;
 	router->bitvalue = 0;
 
@@ -858,6 +874,30 @@ retblock:
 	return (ROUTER *)router;
 }
 
+/**
+ * Update a Schemarouter instance. This reads all options and parameters and
+ * @param instance
+ * @param service
+ * @param options
+ * @return
+ */
+static	int
+updateInstance(ROUTER *instance,SERVICE *service, char **options)
+{
+    ROUTER_INSTANCE* router = (ROUTER_INSTANCE*)instance;
+    int rval = 0;
+
+    if(options)
+    {
+	if(!parse_router_options(router,options))
+	{
+	    rval = -1;
+	}
+    }
+
+    return rval;
+
+}
 /**
  * Associate a new session with this instance of the router.
  *

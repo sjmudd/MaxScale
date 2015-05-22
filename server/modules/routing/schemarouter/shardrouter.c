@@ -127,6 +127,7 @@ bool get_shard_subsvc(SUBSERVICE** subsvc,ROUTER_CLIENT_SES* session,char* targe
 
 static ROUTER_OBJECT MyObject = {
     createInstance,
+    NULL,
     newSession,
     closeSession,
     freeSession,

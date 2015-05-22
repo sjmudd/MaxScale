@@ -1136,6 +1136,28 @@ serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context)
     }
     spinlock_release(&service->spin);
 }
+
+/**
+ * Update the service router module.
+ * @param service Service to update
+ * @param context Configuration context
+ */
+void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
+{
+    if(service->router->updateInstance)
+    {
+	if(service->router->updateInstance(
+	            service->router_instance,
+		    service,
+		    service->routerOptions) != 0)
+	{
+	    skygw_log_write(LOGFILE_ERROR,
+		     "Error: Router configuration update failed for service '%s'.",
+		     service->name);
+	}
+    }
+}
+
 /**
  * Return a named service
  *
