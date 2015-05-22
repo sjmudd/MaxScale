@@ -867,6 +867,7 @@ static void* newSession(ROUTER*  router_inst,SESSION* session)
     if(using_db)
     {
         client_rses->init |= INIT_USE_DB;
+	strcpy(client_rses->current_db,db);
     }
 
     if((client_rses->rses_sescmd_list = sescmdlist_allocate()) == NULL)
@@ -1156,6 +1157,8 @@ static void freeSession(
          * to the client session.
          */
         hashtable_free(router_cli_ses->dbhash);
+	sescmdlist_free(router_cli_ses->rses_sescmd_list);
+	tmptable_free(router_cli_ses->rses_tmptable);
         free(router_cli_ses->rses_backend_ref);
 	free(router_cli_ses);
         return;
@@ -2868,7 +2871,7 @@ ROUTER_CLIENT_SES* router_cli_ses,
 	    if(BREF_IS_IN_USE(bref))
 	    {
 		cursor = dcb_get_sescmdcursor(bref->bref_dcb);
-		current = cursor->current_cmd->id;
+		current = cursor->current_cmd ? cursor->current_cmd->id:0;
 		if(current < maxpos)
 		{
 		    maxpos = current;
