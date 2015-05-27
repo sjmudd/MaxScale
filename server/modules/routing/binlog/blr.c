@@ -222,7 +222,7 @@ unsigned char	*defuuid;
 	 * which of these servers is currently the master and replicate from
 	 * that server.
 	 */
-	if (service->dbref == NULL || service->dbref->next != NULL)
+	if (service->servers == NULL || service->servers->next != NULL)
 	{
 		LOGIF(LE, (skygw_log_write(
 			LOGFILE_ERROR,
@@ -594,7 +594,7 @@ ROUTER_SLAVE	 *slave = (ROUTER_SLAVE *)router_session;
         	LOGIF(LE, (skygw_log_write_flush(
 			LOGFILE_ERROR,
 			"Binlog router close session with master server %s",
-			router->service->dbref->server->unique_name)));
+			router->service->servers->server->unique_name)));
 		blr_master_reconnect(router);
 		return;
 	}

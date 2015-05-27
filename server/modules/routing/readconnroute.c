@@ -277,7 +277,7 @@ char		*weightby;
 	 * that we can maintain a count of the number of connections to each
 	 * backend server.
 	 */
-	for (sref = service->dbref, n = 0; sref; sref = sref->next)
+	for (sref = service->servers, n = 0; sref; sref = sref->next)
 		n++;
 
 	inst->servers = (BACKEND **)calloc(n + 1, sizeof(BACKEND *));
@@ -287,7 +287,7 @@ char		*weightby;
 		return NULL;
 	}
 
-	for (sref = service->dbref, n = 0; sref; sref = sref->next)
+	for (sref = service->servers, n = 0; sref; sref = sref->next)
 	{
 		if ((inst->servers[n] = malloc(sizeof(BACKEND))) == NULL)
 		{

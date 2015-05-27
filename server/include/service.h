@@ -125,7 +125,7 @@ typedef struct service {
 	void		*router_instance;
 					/**< The router instance for this service */
 	char            *version_string;/** version string for this service listeners */
-        SERVER_REF      *dbref;         /** server references */
+        SERVER_REF      *servers;         /** server references */
 	SERVICE_USER	credentials;	/**< The cedentials of the service user */	
 	SPINLOCK	spin;		/**< The service spinlock */
 	SERVICE_STATS	stats;		/**< The service statistics */
@@ -168,6 +168,7 @@ extern	int	serviceAddProtocol(SERVICE *, char *, char *, unsigned short);
 extern	int	serviceHasProtocol(SERVICE *, char *, unsigned short);
 extern	void	serviceAddBackend(SERVICE *, SERVER *);
 extern	int	serviceHasBackend(SERVICE *, SERVER *);
+extern  void    serviceClearBackends(SERVICE *service);
 extern	void	serviceAddRouterOption(SERVICE *, char *);
 extern	void	serviceClearRouterOptions(SERVICE *);
 extern	int	serviceStart(SERVICE *);

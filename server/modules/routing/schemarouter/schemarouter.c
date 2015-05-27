@@ -770,7 +770,7 @@ createInstance(SERVICE *service, char **options)
         spinlock_init(&router->lock);
         
         /** Calculate number of servers */
-        server = service->dbref;
+        server = service->servers;
         nservers = 0;
 
 	conf = service->svc_config_param;
@@ -808,7 +808,7 @@ createInstance(SERVICE *service, char **options)
          * maintain a count of the number of connections to each
          * backend server.
          */
-        server = service->dbref;
+        server = service->servers;
         nservers= 0;
         
         while (server != NULL) {

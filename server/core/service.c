@@ -585,9 +585,9 @@ SERVER_REF *srv;
 
 	/* Clean up session and free the memory */
         
-        while(service->dbref){
-            srv = service->dbref;
-            service->dbref = service->dbref->next;
+        while(service->servers){
+            srv = service->servers;
+            service->servers = service->servers->next;
             free(srv);
         }
         
@@ -660,6 +660,28 @@ SERV_PROTOCOL	*proto;
 }
 
 /**
+ * Remove all servers from a service. This should be called before each configuration
+ * reload. The servers will be added with serviceAddBackend again
+ * @param service Service to clear
+ */
+void
+serviceClearBackends(SERVICE *service)
+{
+    SERVER_REF *sref,*tmp;
+
+    sref = service->servers;
+
+    while(sref)
+    {
+	tmp = sref;
+	sref = sref->next;
+	free(tmp);
+    }
+
+    service->servers = NULL;
+}
+
+/**
  * Add a backend database server to a service
  *
  * @param service	The service to add the server to
@@ -672,9 +694,9 @@ serviceAddBackend(SERVICE *service, SERVER *server)
         SERVER_REF *sref;
         if((sref = calloc(1,sizeof(SERVER_REF))) != NULL)
         {
-            sref->next = service->dbref;
+            sref->next = service->servers;
             sref->server = server;
-            service->dbref = sref;
+            service->servers = sref;
         }
 	spinlock_release(&service->spin);
 }
@@ -692,7 +714,7 @@ serviceHasBackend(SERVICE *service, SERVER *server)
 SERVER_REF	*ptr;
 
 	spinlock_acquire(&service->spin);
-	ptr = service->dbref;
+	ptr = service->servers;
 	while (ptr && ptr->server != server)
 		ptr = ptr->next;
 	spinlock_release(&service->spin);
@@ -1182,7 +1204,7 @@ SERVICE 	*service;
 void
 printService(SERVICE *service)
 {
-SERVER_REF		*ptr = service->dbref;
+SERVER_REF		*ptr = service->servers;
 struct tm	result;
 char		time_buf[30];
 int		i;
@@ -1263,7 +1285,7 @@ SERVICE	*ptr;
  */
 void dprintService(DCB *dcb, SERVICE *service)
 {
-SERVER_REF		*server = service->dbref;
+SERVER_REF		*server = service->servers;
 struct tm	result;
 char		timebuf[30];
 int		i;

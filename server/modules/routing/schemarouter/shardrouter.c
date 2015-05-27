@@ -514,7 +514,7 @@ get_shard_target_name(ROUTER_INSTANCE* router, ROUTER_CLIENT_SES* client, GWBUF*
         for(i = 0; i < client->n_subservice; i++)
         {
 
-            SERVER_REF *srvrf = client->subservice[i]->service->dbref;
+            SERVER_REF *srvrf = client->subservice[i]->service->servers;
             while(srvrf)
             {
                 if(strcmp(srvrf->server->unique_name,buffer->hint->data) == 0)

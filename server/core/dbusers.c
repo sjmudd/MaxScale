@@ -605,7 +605,7 @@ getAllUsers(SERVICE *service, USERS *users)
          * out of databases
 	 * to try
 	 */
-	server = service->dbref;
+	server = service->servers;
 	
         if(server == NULL)
         {
@@ -684,7 +684,7 @@ getAllUsers(SERVICE *service, USERS *users)
 	    server = server->next;
 	 }
 
-	server = service->dbref;
+	server = service->servers;
 
         while(server != NULL)
         {
@@ -1167,7 +1167,7 @@ getUsers(SERVICE *service, USERS *users)
          * out of databases
 	 * to try
 	 */
-	server = service->dbref;
+	server = service->servers;
 	dpwd = decryptPassword(service_passwd);
 
 	/* Select a server with Master bit, if available */
@@ -1200,7 +1200,7 @@ getUsers(SERVICE *service, USERS *users)
 			service->name)));
 	} else {
 		/* load data from other servers via loop */
-		server = service->dbref;
+		server = service->servers;
 
 		while (!service->svc_do_shutdown &&
 			server != NULL && 

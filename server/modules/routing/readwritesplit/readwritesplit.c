@@ -45,10 +45,6 @@ MODULE_INFO 	info = {
 #  include <mysql_client_server_protocol.h>
 #endif
 
-/** Defined in log_manager.cc */
-extern int            lm_enabled_logfiles_bitmask;
-extern size_t         log_ses_count[];
-extern __thread log_info_t tls_log_info;
 /**
  * @file readwritesplit.c	The entry points for the read/write query splitting
  * router module.
@@ -282,6 +278,8 @@ static void refreshInstance(
         ROUTER_INSTANCE*  router,
         CONFIG_PARAMETER* param);
 
+int calculate_weights(ROUTER_INSTANCE* router, SERVICE* service);
+int allocate_backends(ROUTER_INSTANCE *router,SERVICE *service);
 static void bref_clear_state(backend_ref_t* bref, bref_state_t state);
 static void bref_set_state(backend_ref_t*   bref, bref_state_t state);
 static sescmd_cursor_t* backend_ref_get_sescmd_cursor (backend_ref_t* bref);
@@ -527,56 +525,14 @@ createInstance(SERVICE *service, char **options)
                 return NULL;
         }
         router->service = service;
+	router->servers = NULL;
         spinlock_init(&router->lock);
 
-        /** Calculate number of servers */
-        sref = service->dbref;
-        nservers = 0;
-
-        while (sref != NULL)
-        {
-                nservers++;
-                sref=sref->next;
-        }
-        router->servers = (BACKEND **)calloc(nservers + 1, sizeof(BACKEND *));
-
-        if (router->servers == NULL)
-        {
-                free(router);
-                return NULL;
-        }
-        /**
-         * Create an array of the backend servers in the router structure to
-         * maintain a count of the number of connections to each
-         * backend server.
-         */
-
-        sref = service->dbref;
-        nservers= 0;
-
-        while (sref != NULL) {
-                if ((router->servers[nservers] = malloc(sizeof(BACKEND))) == NULL)
-                {
-                        /** clean up */
-                        for (i = 0; i < nservers; i++) {
-                                free(router->servers[i]);
-                        }
-                        free(router->servers);
-                        free(router);
-                        return NULL;
-                }
-                router->servers[nservers]->backend_server = sref->server;
-                router->servers[nservers]->backend_conn_count = 0;
-                router->servers[nservers]->be_valid = false;
-                router->servers[nservers]->weight = 1000;
-#if defined(SS_DEBUG)
-                router->servers[nservers]->be_chk_top = CHK_NUM_BACKEND;
-                router->servers[nservers]->be_chk_tail = CHK_NUM_BACKEND;
-#endif
-                nservers += 1;
-                sref = sref->next;
-        }
-        router->servers[nservers] = NULL;
+	if(allocate_backends(router,service) != 0)
+	{
+	    free(router);
+	    return NULL;
+	}
 
 	/*
 	 * Until we know otherwise assume we have some available slaves.
@@ -589,56 +545,8 @@ createInstance(SERVICE *service, char **options)
 	 * calculating the least connections, either globally or within a
 	 * service, or the number of current operations on a server.
 	 */
-	if ((weightby = serviceGetWeightingParameter(service)) != NULL)
-	{
-		int 	n, total = 0;
-		BACKEND	*backend;
 
-		for (n = 0; router->servers[n]; n++)
-		{
-			backend = router->servers[n];
-			total += atoi(serverGetParameter(
-					backend->backend_server, weightby));
-		}
-		if (total == 0)
-		{
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
-				"WARNING: Weighting Parameter for service '%s' "
-				"will be ignored as no servers have values "
-				"for the parameter '%s'.\n",
-				service->name, weightby)));
-		}
-		else
-		{
-			for (n = 0; router->servers[n]; n++)
-			{
-				int perc;
-				int wght;
-				backend = router->servers[n];
-				wght = atoi(serverGetParameter(backend->backend_server,
-							       weightby));
-				perc = (wght*1000) / total;
-
-				if (perc == 0 && wght != 0)
-				{
-					perc = 1;
-				}
-				backend->weight = perc;
-
-				if (perc == 0)
-				{
-					LOGIF(LE, (skygw_log_write(
-						LOGFILE_ERROR,
-						"Server '%s' has no value "
-						"for weighting parameter '%s', "
-						"no queries will be routed to "
-						"this server.\n",
-						router->servers[n]->backend_server->unique_name,
-						weightby)));
-				}
-			}
-		}
-	}
+	calculate_weights(router, service);
 
         /**
          * vraa : is this necessary for readwritesplit ?
@@ -718,24 +626,39 @@ createInstance(SERVICE *service, char **options)
         return (ROUTER *)router;
 }
 
+
+
 /**
- *
- * @param instance
- * @param service
- * @param options
- * @return
+ * Update the router instance. This updates the router options, other parameters
+ * and adds and removes servers from the router.
+ * @param instance Router instance
+ * @param service Service who owns the router
+ * @param options Router options
+ * @return 0 on success, -1 on error.
  */
 static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
 {
-            ROUTER_INSTANCE* router = (ROUTER_INSTANCE*)instance;
+    ROUTER_INSTANCE* router = (ROUTER_INSTANCE*)instance;
+    SERVER_REF* sref;
+    BACKEND** bref;
+    int i, nserv = 0, rval = 0;
 
-	    if(options)
-	    {
-		rwsplit_process_router_options(router,options);
-	    }
-	    refreshInstance(router,NULL);
+    spinlock_acquire(&router->lock);
+    if(options)
+    {
+	rwsplit_process_router_options(router,options);
+    }
+    refreshInstance(router,NULL);
 
-	    return 0;
+    /** Reallocate the backend reference structures*/
+    if(allocate_backends(router,service) != 0 ||
+       calculate_weights(router,service) != 0)
+    {
+	rval = -1;
+    }
+    spinlock_release(&router->lock);
+
+    return rval;
 }
 
 /**
