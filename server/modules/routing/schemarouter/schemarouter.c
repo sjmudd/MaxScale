@@ -207,7 +207,7 @@ static void handle_error_reply_client(
 
 static SPINLOCK	        instlock;
 static ROUTER_INSTANCE* instances;
-
+int alloc_backends(ROUTER_INSTANCE* router, SERVICE* service);
 static int hashkeyfun(void* key);
 static int hashcmpfun (void *, void *);
 
@@ -790,55 +790,12 @@ createInstance(SERVICE *service, char **options)
 	    free(router);
 	    return NULL;
 	}
+	if(alloc_backends(router,service) != 0)
+	{
+	    free(router);
+	    return NULL;
+	}
 
-        while (server != NULL)
-        {
-                nservers++;
-                server=server->next;
-        }
-        router->servers = (BACKEND **)calloc(nservers + 1, sizeof(BACKEND *));
-        
-        if (router->servers == NULL)
-        {
-                free(router);
-                return NULL;
-        }
-        /**
-         * Create an array of the backend servers in the router structure to
-         * maintain a count of the number of connections to each
-         * backend server.
-         */
-        server = service->servers;
-        nservers= 0;
-        
-        while (server != NULL) {
-                if ((router->servers[nservers] = malloc(sizeof(BACKEND))) == NULL)
-                {
-			goto clean_up;
-                }
-                router->servers[nservers]->backend_server = server->server;
-                router->servers[nservers]->backend_conn_count = 0;
-                router->servers[nservers]->weight = 1;
-                router->servers[nservers]->be_valid = false;
-		router->servers[nservers]->stats.queries = 0;
-		if(server->server->monuser == NULL && service->credentials.name != NULL)
-		{
-			router->servers[nservers]->backend_server->monuser = 
-				strdup(service->credentials.name);
-		}
-		if(server->server->monpw == NULL && service->credentials.authdata != NULL)
-		{
-			router->servers[nservers]->backend_server->monpw = 
-				strdup(service->credentials.authdata);
-		}
-#if defined(SS_DEBUG)
-                router->servers[nservers]->be_chk_top = CHK_NUM_BACKEND;
-                router->servers[nservers]->be_chk_tail = CHK_NUM_BACKEND;
-#endif
-                nservers += 1;
-                server = server->next;
-        }
-        router->servers[nservers] = NULL;
 	router->bitmask = 0;
 	router->bitvalue = 0;
 
@@ -895,6 +852,8 @@ updateInstance(ROUTER *instance,SERVICE *service, char **options)
 	}
     }
 
+    if(alloc_backends(router,service) != 0)
+	rval = -1;
     return rval;
 
 }
@@ -4404,4 +4363,67 @@ static sescmd_cursor_t* backend_ref_get_sescmd_cursor (
         return scur;
 }
 
+int alloc_backends(ROUTER_INSTANCE* router, SERVICE* service)
+{
+    int i,nservers = 0;
+    SERVER_REF* server = service->servers;
 
+    if(router->servers)
+    {
+	for(i = 0;router->servers[i];i++)
+	{
+	    free(router->servers[i]);
+	}
+	free(router->servers);
+	router->servers = NULL;
+    }
+
+    while (server != NULL)
+    {
+	nservers++;
+	server=server->next;
+    }
+    router->servers = (BACKEND **)calloc(nservers + 1, sizeof(BACKEND *));
+
+    if (router->servers == NULL)
+    {
+	return -1;
+    }
+    /**
+     * Create an array of the backend servers in the router structure to
+     * maintain a count of the number of connections to each
+     * backend server.
+     */
+    server = service->servers;
+    nservers= 0;
+
+    while (server != NULL) {
+	if ((router->servers[nservers] = malloc(sizeof(BACKEND))) == NULL)
+	{
+	    return -1;
+	}
+	router->servers[nservers]->backend_server = server->server;
+	router->servers[nservers]->backend_conn_count = 0;
+	router->servers[nservers]->weight = 1;
+	router->servers[nservers]->be_valid = false;
+	router->servers[nservers]->stats.queries = 0;
+	if(server->server->monuser == NULL && service->credentials.name != NULL)
+	{
+	    router->servers[nservers]->backend_server->monuser =
+		    strdup(service->credentials.name);
+	}
+	if(server->server->monpw == NULL && service->credentials.authdata != NULL)
+	{
+	    router->servers[nservers]->backend_server->monpw =
+		    strdup(service->credentials.authdata);
+	}
+#if defined(SS_DEBUG)
+	router->servers[nservers]->be_chk_top = CHK_NUM_BACKEND;
+	router->servers[nservers]->be_chk_tail = CHK_NUM_BACKEND;
+#endif
+	nservers += 1;
+	server = server->next;
+    }
+    router->servers[nservers] = NULL;
+    return 0;
+}
