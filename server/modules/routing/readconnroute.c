@@ -89,7 +89,7 @@
 
 #include <mysql_client_server_protocol.h>
 
-#include "modutil.h"
+#include <modutil.h>
 
 /** Defined in log_manager.cc */
 extern int            lm_enabled_logfiles_bitmask;
@@ -391,6 +391,87 @@ static	int
 updateInstance(ROUTER *instance, SERVICE *service, char **options)
 {
     ROUTER_INSTANCE * inst = (ROUTER_INSTANCE*)instance;
+    int n,i;
+    char* weightby;
+    SERVER_REF* sref;
+    BACKEND* backend;
+
+
+    for (i = 0; inst->servers[i]; i++)
+    {
+	free(inst->servers[i]);
+    }
+    free(inst->servers);
+
+    for (sref = service->servers, n = 0; sref; sref = sref->next)
+	n++;
+
+    inst->servers = (BACKEND **)calloc(n + 1, sizeof(BACKEND *));
+    if (!inst->servers)
+    {
+	free(inst);
+	return -1;
+    }
+
+    for (sref = service->servers, n = 0; sref; sref = sref->next)
+    {
+	if ((inst->servers[n] = malloc(sizeof(BACKEND))) == NULL)
+	{
+	    for (i = 0; i < n; i++)
+		free(inst->servers[i]);
+	    inst->servers[0] = NULL;
+	    return -1;
+	}
+	inst->servers[n]->server = sref->server;
+	inst->servers[n]->current_connection_count = 0;
+	inst->servers[n]->weight = 1000;
+	n++;
+    }
+    inst->servers[n] = NULL;
+
+    if ((weightby = serviceGetWeightingParameter(service)) != NULL)
+    {
+	int total = 0;
+	for (n = 0; inst->servers[n]; n++)
+	{
+	    backend = inst->servers[n];
+	    total += atoi(serverGetParameter(backend->server,
+					     weightby));
+	}
+	if (total == 0)
+	{
+	    LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+				     "WARNING: Weighting Parameter for service '%s' "
+		    "will be ignored as no servers have values "
+		    "for the parameter '%s'.\n",
+				     service->name, weightby)));
+	}
+	else
+	{
+	    for (n = 0; inst->servers[n]; n++)
+	    {
+		int perc, wght;
+		backend = inst->servers[n];
+		perc = ((wght = atoi(serverGetParameter(backend->server,
+						 weightby))) * 1000) / total;
+		if (perc == 0 && wght != 0)
+		    perc = 1;
+		backend->weight = perc;
+		if (perc == 0)
+		{
+		    LOGIF(LE, (skygw_log_write(
+			LOGFILE_ERROR,
+			 "Server '%s' has no value "
+			"for weighting parameter '%s', "
+			"no queries will be routed to "
+			"this server.\n",
+			inst->servers[n]->server->unique_name,
+			weightby)));
+		}
+
+	    }
+	}
+    }
 
     inst->bitmask = 0;
     inst->bitvalue = 0;
