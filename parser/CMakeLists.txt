@@ -1,0 +1,16 @@
+if(FLEX_FOUND)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+  add_custom_target(tokenizer echo "Generating parser")
+  add_custom_command(TARGET tokenizer PRE_BUILD 
+    COMMAND ${FLEX_EXECUTABLE} -o ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/tokenizer.l)
+  set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c GENERATE)
+  add_library(parser SHARED parser.c ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.c)
+  add_dependencies(parser tokenizer)
+  install(TARGETS parser COMPONENT lib DESTINATION ${MAXSCALE_LIBDIR})
+  if(BUILD_TESTS)
+    add_subdirectory(test)
+  endif()
+else()
+  message(FATAL_ERROR "Flex was not found.")
+endif()
