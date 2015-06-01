@@ -2,6 +2,8 @@
 #include <parser.h>
 struct parser_token_t* create_token(int type, char* val);
 struct parser_token_t* alloc_token();
+void begin_substring(struct parser_token_t** tok);
+void end_substring(struct parser_token_t** tok);
 void free_token(struct parser_token_t*);
 void free_all_tokens(struct parser_token_t*);
 void link_tokens(struct parser_token_t** a, struct parser_token_t* b);
@@ -15,15 +17,25 @@ alnum 		[a-zA-Z0-9]
 sq_str 		['][^']+[']
 dq_str 		["][^"]+["]
 float		{num}+[.]{num}+
-posix	[a-zA-Z0-9._-]
+posix	    [a-zA-Z0-9._-]
 keyvalue	{posix}+={posix}+
-
+beginparen  [(]
+endparen    [)]
 %%
+
+{beginparen}    {
+                begin_substring(yyextra);
+                }
+
+{endparen}      {
+                end_substring(yyextra);
+                }
 
 {dq_str}	{
             struct parser_token_t* tok = create_token(PARSER_QUOTED_STRING,yytext);
             link_tokens(yyextra,tok);
             }
+
 {sq_str}	{
             struct parser_token_t* tok = create_token(PARSER_QUOTED_STRING,yytext);
             link_tokens(yyextra,tok);
@@ -33,19 +45,23 @@ keyvalue	{posix}+={posix}+
             struct parser_token_t* tok = create_token(PARSER_ABS_PATH,yytext);
             link_tokens(yyextra,tok);
             }
+
 {keyvalue}	{
             struct parser_token_t* tok = create_token(PARSER_PAIR,yytext);
             link_tokens(yyextra,tok);
             }
+
 {float}		{
             struct parser_token_t* tok = create_token(PARSER_FLOAT,yytext);
             link_tokens(yyextra,tok);
             }
+
 {num}+      {
             struct parser_token_t* tok = create_token(PARSER_INT,yytext);
             link_tokens(yyextra,tok);
             }
-{alnum}+	{
+
+{posix}+	{
             struct parser_token_t* tok = create_token(PARSER_STRING,yytext);
             link_tokens(yyextra,tok);
             }

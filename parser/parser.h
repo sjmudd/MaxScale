@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <stdbool.h>
 enum {
     PARSER_UNDEFINED,
     PARSER_STRING,
@@ -12,7 +12,8 @@ enum {
     PARSER_INT,
     PARSER_FLOAT,
     PARSER_PAIR,
-    PARSER_ABS_PATH
+    PARSER_ABS_PATH,
+    PARSER_SUBSTRING
 };
 
 struct pair{
@@ -27,12 +28,17 @@ struct parser_token_t{
         char* stringval;
         int intval;
         double floatval;
+        struct parser_token_t* substring;
     }value;
     struct parser_token_t* next;
     struct parser_token_t* head;
+    struct parser_token_t* parent;
 };
 
 
 int tokenize_string(struct parser_token_t** tok, char* param, size_t len);
+char* parser_get_keyvalue(struct parser_token_t* head, char* token);
+bool parser_has_string(struct parser_token_t* head, char* token);
 void free_all_tokens(struct parser_token_t* tok);
+void print_all_tokens(FILE* dest,struct parser_token_t* head);
 #endif
