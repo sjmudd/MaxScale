@@ -1123,10 +1123,10 @@ CONFIG_PARAMETER* config_clone_param(
         {
                 goto return_p2;
         }
-        memcpy(p2, param, sizeof(CONFIG_PARAMETER));
         p2->name = strndup(param->name, MAX_PARAM_LEN);
         p2->value = strndup(param->value, MAX_PARAM_LEN);
-        
+	p2->qfd_param_type = param->qfd_param_type;
+        p2->next = param->next;
         if (param->qfd_param_type == STRING_TYPE)
         {
                 p2->qfd.valstr = strndup(param->qfd.valstr, MAX_PARAM_LEN);
@@ -1280,10 +1280,14 @@ int i;
 	}
 	else if (strcmp(name, "feedback_user_info") == 0)
 	{
+		if(feedback.feedback_user_info)
+		    free(feedback.feedback_user_info);
 		feedback.feedback_user_info = strdup(value);
         }
 	else if (strcmp(name, "feedback_url") == 0)
 	{
+		if(feedback.feedback_url)
+		    free(feedback.feedback_url);
 		feedback.feedback_url = strdup(value);
         }
 	if (strcmp(name, "feedback_timeout") == 0)

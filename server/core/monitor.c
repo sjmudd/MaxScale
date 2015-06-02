@@ -221,7 +221,11 @@ monitorAddServer(MONITOR *mon, SERVER *server)
 void
 monitorAddUser(MONITOR *mon, char *user, char *passwd)
 {
+    if(mon->user)
+	free(mon->user);
     mon->user = strdup(user);
+    if(mon->password)
+	free(mon->password);
     mon->password = strdup(passwd);
 }
 

@@ -1725,6 +1725,10 @@ static void service_add_qualified_param(
                                 {
                                         svc->svc_config_param = p;
                                 }
+				free(old->name);
+				free(old->value);
+				if (old->qfd_param_type == STRING_TYPE)
+				    free(old->qfd.valstr);
                                 free(old);
                                 break;
                         }
