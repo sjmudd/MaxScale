@@ -332,6 +332,7 @@ typedef struct router_instance {
 	ROUTER_CLIENT_SES*      connections; /*< List of client connections         */
 	SPINLOCK                lock;	     /*< Lock for the instance data         */
 	BACKEND**               servers;     /*< Backend servers                    */
+        BACKEND**               old_servers; /*< Backend servers still in use after a config reload*/
 	BACKEND*                master;      /*< NULL or pointer                    */
 	rwsplit_config_t        rwsplit_config; /*< expanded config info from SERVICE */
 	int                     rwsplit_version;/*< version number for router's config */

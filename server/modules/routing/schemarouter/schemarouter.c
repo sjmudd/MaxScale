@@ -842,7 +842,20 @@ static	int
 updateInstance(ROUTER *instance,SERVICE *service, char **options)
 {
     ROUTER_INSTANCE* router = (ROUTER_INSTANCE*)instance;
-    int rval = 0;
+    ROUTER_CLIENT_SES* client;
+    int i,rval = 0;
+
+    spinlock_acquire(&router->lock);
+
+    if(router->old_servers)
+    {
+	for(i = 0;router->old_servers[i];i++)
+	    free(router->old_servers[i]);
+	free(router->old_servers);
+    }
+
+    router->old_servers = router->servers;
+    router->servers = NULL;
 
     if(options)
     {
@@ -854,6 +867,16 @@ updateInstance(ROUTER *instance,SERVICE *service, char **options)
 
     if(alloc_backends(router,service) != 0)
 	rval = -1;
+    client = router->connections;
+    router->connections = NULL;
+    spinlock_release(&router->lock);
+
+    while(client)
+    {
+	client->rses_client_dcb->func.hangup(client->rses_client_dcb);
+	client = client->next;
+    }
+
     return rval;
 
 }

@@ -526,6 +526,7 @@ createInstance(SERVICE *service, char **options)
         }
         router->service = service;
 	router->servers = NULL;
+	router->old_servers = NULL;
         spinlock_init(&router->lock);
 
 	if(allocate_backends(router,service) != 0)
@@ -642,8 +643,22 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     SERVER_REF* sref;
     BACKEND** bref;
     int i, nserv = 0, rval = 0;
-
+    ROUTER_CLIENT_SES* client;
     spinlock_acquire(&router->lock);
+
+    /** This prevents sessions from referring to invalid server references when
+     they are closed*/
+    if(router->old_servers)
+    {
+	for(i = 0;router->old_servers[i];i++)
+	{
+	    free(router->old_servers[i]);
+	}
+	free(router->old_servers);
+    }
+    router->old_servers = router->servers;
+    router->servers = NULL;
+
     if(options)
     {
 	rwsplit_process_router_options(router,options);
@@ -656,7 +671,17 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     {
 	rval = -1;
     }
+
+    /** Close all current sessions to force the new configuration into use */
+    client = router->connections;
+    router->connections = NULL;
     spinlock_release(&router->lock);
+
+    while(client)
+    {
+	client->client_dcb->func.hangup(client->client_dcb);
+	client = client->next;
+    }
 
     return rval;
 }
