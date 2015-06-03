@@ -289,6 +289,16 @@ int		rval;
 	config.object = "";
 	config.next = NULL;
 
+	hashtable_free(monitorhash);
+
+	if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
+	{
+	    skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate monitor configuration check hashtable.");
+	    return 0;
+	}
+
+	hashtable_memory_fns(monitorhash,strdup,NULL,free,NULL);
+
 	if (ini_parse(config_file, handler, &config) < 0)
 		return 0;
 
@@ -333,7 +343,7 @@ int			error_count = 0;
 
 if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 {
-    skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate ,onitor configuration check hashtable.");
+    skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate monitor configuration check hashtable.");
     return 0;
 }
 
@@ -1127,9 +1137,26 @@ CONFIG_PARAMETER* config_clone_param(
         p2->value = strndup(param->value, MAX_PARAM_LEN);
 	p2->qfd_param_type = param->qfd_param_type;
         p2->next = param->next;
-        if (param->qfd_param_type == STRING_TYPE)
+
+        switch (param->qfd_param_type)
         {
+	case STRING_TYPE:
                 p2->qfd.valstr = strndup(param->qfd.valstr, MAX_PARAM_LEN);
+		break;
+	case PERCENT_TYPE:
+	    p2->qfd.valpercent = param->qfd.valpercent;
+	    break;
+	case COUNT_TYPE:
+	    p2->qfd.valcount= param->qfd.valcount;
+	    break;
+	case SQLVAR_TARGET_TYPE:
+	    p2->qfd.valtarget= param->qfd.valtarget;
+	    break;
+	case BOOL_TYPE:
+	    p2->qfd.valbool= param->qfd.valbool;
+	    break;
+	default:
+	    break;
         }
                         
 return_p2:
