@@ -159,6 +159,8 @@ extern MONITOR	*monitor_alloc(char *, char *);
 extern void	monitor_free(MONITOR *);
 extern MONITOR	*monitor_find(char *);
 extern void	monitorAddServer(MONITOR *, SERVER *);
+extern void     monitorRemoveServer(MONITOR* mon, SERVER* server);
+extern void     monitorClearServers(MONITOR* mon);
 extern void	monitorAddUser(MONITOR *, char *, char *);
 extern void	monitorStop(MONITOR *);
 extern void	monitorStart(MONITOR *, void*);

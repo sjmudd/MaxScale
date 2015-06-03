@@ -213,6 +213,58 @@ monitorAddServer(MONITOR *mon, SERVER *server)
 }
 
 /**
+ * Remove a server from the monitor if it is found.
+ * @param mon Monitor
+ * @param server Server to remove
+ */
+void monitorRemoveServer(MONITOR* mon, SERVER* server)
+{
+    MONITOR_SERVERS	*ptr, *prev;
+
+    spinlock_acquire(&mon->lock);
+    ptr = mon->databases;
+    if(mon->databases->server == server)
+    {
+	mon->databases = mon->databases->next;
+	free(ptr);
+    }
+    else
+    {
+	prev = ptr;
+	while(ptr)
+	{
+	    if(ptr->server == server)
+	    {
+		prev->next = ptr->next;
+		free(ptr);
+		break;
+	    }
+	    prev = ptr;
+	    ptr = ptr->next;
+	}
+    }
+    spinlock_release(&mon->lock);
+}
+
+/**
+ * Remove all servers from the monitor.
+ * @param mon Monitor to clear
+ */
+void monitorClearServers(MONITOR* mon)
+{
+    MONITOR_SERVERS	*ptr;
+
+    spinlock_acquire(&mon->lock);
+    while(mon->databases)
+    {
+	ptr = mon->databases;
+	mon->databases = mon->databases->next;
+	free(ptr);
+    }
+    spinlock_release(&mon->lock);
+}
+
+/**
  * Add a default user to the monitor. This user is used to connect to the
  * monitored databases but may be overriden on a per server basis.
  *

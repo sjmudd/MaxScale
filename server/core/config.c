@@ -2172,12 +2172,16 @@ void config_server_update(CONFIG_CONTEXT *obj) {
 
 	if (address && port && protocol)
 	{
-		if ((server = server_find(address, atoi(port))) != NULL)
+
+		if ((server = server_find(address, atoi(port))) != NULL ||
+		 (server = server_find_by_unique_name(obj->object)) != NULL)
 		{
 			server_update(server,
 				protocol,
 				monuser,
-				monpw);
+				monpw,
+				 address,
+				 atoi(port));
 			obj->element = server;
 		}
 		else
@@ -2437,6 +2441,9 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 				monitorSetNetworkTimeout(obj->element, MONITOR_READ_TIMEOUT, read_timeout);
 			if (write_timeout > 0)
 				monitorSetNetworkTimeout(obj->element, MONITOR_WRITE_TIMEOUT, write_timeout);
+
+			/** Clear out the old servers from the monitor */
+			monitorClearServers(obj->element);
 
 			/* get the servers to monitor */
 			s = strtok_r(servers, ",", &lasts);

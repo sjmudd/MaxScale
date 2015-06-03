@@ -95,6 +95,7 @@ typedef struct server {
 	int		depth;		/**< Replication level in the tree */
 	long		*slaves;	/**< Slaves of this node */
 	bool            master_err_is_logged; /*< If node failed, this indicates whether it is logged */
+        bool            has_changed;    /*< If the monitor parameters have changed*/
 } SERVER;
 
 /**
@@ -188,7 +189,8 @@ extern void	server_clear_status(SERVER *, int);
 extern void	serverAddMonUser(SERVER *, char *, char *);
 extern void	serverAddParameter(SERVER *, char *, char *);
 extern char	*serverGetParameter(SERVER *, char *);
-extern void	server_update(SERVER *, char *, char *, char *);
+extern void	server_update(SERVER *, char *, char *, char *, char*, unsigned short);
+extern bool     server_has_changed(SERVER* server);
 extern void     server_set_unique_name(SERVER *, char *);
 extern void	server_update_address(SERVER *, char *);
 extern void	server_update_port(SERVER *,  unsigned short);

@@ -644,6 +644,8 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     BACKEND** bref;
     int i, nserv = 0, rval = 0;
     ROUTER_CLIENT_SES* client;
+    CONFIG_PARAMETER*   param;
+
     spinlock_acquire(&router->lock);
 
     /** This prevents sessions from referring to invalid server references when
@@ -683,6 +685,50 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
 	client = client->next;
     }
 
+
+    /**
+         * Set default value for max_slave_connections and for slave selection
+         * criteria. If parameter is set in config file max_slave_connections
+         * will be overwritten.
+         */
+        router->rwsplit_config.rw_max_slave_conn_count = CONFIG_MAX_SLAVE_CONN;
+
+        if (router->rwsplit_config.rw_slave_select_criteria == UNDEFINED_CRITERIA)
+        {
+                router->rwsplit_config.rw_slave_select_criteria = DEFAULT_CRITERIA;
+        }
+
+        /**
+	 * Copy all config parameters from service to router instance.
+	 * Finally, copy version number to indicate that configs match.
+	 */
+        param = config_get_param(service->svc_config_param, "max_slave_connections");
+
+        if (param != NULL)
+        {
+	    refreshInstance(router, param);
+        }
+        /**
+	 * Read default value for slave replication lag upper limit and then
+	 * configured value if it exists.
+	 */
+        router->rwsplit_config.rw_max_slave_replication_lag = CONFIG_MAX_SLAVE_RLAG;
+        param = config_get_param(service->svc_config_param, "max_slave_replication_lag");
+
+        if (param != NULL)
+        {
+	    refreshInstance(router, param);
+        }
+        router->rwsplit_version = service->svc_config_version;
+	/** Set default values */
+	router->rwsplit_config.rw_use_sql_variables_in = CONFIG_SQL_VARIABLES_IN;
+	param = config_get_param(service->svc_config_param, "use_sql_variables_in");
+
+	if (param != NULL)
+	{
+	    refreshInstance(router, param);
+	}
+	
     return rval;
 }
 
@@ -4881,19 +4927,19 @@ static bool have_enough_servers(
                                         LOGFILE_ERROR,
                                         "Error : Unable to start %s service. There are "
                                         "too few backend servers configured in "
-                                        "MaxScale.cnf. Found %d when %d is required.",
+                                        "maxscale.cnf. Found %d when %d is required.",
                                         router->service->name,
                                         (*p_rses)->rses_config.rw_max_slave_conn_count,
                                         min_nsrv)));
                         }
-                        if (nservers < min_nsrv)
+                        else if (nservers < min_nsrv)
                         {
                             double dbgpct = ((double)min_nsrv/(double)router_nsrv)*100.0;
                             LOGIF(LE, (skygw_log_write_flush(
                                         LOGFILE_ERROR,
                                         "Error : Unable to start %s service. There are "
                                         "too few backend servers configured in "
-                                        "MaxScale.cnf. Found %d%% when at least %.0f%% "
+                                        "maxscale.cnf. Found %d%% when at least %.0f%% "
                                         "would be required.",
                                         router->service->name,
                                         (*p_rses)->rses_config.rw_max_slave_conn_percent,

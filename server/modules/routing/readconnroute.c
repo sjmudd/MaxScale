@@ -396,13 +396,17 @@ updateInstance(ROUTER *instance, SERVICE *service, char **options)
     SERVER_REF* sref;
     BACKEND* backend;
 
-
-    for (i = 0; inst->servers[i]; i++)
+    if(inst->old_servers)
     {
-	free(inst->servers[i]);
+	for(i = 0;inst->old_servers[i];i++)
+	{
+	    free(inst->old_servers[i]);
+	}
+	free(inst->old_servers);
     }
-    free(inst->servers);
-
+    inst->old_servers = inst->servers;
+    inst->servers = NULL;
+    
     for (sref = service->servers, n = 0; sref; sref = sref->next)
 	n++;
 

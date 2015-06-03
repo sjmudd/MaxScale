@@ -79,7 +79,7 @@ SERVER 	*server;
 	server->rlag = -2;
 	server->master_id = -1;
 	server->depth = -1;
-
+	server->has_changed = false;
 	spinlock_acquire(&server_spin);
 	server->next = allServers;
 	allServers = server;
@@ -558,8 +558,13 @@ server_clear_status(SERVER *server, int bit)
 void
 serverAddMonUser(SERVER *server, char *user, char *passwd)
 {
-	server->monuser = strdup(user);
-	server->monpw = strdup(passwd);
+    if(server->monuser)
+	free(server->monuser);
+    server->monuser = strdup(user);
+
+    if(server->monpw)
+	free(server->monpw);
+    server->monpw = strdup(passwd);
 }
 
 /**
@@ -576,8 +581,9 @@ serverAddMonUser(SERVER *server, char *user, char *passwd)
  * @param passwd	The password to use for the monitor user
  */
 void
-server_update(SERVER *server, char *protocol, char *user, char *passwd)
+server_update(SERVER *server, char *protocol, char *user, char *passwd, char* address,unsigned short port)
 {
+    bool changed = false;
 	if (!strcmp(server->protocol, protocol))
 	{
                 LOGIF(LM, (skygw_log_write(
@@ -587,6 +593,7 @@ server_update(SERVER *server, char *protocol, char *user, char *passwd)
                         protocol)));
 		free(server->protocol);
 		server->protocol = strdup(protocol);
+		changed = true;
 	}
 
         if (user != NULL && passwd != NULL) {
@@ -597,11 +604,24 @@ server_update(SERVER *server, char *protocol, char *user, char *passwd)
                                 LOGFILE_MESSAGE,
                                 "Update server monitor credentials for server %s",
 				server->name)));
-                        free(server->monuser);
-                        free(server->monpw);
                         serverAddMonUser(server, user, passwd);
+			changed = true;
                 }
 	}
+
+	if(address && strcmp(address,server->name) != 0)
+	{
+	    free(server->name);
+	    server->name = strdup(address);
+	    changed = true;
+	}
+
+	if(port > 0 && port != server->port)
+	{
+	    server->port = port;
+	    changed = true;
+	}
+    server->has_changed = changed;
 }
 
 
@@ -770,3 +790,12 @@ server_update_port(SERVER *server, unsigned short port)
 	spinlock_release(&server_spin);
 }
 
+/**
+ * Check if the server has changed since the last configuration reload.
+ * @param server Backend server
+ * @return true if the server has changed otherwise false
+ */
+bool server_has_changed(SERVER* server)
+{
+    return server->has_changed;
+}
