@@ -67,6 +67,7 @@ static char *version_str = "V1.0.1";
  * The filter entry points
  */
 static	FILTER	*createInstance(char **options, FILTER_PARAMETER **);
+static int      updateInstance(FILTER *instance, char **options, FILTER_PARAMETER ** params);
 static	void	*newSession(FILTER *instance, SESSION *session);
 static	void 	closeSession(FILTER *instance, void *session);
 static	void 	freeSession(FILTER *instance, void *session);
@@ -79,7 +80,7 @@ static	void	diagnostic(FILTER *instance, void *fsession, DCB *dcb);
 
 static FILTER_OBJECT MyObject = {
     createInstance,
-    NULL,
+    updateInstance,
     newSession,
     closeSession,
     freeSession,
@@ -268,6 +269,47 @@ TOPN_INSTANCE	*my_instance;
 		}
 	}
 	return (FILTER *)my_instance;
+}
+
+
+
+/**
+ *
+ * @param instance
+ * @param options
+ * @param params
+ * @return
+ */
+static int
+updateInstance(FILTER *instance, char **options, FILTER_PARAMETER ** params)
+{
+    TOPN_INSTANCE *filter = (TOPN_INSTANCE *)instance;
+    TOPN_INSTANCE *new_filter;
+
+    if((new_filter = (TOPN_INSTANCE*)createInstance(options,params)) == NULL)
+    {
+	skygw_log_write(LE,"Error: Instance update failed for QLA filter");
+	return -1;
+    }
+
+    free(filter->filebase);
+    free(filter->source);
+    free(filter->user);
+    if(filter->match)
+    {
+	free(filter->match);
+	regfree(&filter->re);
+    }
+    if(filter->exclude)
+    {
+	free(filter->exclude);
+	regfree(&filter->exre);
+    }
+
+    memcpy(filter,new_filter,sizeof(TOPN_INSTANCE));
+    free(new_filter);
+
+    return 0;
 }
 
 /**

@@ -268,6 +268,33 @@ static int
 updateInstance(FILTER *instance, char **options, FILTER_PARAMETER ** params)
 {
     QLA_INSTANCE *filter = (QLA_INSTANCE *)instance;
+    QLA_INSTANCE *new_filter;
+
+    if((new_filter = (QLA_INSTANCE*)createInstance(options,params)) == NULL)
+    {
+	skygw_log_write(LE,"Error: Instance update failed for QLA filter");
+	return -1;
+    }
+
+    free(filter->filebase);
+    free(filter->source);
+    free(filter->userName);
+
+    if(filter->match)
+    {
+	free(filter->match);
+	regfree(&filter->re);
+    }
+
+    if(filter->nomatch)
+    {
+	free(filter->nomatch);
+	regfree(&filter->nore);
+    }
+    
+    memcpy(filter,new_filter,sizeof(QLA_INSTANCE));
+    free(new_filter);
+
     return 0;
 }
 

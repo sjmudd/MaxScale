@@ -58,6 +58,7 @@ MODULE_INFO 	info = {
 static char *version_str = "V1.1.0";
 
 static	FILTER	*createInstance(char **options, FILTER_PARAMETER **params);
+static	int     updateInstance(FILTER *instance, char **options, FILTER_PARAMETER **params);
 static	void	*newSession(FILTER *instance, SESSION *session);
 static	void 	closeSession(FILTER *instance, void *session);
 static	void 	freeSession(FILTER *instance, void *session);
@@ -68,7 +69,7 @@ static	void	diagnostic(FILTER *instance, void *fsession, DCB *dcb);
 
 static FILTER_OBJECT MyObject = {
     createInstance,
-    NULL,
+    updateInstance,
     newSession,
     closeSession,
     freeSession,
@@ -154,6 +155,10 @@ int		i, cflags = REG_ICASE;
 	{
 		my_instance->match = NULL;
 		my_instance->server = NULL;
+		my_instance->source = NULL;
+		my_instance->user = NULL;
+		my_instance->cflags = 0;
+		memset(&my_instance->re,0,sizeof(regex_t));
 
 		for (i = 0; params && params[i]; i++)
 		{
@@ -223,6 +228,36 @@ int		i, cflags = REG_ICASE;
 	return (FILTER *)my_instance;
 }
 
+/**
+ * Update the filter instace
+ * @param instance Filter instance
+ * @param options Filter options
+ * @param params Filter parameters
+ * @return 0 on success, -1 on error
+ */
+static	int
+updateInstance(FILTER *instance, char **options, FILTER_PARAMETER **params)
+{
+    REGEXHINT_INSTANCE	*me,*new_inst;
+
+    me = (REGEXHINT_INSTANCE*)instance;
+
+    if((new_inst = (REGEXHINT_INSTANCE*)createInstance(options,params)) == NULL)
+    {
+	skygw_log_write(LE,"Error: Instance update failed for Namedserver filter");
+	return -1;
+    }
+
+    free(me->match);
+    free(me->server);
+    free(me->source);
+    free(me->user);
+    regfree(&me->re);
+    memcpy(me,new_inst,sizeof(REGEXHINT_INSTANCE));
+    free(new_inst);
+    
+    return 0;
+}
 /**
  * Associate a new session with this instance of the filter.
  *
