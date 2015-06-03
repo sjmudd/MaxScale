@@ -1134,23 +1134,15 @@ serviceUpdateNamedFilter(char* name, CONFIG_CONTEXT *context)
  * @param service	The service itself
  */
 void
-serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context)
+serviceUpdateFilters(SERVICE *service, char *filters)
 {
-    int i;
-
     spinlock_acquire(&service->spin);
-    for(i = 0;i < service->n_filters;i++)
-    {
-	ReparseFilterConfig(context,service->filters[i]);
 
-	if(filterUpdate(service->filters[i]) != 0)
-	{
-	    skygw_log_write_flush(
-		    LOGFILE_ERROR,
-		    "Error : Failed to update filter '%s' for service '%s'.\n",
-		    service->filters[i]->name, service->name);
-	}
-    }
+    free(service->filters);
+    service->n_filters = 0;
+    service->filters = NULL;
+    serviceSetFilters(service,filters);
+	    
     spinlock_release(&service->spin);
 }
 
@@ -1163,6 +1155,7 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 {
     if(service->router->updateInstance)
     {
+	spinlock_acquire(&service->spin);
 	if(service->router->updateInstance(
 	            service->router_instance,
 		    service,
@@ -1172,6 +1165,7 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 		     "Error: Router configuration update failed for service '%s'.",
 		     service->name);
 	}
+	spinlock_release(&service->spin);
     }
 }
 

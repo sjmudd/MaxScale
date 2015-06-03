@@ -2341,8 +2341,9 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 			s = strtok_r(NULL, ",", &lasts);
 		}
 	}
+
 	if (filters && obj->element)
-		serviceUpdateFilters(obj->element, context);
+		serviceUpdateFilters(obj->element, filters);
 	serviceUpdateRouter(obj->element, context);
 
 }

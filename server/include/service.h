@@ -179,7 +179,7 @@ extern	int	serviceRestart(SERVICE *);
 extern	int	serviceSetUser(SERVICE *, char *, char *);
 extern	int	serviceGetUser(SERVICE *, char **, char **);
 extern	void	serviceSetFilters(SERVICE *, char *);
-extern  void    serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context);
+extern  void    serviceUpdateFilters(SERVICE *service, char *filters);
 extern  void    serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context);
 extern  int     serviceUpdateNamedFilter(char* name, CONFIG_CONTEXT *context);
 extern	int	serviceEnableRootUser(SERVICE *, int );

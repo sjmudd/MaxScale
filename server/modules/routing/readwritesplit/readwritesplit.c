@@ -681,7 +681,9 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
 
     while(client)
     {
-	client->client_dcb->func.hangup(client->client_dcb);
+	if(client->rses_closed == false &&
+	 client->client_dcb->state == DCB_STATE_POLLING)
+	    dcb_close(client->client_dcb);
 	client = client->next;
     }
 

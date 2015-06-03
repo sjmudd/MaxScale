@@ -145,6 +145,7 @@ startMonitor(void *arg, void* opt)
     if (handle)
     {
 	handle->shutdown = 0;
+	handle->master = NULL;
     }
     else
     {
@@ -1108,8 +1109,10 @@ static MONITOR_SERVERS *get_replication_tree(MONITOR *mon, int num_servers) {
 	int depth=0;
 	long node_id;
 	int root_level;
-
+	spinlock_acquire(&mon->lock);
 	ptr = mon->databases;
+	spinlock_release(&mon->lock);
+	
 	root_level = num_servers;
 
 	while (ptr)
