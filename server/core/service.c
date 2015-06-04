@@ -1134,15 +1134,28 @@ serviceUpdateNamedFilter(char* name, CONFIG_CONTEXT *context)
  * @param service	The service itself
  */
 void
-serviceUpdateFilters(SERVICE *service, char *filters)
+serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context, char *filters)
 {
+    int i;
     spinlock_acquire(&service->spin);
 
     free(service->filters);
     service->n_filters = 0;
     service->filters = NULL;
     serviceSetFilters(service,filters);
-	    
+
+    for(i = 0;i<service->n_filters;i++)
+    {
+	ReparseFilterConfig(context,service->filters[i]);
+	if(filterUpdate(service->filters[i]) != 0)
+	{
+	    skygw_log_write_flush(
+		    LOGFILE_ERROR,
+		    "Error : Failed to update filter '%s' for service '%s'.\n",
+		    service->filters[i]->name, service->name);
+	}
+    }
+
     spinlock_release(&service->spin);
 }
 

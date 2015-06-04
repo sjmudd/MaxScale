@@ -2343,7 +2343,7 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 	}
 
 	if (filters && obj->element)
-		serviceUpdateFilters(obj->element, filters);
+		serviceUpdateFilters(obj->element,context, filters);
 	serviceUpdateRouter(obj->element, context);
 
 }
