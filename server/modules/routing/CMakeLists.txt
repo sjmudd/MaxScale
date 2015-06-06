@@ -17,10 +17,9 @@ add_library(cli SHARED cli.c debugcmd.c)
 target_link_libraries(cli log_manager utils)
 install(TARGETS cli DESTINATION ${MAXSCALE_LIBDIR})
 
-
-add_library(plainroute SHARED plainroute.c)
-target_link_libraries(plainroute log_manager utils)
-install(TARGETS plainroute DESTINATION ${MAXSCALE_LIBDIR})
+add_library(streamrouter SHARED streamrouter.c)
+target_link_libraries(streamrouter log_manager utils)
+install(TARGETS streamrouter DESTINATION ${MAXSCALE_LIBDIR})
 
 add_subdirectory(readwritesplit)
 add_subdirectory(schemarouter)

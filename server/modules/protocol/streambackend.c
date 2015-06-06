@@ -16,7 +16,7 @@
  * Copyright MariaDB Corporation Ab 2013-2014
  */
 
-#include <plainprotocol.h>
+#include <streamprotocol.h>
 #include <skygw_types.h>
 #include <skygw_utils.h>
 #include <log_manager.h>
@@ -25,8 +25,8 @@
 #define PLAIN_BACKEND_SO_SNDBUF (128 * 1024)
 #define PLAIN_BACKEND_SO_RCVBUF (128 * 1024)
 /*
- * MySQL Protocol module for handling the protocol between the gateway
- * and the backend MySQL database.
+ * Stream Protocol module for handling the protocol between the gateway
+ * and the backend Stream database.
  *
  * Revision History
  * Date		Who			Description
@@ -34,7 +34,7 @@
  * 17/06/2013	Massimiliano Pinto	Added MaxScale To Backends routines
  * 01/07/2013	Massimiliano Pinto	Put Log Manager example code behind SS_DEBUG macros.
  * 03/07/2013	Massimiliano Pinto	Added delayq for incoming data before mysql connection
- * 04/07/2013	Massimiliano Pinto	Added asyncrhronous MySQL protocol connection to backend
+ * 04/07/2013	Massimiliano Pinto	Added asyncrhronous Stream protocol connection to backend
  * 05/07/2013	Massimiliano Pinto	Added closeSession if backend auth fails
  * 12/07/2013	Massimiliano Pinto	Added Mysql Change User via dcb->func.auth()
  * 15/07/2013	Massimiliano Pinto	Added Mysql session change via dcb->func.session()
@@ -53,7 +53,7 @@ MODULE_INFO info = {
 	MODULE_API_PROTOCOL,
 	MODULE_GA,
 	GWPROTOCOL_VERSION,
-	"The plain protocol"
+	"The stream protocol"
 };
 
 /** Defined in log_manager.cc */
@@ -62,30 +62,30 @@ extern size_t         log_ses_count[];
 extern __thread log_info_t tls_log_info;
 
 static char *version_str = "V2.0.0";
-static int plain_create_backend_connection(DCB *backend, SERVER *server, SESSION *in_session);
-static int plain_read_backend_event(DCB* dcb);
-static int plain_write_ready_backend_event(DCB *dcb);
-static int plain_write_backend(DCB *dcb, GWBUF *queue);
-static int plain_error_backend_event(DCB *dcb);
-static int plain_backend_close(DCB *dcb);
-static int plain_backend_hangup(DCB *dcb);
+static int stream_create_backend_connection(DCB *backend, SERVER *server, SESSION *in_session);
+static int stream_read_backend_event(DCB* dcb);
+static int stream_write_ready_backend_event(DCB *dcb);
+static int stream_write_backend(DCB *dcb, GWBUF *queue);
+static int stream_error_backend_event(DCB *dcb);
+static int stream_backend_close(DCB *dcb);
+static int stream_backend_hangup(DCB *dcb);
 static int backend_write_delayqueue(DCB *dcb);
 static void backend_set_delayqueue(DCB *dcb, GWBUF *queue);
-static int plain_change_user(DCB *backend_dcb, SERVER *server, SESSION *in_session, GWBUF *queue);
+static int stream_change_user(DCB *backend_dcb, SERVER *server, SESSION *in_session, GWBUF *queue);
 static GWBUF* process_response_data (DCB* dcb, GWBUF* readbuf, int nbytes_to_process); 
 extern char* create_auth_failed_msg( GWBUF* readbuf, char*  hostaddr, uint8_t*  sha1);
 extern char* create_auth_fail_str(char *username, char *hostaddr, char *sha1, char *db);
 static bool sescmd_response_complete(DCB* dcb);
 
 static GWPROTOCOL MyObject = { 
-	plain_read_backend_event,			/* Read - EPOLLIN handler	 */
-	plain_write_backend,			/* Write - data from gateway	 */
-	plain_write_ready_backend_event,			/* WriteReady - EPOLLOUT handler */
-	plain_error_backend_event,			/* Error - EPOLLERR handler	 */
-	plain_backend_hangup,			/* HangUp - EPOLLHUP handler	 */
+	stream_read_backend_event,			/* Read - EPOLLIN handler	 */
+	stream_write_backend,			/* Write - data from gateway	 */
+	stream_write_ready_backend_event,			/* WriteReady - EPOLLOUT handler */
+	stream_error_backend_event,			/* Error - EPOLLERR handler	 */
+	stream_backend_hangup,			/* HangUp - EPOLLHUP handler	 */
 	NULL,					/* Accept			 */
-	plain_create_backend_connection,		/* Connect                       */
-	plain_backend_close,			/* Close			 */
+	stream_create_backend_connection,		/* Connect                       */
+	stream_backend_close,			/* Close			 */
 	NULL,					/* Listen			 */
 	NULL,				/* Authentication		 */
         NULL                                    /* Session                       */
@@ -109,6 +109,10 @@ version()
 void
 ModuleInit()
 {
+    if(pipepool == NULL)
+    {
+	stream_init_pool();
+    }
 }
 
 /*
@@ -125,197 +129,64 @@ GetModuleObject()
 	return &MyObject;
 }
 
-
 /**
- * Creates MySQL protocol structure
- *
- * @param dcb *          Must be non-NULL.
- * @param fd
- *
- * @return
- *
- *
- * @details Protocol structure does not have fd because dcb is not
- * connected yet.
- *
- */
-PlainProtocol* plain_protocol_init(
-        DCB* dcb,
-        int  fd)
-{
-        PlainProtocol* p;
-
-	p = (PlainProtocol *) calloc(1, sizeof(PlainProtocol));
-        ss_dassert(p != NULL);
-
-        if (p == NULL) {
-            int eno = errno;
-            errno = 0;
-            LOGIF(LE, (skygw_log_write_flush(
-                    LOGFILE_ERROR,
-                    "%lu [mysql_init_protocol] MySQL protocol init failed : "
-                    "memory allocation due error  %d, %s.",
-                    pthread_self(),
-                    eno,
-                    strerror(eno))));
-            goto return_p;
-        }
-
-        /*< Assign fd with protocol */
-        p->fd = fd;
-	p->owner_dcb = dcb;
-
-return_p:
-        return p;
-}
-
-
-/**
- * Backend Read Event for EPOLLIN on the MySQL backend protocol module
+ * Backend Read Event for EPOLLIN on the Stream backend protocol module
  * @param dcb   The backend Descriptor Control Block
  * @return 1 on operation, 0 for no action
  */
-static int plain_read_backend_event(DCB *dcb) {
-	PlainProtocol *client_protocol = NULL;
-	PlainProtocol *backend_protocol = NULL;
+static int stream_read_backend_event(DCB *dcb)
+{
+    StreamProtocol *client_protocol = NULL;
+    StreamProtocol *backend_protocol = NULL;
+    int            rc = 0;
 
-        int            rc = 0;
+    client_protocol = (StreamProtocol*) dcb->session->client;
 
-       
-        backend_protocol = (PlainProtocol *) dcb->protocol;
-        CHK_PROTOCOL(backend_protocol);
+    GWBUF         *read_buffer = NULL;
+    ROUTER_OBJECT *router = NULL;
+    ROUTER        *router_instance = NULL;
+    SESSION       *session = dcb->session;
 
-       
-	/* reading MySQL command output from backend and writing to the client */
-        {
-		GWBUF         *read_buffer = NULL;
-		ROUTER_OBJECT *router = NULL;
-		ROUTER        *router_instance = NULL;
-		SESSION       *session = dcb->session;
-                int           nbytes_read = 0;
-                
-                CHK_SESSION(session);
-                router = session->service->router;
-                router_instance = session->service->router_instance;
+    CHK_SESSION(session);
 
-                /* read available backend data */
-                rc = dcb_read(dcb, &read_buffer);
-                
-                if (rc < 0) 
-                {
-                        GWBUF* errbuf;
-                        bool   succp;                        
+    router = session->service->router;
+    router_instance = session->service->router_instance;
 
-                        errbuf = mysql_create_custom_error(
-                                1, 
-                                0, 
-                                "Read from backend failed");
-                        
-                        router->handleError(
-				router_instance, 
-                                session->router_session, 
-                                errbuf, 
-                                dcb,
-                                ERRACT_NEW_CONNECTION,
-                                &succp);
-			gwbuf_free(errbuf);
-			
-                        if (!succp)
-                        {
-                                spinlock_acquire(&session->ses_lock);
-                                session->state = SESSION_STATE_STOPPING;
-                                spinlock_release(&session->ses_lock);
-                        }
-                        ss_dassert(dcb->dcb_errhandle_called);
-                        dcb_close(dcb);
-                        rc = 0;
-                        goto return_rc;
-                }
-                nbytes_read = gwbuf_length(read_buffer);
+    spinlock_acquire(&client_protocol->protocol_lock);
+    client_protocol->pipe = stream_get_pipe(client_protocol->pool);
+    spinlock_release(&client_protocol->protocol_lock);
+    splice(dcb->fd,NULL,client_protocol->pipe->pipe[PIPE_WRITE],NULL,SPLICE_MAX_BYTES,0);
 
-                if (nbytes_read == 0 && dcb->dcb_readqueue == NULL)
-                {
-                        goto return_rc;
-                }
-                else
-                {
-                        ss_dassert(read_buffer != NULL || dcb->dcb_readqueue != NULL);
-                }
+    if (dcb->session->state == SESSION_STATE_ROUTER_READY &&
+	dcb->session->client != NULL &&
+	dcb->session->client->state == DCB_STATE_POLLING)
+    {
+	client_protocol = SESSION_PROTOCOL(dcb->session,
+					 StreamProtocol);
 
-		if (dcb->session->state == SESSION_STATE_ROUTER_READY &&
-			dcb->session->client != NULL && 
-			dcb->session->client->state == DCB_STATE_POLLING)
-                {
-                        client_protocol = SESSION_PROTOCOL(dcb->session,
-                                                           PlainProtocol);
-                	
-                        {
-                                gwbuf_set_type(read_buffer, GWBUF_TYPE_MYSQL);
-                                router->clientReply(router_instance, session->router_session, read_buffer, dcb);
-				rc = 1;
-			}
-		}
-		else /*< session is closing; replying to client isn't possible */
-		{
-			gwbuf_free(read_buffer);
-		}
-        }
-        
-return_rc:
-        return rc;
+	{
+	    gwbuf_set_type(read_buffer, GWBUF_TYPE_MYSQL);
+	    router->clientReply(router_instance, session->router_session, read_buffer, dcb);
+	    rc = 1;
+	}
+    }
 
-return_with_lock:
-
-        goto return_rc;
+    return rc;
 }
 
 /*
- * EPOLLOUT handler for the MySQL Backend protocol module.
+ * EPOLLOUT handler for the Stream Backend protocol module.
  *
  * @param dcb   The descriptor control block
  * @return      1 in success, 0 in case of failure, 
  */
-static int plain_write_ready_backend_event(DCB *dcb) {
-        int rc = 0;
-	PlainProtocol *backend_protocol = dcb->protocol;
-        
-        /*<
-         * Don't write to backend if backend_dcb is not in poll set anymore.
-         */
-        if (dcb->state != DCB_STATE_POLLING) {
-                uint8_t* data;
-                
-                if (dcb->writeq != NULL)
-                {
-                        data = (uint8_t *)GWBUF_DATA(dcb->writeq);
-                        
-                       
-                }
-                else
-                {
-                        LOGIF(LD, (skygw_log_write(
-                                LOGFILE_DEBUG,
-                                "%lu [gw_write_backend_event] Dcb %p in state %s "
-                                "but there's nothing to write either.",
-                                pthread_self(),
-                                dcb,
-                                STRDCBSTATE(dcb->state))));
-                        rc = 1;
-                }
-                goto return_rc;                
-        }
-
-        dcb_drain_writeq(dcb);
-        rc = 1;
-return_rc:
-
-        
-        return rc;
+static int stream_write_ready_backend_event(DCB *dcb) {
+    return 0;
 }
 
 
 /**
- * plain_do_connect_to_backend
+ * stream_do_connect_to_backend
  *
  * This routine creates socket and connects to a backend server.
  * Connect it non-blocking operation. If connect fails, socket is closed.
@@ -328,7 +199,7 @@ return_rc:
  * backend server. In failure, fd == -1 and socket is closed.
  *
  */
-int plain_do_connect_to_backend(
+int stream_do_connect_to_backend(
         char	*host,
         int     port,
         int	*fd)
@@ -420,7 +291,7 @@ int plain_do_connect_to_backend(
         *fd = so;
         LOGIF(LD, (skygw_log_write_flush(
                 LOGFILE_DEBUG,
-                "%lu [plain_do_connect_to_backend] Connected to backend server "
+                "%lu [stream_do_connect_to_backend] Connected to backend server "
                 "%s:%d, fd %d.",
                 pthread_self(),
                 host,
@@ -453,13 +324,16 @@ close_so:
  * @return	0 on failure, 1 on success
  */
 static int
-plain_write_backend(DCB *dcb, GWBUF *queue)
+stream_write_backend(DCB *dcb, GWBUF *queue)
 {
-	PlainProtocol *backend_protocol = dcb->protocol;
+	StreamProtocol *backend_protocol = dcb->session->client->protocol;
         int rc = 0; 
-
-	rc = dcb_write(dcb, queue);
- 
+	PIPE* pipe = backend_protocol->pipe;
+	rc = splice(pipe->pipe[PIPE_READ],NULL,dcb->fd,NULL,SPLICE_MAX_BYTES,0);
+	spinlock_acquire(&backend_protocol->protocol_lock);
+	stream_return_pipe(backend_protocol->pipe);
+	backend_protocol->pipe = NULL;
+	spinlock_release(&backend_protocol->protocol_lock);
 	return rc;
 }
 
@@ -470,7 +344,7 @@ plain_write_backend(DCB *dcb, GWBUF *queue)
  * closed and call DCB close function which triggers closing router session 
  * and related backends (if any exists.
  */
-static int plain_error_backend_event(DCB *dcb)
+static int stream_error_backend_event(DCB *dcb)
 {
 	SESSION*        session;
 	void*           rsession;
@@ -486,7 +360,8 @@ static int plain_error_backend_event(DCB *dcb)
         rsession = session->router_session;
         router = session->service->router;
         router_instance = session->service->router_instance;
-
+	errbuf = gwbuf_alloc(4);
+	memset(errbuf->start,0,4);
         /**
          * Avoid running redundant error handling procedure.
          * dcb_close is already called for the DCB. Thus, either connection is
@@ -597,86 +472,22 @@ retblock:
  *  backend server. Positive fd is copied to protocol and to dcb.
  * If fails, fd == -1 and socket is closed.
  */
-static int plain_create_backend_connection(
+static int stream_create_backend_connection(
         DCB     *backend_dcb,
         SERVER  *server,
         SESSION *session)
 {
-        PlainProtocol *protocol = NULL;
-	int           rv = -1;
-        int           fd = -1;
+	int fd = -1;
+        StreamProtocol *protocol = NULL;
+	DCB* dcb = backend_dcb;
+        if(dcb->protocol == NULL &&
+	  (dcb->protocol = streamprotocol_init(dcb)) == NULL)
+	    return -1;
 
-        protocol = mysql_protocol_init(backend_dcb, -1);
-        ss_dassert(protocol != NULL);
-        
-        if (protocol == NULL) {
-                LOGIF(LD, (skygw_log_write(
-                        LOGFILE_DEBUG,
-                        "%lu [gw_create_backend_connection] Failed to create "
-                        "protocol object for backend connection.",
-                        pthread_self())));
-                LOGIF(LE, (skygw_log_write_flush(
-                        LOGFILE_ERROR,
-                        "Error: Failed to create "
-                        "protocol object for backend connection.")));
-                goto return_fd;
-        }
-        
         /*< if succeed, fd > 0, -1 otherwise */
 
-        rv = plain_do_connect_to_backend(server->name, server->port, &fd);
-        /*< Assign protocol with backend_dcb */
-        backend_dcb->protocol = protocol;
+        stream_do_connect_to_backend(server->name, server->port, &fd);
 
-        /*< Set protocol state */
-	switch (rv) {
-		case 0:
-                        ss_dassert(fd > 0);
-                        protocol->fd = fd;
-
-                        LOGIF(LD, (skygw_log_write(
-                                LOGFILE_DEBUG,
-                                "%lu [gw_create_backend_connection] Established "
-                                "connection to %s:%i, protocol fd %d client "
-                                "fd %d.",
-                                pthread_self(),
-                                server->name,
-                                server->port,
-                                protocol->fd,
-                                session->client->fd)));
-			break;
-
-		case 1:
-                        ss_dassert(fd > 0);
-
-                        protocol->fd = fd;
-                        LOGIF(LD, (skygw_log_write(
-                                LOGFILE_DEBUG,
-                                "%lu [gw_create_backend_connection] Connection "
-                                "pending to %s:%i, protocol fd %d client fd %d.",
-                                pthread_self(),
-                                server->name,
-                                server->port,
-                                protocol->fd,
-                                session->client->fd)));
-			break;
-
-		default:
-                        ss_dassert(fd == -1);
-
-                        LOGIF(LD, (skygw_log_write(
-                                LOGFILE_DEBUG,
-                                "%lu [gw_create_backend_connection] Connection "
-                                "failed to %s:%i, protocol fd %d client fd %d.",
-                                pthread_self(),
-                                server->name,
-                                server->port,
-                                protocol->fd,
-                                session->client->fd)));
-			break;
-	} /*< switch */
-        
-return_fd:
 	return fd;
 }
 
@@ -692,7 +503,7 @@ return_fd:
  * @return 1 always
  */
 static int
-plain_backend_hangup(DCB *dcb)
+stream_backend_hangup(DCB *dcb)
 {
         SESSION*        session;
         void*           rsession;
@@ -705,7 +516,8 @@ plain_backend_hangup(DCB *dcb)
         CHK_DCB(dcb);
         session = dcb->session;
         CHK_SESSION(session);
-        
+
+	errbuf = gwbuf_alloc(1);
         rsession = session->router_session;
         router = session->service->router;
         router_instance = session->service->router_instance;        
@@ -787,7 +599,7 @@ retblock:
  * @return 1 always
  */
 static int
-plain_backend_close(DCB *dcb)
+stream_backend_close(DCB *dcb)
 {
         DCB*     client_dcb;
         SESSION* session;

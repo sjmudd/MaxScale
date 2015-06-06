@@ -24,19 +24,20 @@
 
  *
  */
+#include <streamprotocol.h>
 #include <skygw_utils.h>
 #include <log_manager.h>
 #include <gw.h>
 #include <modinfo.h>
 #include <sys/stat.h>
 #include <modutil.h>
-#include <plainprotocol.h>
+
 
 MODULE_INFO info = {
 	MODULE_API_PROTOCOL,
 	MODULE_EXPERIMENTAL,
 	GWPROTOCOL_VERSION,
-	"The plain client protocol"
+	"The stream client protocol"
 };
 
 /** Defined in log_manager.cc */
@@ -46,28 +47,28 @@ extern __thread log_info_t tls_log_info;
 
 static char *version_str = "V1.0.0";
 
-static int plain_accept(DCB *listener);
-static int plain_listen(DCB *listener, char *config_bind);
-static int plain_read(DCB* dcb);
-static int plain_write_ready(DCB *dcb);
-static int plain_write(DCB *dcb, GWBUF *queue);
-static int plain_client_error(DCB *dcb);
-static int plain_client_close(DCB *dcb);
-static int plain_client_hangup_event(DCB *dcb);
+static int stream_accept(DCB *listener);
+static int stream_listen(DCB *listener, char *config_bind);
+static int stream_read(DCB* dcb);
+static int stream_write_ready(DCB *dcb);
+static int stream_write(DCB *dcb, GWBUF *queue);
+static int stream_client_error(DCB *dcb);
+static int stream_client_close(DCB *dcb);
+static int stream_client_hangup_event(DCB *dcb);
 
 /*
  * The "module object" for the mysqld client protocol module.
  */
 static GWPROTOCOL MyObject = { 
-	plain_read,			/* Read - EPOLLIN handler	 */
-	plain_write,			/* Write - data from gateway	 */
-	plain_write_ready,			/* WriteReady - EPOLLOUT handler */
-	plain_client_error,			/* Error - EPOLLERR handler	 */
-	plain_client_hangup_event,			/* HangUp - EPOLLHUP handler	 */
-	plain_accept,				/* Accept			 */
+	stream_read,			/* Read - EPOLLIN handler	 */
+	stream_write,			/* Write - data from gateway	 */
+	stream_write_ready,			/* WriteReady - EPOLLOUT handler */
+	stream_client_error,			/* Error - EPOLLERR handler	 */
+	stream_client_hangup_event,			/* HangUp - EPOLLHUP handler	 */
+	stream_accept,				/* Accept			 */
 	NULL,					/* Connect			 */
-	plain_client_close,			/* Close			 */
-	plain_listen,			/* Listen			 */
+	stream_client_close,			/* Close			 */
+	stream_listen,			/* Listen			 */
 	NULL,					/* Authentication		 */
 	NULL					/* Session			 */
 };
@@ -90,6 +91,10 @@ version()
 void
 ModuleInit()
 {
+    if(pipepool == NULL)
+    {
+	pipepool = stream_init_pool();
+    }
 }
 
 /**
@@ -114,9 +119,24 @@ GetModuleObject()
  * @param queue	Queue of buffers to write
  */
 int
-plain_write(DCB *dcb, GWBUF *queue)
+stream_write(DCB *dcb, GWBUF *queue)
 {
- 	return dcb_write(dcb, queue);
+    StreamProtocol* protocol = (StreamProtocol*)dcb->protocol;
+    PIPE* pipe;
+    int rval;
+
+    spinlock_acquire(&protocol->protocol_lock);
+    pipe = protocol->pipe;
+    spinlock_release(&protocol->protocol_lock);
+
+    rval = splice(pipe->pipe[PIPE_READ],NULL,dcb->fd,NULL,SPLICE_MAX_BYTES,0);
+
+    spinlock_acquire(&protocol->protocol_lock);
+    stream_return_pipe(protocol->pipe);
+    protocol->pipe = NULL;
+    spinlock_release(&protocol->protocol_lock);
+
+    return rval;
 }
 
 /**
@@ -125,46 +145,29 @@ plain_write(DCB *dcb, GWBUF *queue)
  * @param dcb	Descriptor control block
  * @return 0 if succeed, 1 otherwise
  */
-int plain_read(
+int stream_read(
         DCB* dcb) 
 {
-	SESSION        *session = NULL;
-	ROUTER_OBJECT  *router = NULL;
-	ROUTER         *router_instance = NULL;
-	void           *rsession = NULL;
-	PlainProtocol  *protocol = NULL;
-        GWBUF          *read_buffer = NULL;
+	StreamProtocol  *protocol = NULL;  
         int             rc = 0;
-        int             nbytes_read = 0;
-        uint8_t         cap = 0;
-        bool            stmt_input = false; /*< router input type */
 
-        CHK_DCB(dcb);
-        protocol = DCB_PROTOCOL(dcb, PlainProtocol);
-        CHK_PROTOCOL(protocol);
-        rc = dcb_read(dcb, &read_buffer);
-        
-        if (rc < 0)
-        {
-                dcb_close(dcb);
-        }
-        nbytes_read = gwbuf_length(read_buffer);
-       
-        if (nbytes_read == 0)
-        {
-                goto return_rc;
-        }
+        if(dcb->protocol == NULL &&
+	  (dcb->protocol = streamprotocol_init(dcb)) == NULL)
+	    return 1;
+
+	if(dcb->session == NULL &&
+	  (dcb->session = session_alloc(dcb->service,dcb)) == NULL)
+	    return 1;
+
+	protocol = (StreamProtocol*)dcb->protocol;
+	spinlock_acquire(&protocol->protocol_lock);
+	protocol->pipe = stream_get_pipe(protocol->pool);
+	spinlock_release(&protocol->protocol_lock);
 	
-	if(dcb->session == NULL)
-	{
-	    dcb->session = session_alloc(dcb->service,dcb);
-	}
-
-	rc = SESSION_ROUTE_QUERY(dcb->session, read_buffer);
-    
-        
-return_rc:
-
+	if(splice(dcb->fd,NULL,protocol->pipe->pipe[PIPE_WRITE],NULL,SPLICE_MAX_BYTES,0) > 0)
+	    rc = !(SESSION_ROUTE_QUERY(dcb->session, NULL));
+	else
+	    rc = 1;
 	return rc;
 }
 
@@ -185,40 +188,15 @@ return_rc:
  * @details (write detailed description here)
  *
  */
-int plain_write_ready(DCB *dcb)
+int stream_write_ready(DCB *dcb)
 {
-	PlainProtocol *protocol = NULL;
-
-        CHK_DCB(dcb);
-
-        ss_dassert(dcb->state != DCB_STATE_DISCONNECTED);
-        
-	if (dcb == NULL) {
-		goto return_1;
-	}
-
-	if (dcb->state == DCB_STATE_DISCONNECTED) {
-		goto return_1;
-	}
-        
-	if (dcb->protocol == NULL) {
-	        goto return_1;
-	}
-        protocol = (PlainProtocol *)dcb->protocol;
-
-
-		dcb_drain_writeq(dcb);
-                goto return_1;
-
-return_1:
-
-        return 1;
+    return 1;
 }
 
 /**
- * set listener for plain protocol, return 1 on success and 0 in failure
+ * set listener for stream protocol, return 1 on success and 0 in failure
  */
-int plain_listen(
+int stream_listen(
         DCB  *listen_dcb,
         char *config_bind)
 {
@@ -353,7 +331,7 @@ int plain_listen(
                     strerror(errno));
 		return 0;
         }
-	listen_dcb->func.accept = plain_accept;
+	listen_dcb->func.accept = stream_accept;
 
 	return 1;
 }
@@ -372,11 +350,11 @@ int plain_listen(
  * @details (write detailed description here)
  *
  */
-int plain_accept(DCB *listener)
+int stream_accept(DCB *listener)
 {
         int                rc = 0;
         DCB                *client_dcb;
-        PlainProtocol      *protocol;
+        StreamProtocol      *protocol;
         int                c_sock;
 	struct sockaddr    client_conn;
 	socklen_t          client_len = sizeof(struct sockaddr_storage);
@@ -419,7 +397,7 @@ int plain_accept(DCB *listener)
                                  */
                                 LOGIF(LD, (skygw_log_write(
                                         LOGFILE_DEBUG,
-                                        "%lu [plain_accept] Error %d, %s. ",
+                                        "%lu [stream_accept] Error %d, %s. ",
                                         pthread_self(),
                                         eno,
                                         strerror(eno))));
@@ -451,7 +429,7 @@ int plain_accept(DCB *listener)
                                  */
                                 LOGIF(LD, (skygw_log_write(
                                         LOGFILE_DEBUG,
-                                        "%lu [plain_accept] Error %d, %s.",
+                                        "%lu [stream_accept] Error %d, %s.",
                                         pthread_self(),
                                         eno,
                                         strerror(eno))));
@@ -472,7 +450,7 @@ int plain_accept(DCB *listener)
 #if defined(SS_DEBUG)
                 LOGIF(LD, (skygw_log_write_flush(
                         LOGFILE_DEBUG,
-                        "%lu [plain_accept] Accepted fd %d.",
+                        "%lu [stream_accept] Accepted fd %d.",
                         pthread_self(),
                         c_sock)));
 #endif /* SS_DEBUG */
@@ -531,7 +509,9 @@ int plain_accept(DCB *listener)
                                           INET_ADDRSTRLEN);
 			}
 		}
-                protocol = mysql_protocol_init(client_dcb, c_sock);
+
+                protocol = streamprotocol_init(client_dcb);
+		protocol->owner_dcb = client_dcb;
                 ss_dassert(protocol != NULL);
                 
                 if (protocol == NULL) {
@@ -539,7 +519,7 @@ int plain_accept(DCB *listener)
                         dcb_close(client_dcb);
                         LOGIF(LE, (skygw_log_write_flush(
                                 LOGFILE_ERROR,
-                                "%lu [plain_accept] Failed to create "
+                                "%lu [stream_accept] Failed to create "
                                 "protocol object for client connection.",
                                 pthread_self())));
                         rc = 1;
@@ -565,7 +545,7 @@ int plain_accept(DCB *listener)
                         /** Previous state is recovered in poll_add_dcb. */
                         LOGIF(LE, (skygw_log_write_flush(
                                 LOGFILE_ERROR,
-                                "%lu [plain_accept] Failed to add dcb %p for "
+                                "%lu [stream_accept] Failed to add dcb %p for "
                                 "fd %d to epoll set.",
                                 pthread_self(),
                                 client_dcb,
@@ -577,7 +557,7 @@ int plain_accept(DCB *listener)
                 {
                         LOGIF(LD, (skygw_log_write(
                                 LOGFILE_DEBUG,
-                                "%lu [plain_accept] Added dcb %p for fd "
+                                "%lu [stream_accept] Added dcb %p for fd "
                                 "%d to epoll set.",
                                 pthread_self(),
                                 client_dcb,
@@ -590,7 +570,7 @@ return_rc:
         return rc;
 }
 
-static int plain_client_error(
+static int stream_client_error(
         DCB* dcb) 
 {
         SESSION* session;
@@ -601,7 +581,7 @@ static int plain_client_error(
         
         LOGIF(LD, (skygw_log_write(
                 LOGFILE_DEBUG,
-                "%lu [plain_client_error] Error event handling for DCB %p "
+                "%lu [stream_client_error] Error event handling for DCB %p "
                 "in state %s, session %p.",
                 pthread_self(),
                 dcb,
@@ -620,16 +600,16 @@ retblock:
 }
 
 static int
-plain_client_close(DCB *dcb)
+stream_client_close(DCB *dcb)
 {
         SESSION*       session;
         ROUTER_OBJECT* router;
         void*          router_instance;
 
 	LOGIF(LD, (skygw_log_write(LOGFILE_DEBUG,
-				"%lu [plain_client_close]",
+				"%lu [stream_client_close]",
 				pthread_self())));                                
-	mysql_protocol_done(dcb);
+
         session = dcb->session;
         /**
          * session may be NULL if session_alloc failed.
@@ -673,7 +653,7 @@ plain_client_close(DCB *dcb)
  * @param dcb		The DCB of the connection
  */
 static int
-plain_client_hangup_event(DCB *dcb)
+stream_client_hangup_event(DCB *dcb)
 {
         SESSION* session;
 
