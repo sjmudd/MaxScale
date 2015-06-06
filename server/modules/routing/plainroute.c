@@ -603,44 +603,25 @@ routeQuery(ROUTER *instance, void *router_session, GWBUF *queue)
         DCB*              backend_dcb;
         bool              rses_is_closed;
        
-	inst->stats.n_queries++;
-	
-        /** Dirty read for quick check if router is closed. */
-        if (router_cli_ses->rses_closed)
-        {
-                rses_is_closed = true;
-        }
-        else
-        {
-                /**
-                 * Lock router client session for secure read of DCBs
-                 */
-                rses_is_closed = !(rses_begin_locked_router_action(router_cli_ses));
-        }
 
-        if (!rses_is_closed)
+        if ((rses_is_closed = rses_begin_locked_router_action(router_cli_ses)))
         {
-                backend_dcb = router_cli_ses->backend_dcb;           
-                /** unlock */
-                rses_end_locked_router_action(router_cli_ses);
-        }
+            backend_dcb = router_cli_ses->backend_dcb;
+            rses_end_locked_router_action(router_cli_ses);
 
-        if (rses_is_closed ||  backend_dcb == NULL)
-        {
+            if (rses_is_closed ||  backend_dcb == NULL)
+            {
                 LOGIF(LT, (skygw_log_write(
-                        LOGFILE_TRACE,
-                        "Error : Failed to route MySQL command %d to backend "
-                        "server.",
-                        mysql_command)));
-		rc = 0;
-                goto return_rc;
+                                           LOGFILE_TRACE,
+                                           "Error : Failed to route query to backend "
+                                           "server.")));
+                return 0;
+            }
+            atomic_add(&inst->stats.n_queries,1);
+            return backend_dcb->func.write(backend_dcb, queue);
         }
 
-     
-	rc = backend_dcb->func.write(backend_dcb, queue);
-
-return_rc:
-        return rc;
+        return 1;
 }
 
 /**
@@ -709,12 +690,7 @@ clientReply(
         GWBUF  *queue,
         DCB    *backend_dcb)
 {
-	DCB *client ;
-
-	client = backend_dcb->session->client;
-
-	ss_dassert(client != NULL);
-
+	ss_dassert(backend_dcb->session->client != NULL);
 	SESSION_ROUTE_REPLY(backend_dcb->session, queue);
 }
 
