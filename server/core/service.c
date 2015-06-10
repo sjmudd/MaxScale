@@ -1153,6 +1153,8 @@ serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context, char *filters)
 		    LOGFILE_ERROR,
 		    "Error : Failed to update filter '%s' for service '%s'.\n",
 		    service->filters[i]->name, service->name);
+	    serviceStop(service);
+	    break;
 	}
     }
 
@@ -1175,8 +1177,9 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 		    service->routerOptions) != 0)
 	{
 	    skygw_log_write(LOGFILE_ERROR,
-		     "Error: Router configuration update failed for service '%s'.",
+		     "Error: Router configuration update failed for service '%s'. The service will be disabled.",
 		     service->name);
+	    serviceStop(service);
 	}
 	spinlock_release(&service->spin);
     }
