@@ -19,7 +19,7 @@
  */
 #include <dcb.h>
 #include <resultset.h>
-
+#include <maxconfig.h>
 /**
  * @file service.h
  *
@@ -195,4 +195,5 @@ extern void     server_set_unique_name(SERVER *, char *);
 extern void	server_update_address(SERVER *, char *);
 extern void	server_update_port(SERVER *,  unsigned short);
 extern RESULTSET	*serverGetList();
+extern void server_remove_old_servers(CONFIG_CONTEXT* context);
 #endif

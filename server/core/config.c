@@ -1400,6 +1400,9 @@ process_config_update(CONFIG_CONTEXT *context)
 {
 CONFIG_CONTEXT		*obj;
 
+        /** Remove old servers before adding any new or renamed ones */
+	server_remove_old_servers(context);
+
 	/**
 	 * Process the data and create the services and servers defined
 	 * in the data.

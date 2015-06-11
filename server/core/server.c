@@ -799,3 +799,48 @@ bool server_has_changed(SERVER* server)
 {
     return server->has_changed;
 }
+
+/**
+ * Remove servers which are no longer in the configuration file from the list
+ * of servers.
+ * @param context Configuration context
+ */
+void server_remove_old_servers(CONFIG_CONTEXT* context)
+{
+    CONFIG_CONTEXT* obj;
+    CONFIG_PARAMETER* param;
+    SERVER *server,*tmp;
+    bool obsolete;
+
+    spinlock_acquire(&server_spin);
+    server = allServers;
+    spinlock_release(&server_spin);
+    while(server)
+    {
+	obsolete = true;
+	obj = context;
+	while(obj)
+	{
+	    if(strcmp(obj->object,server->unique_name) == 0)
+	    {
+		obsolete = false;
+		break;
+	    }
+	    obj = obj->next;
+	}
+	if(obsolete)
+	{
+	    tmp = server;
+	    spinlock_acquire(&server_spin);
+	    server = server->next;
+	    spinlock_release(&server_spin);
+	    server_free(tmp);
+	}
+	else
+	{
+	    spinlock_acquire(&server_spin);
+	    server = server->next;
+	    spinlock_release(&server_spin);
+	}
+    }
+}
