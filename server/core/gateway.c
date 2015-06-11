@@ -1038,43 +1038,49 @@ int main(int argc, char **argv)
 	
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,false))
 		    {
-			logdir = tmp_path;
+			set_logdir(tmp_path);
+			free(tmp_path);
 		    }
 
 		    break;
 		case 'N':
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,false))
 		    {
-			langdir = tmp_path;
+			set_langdir(tmp_path);
+			free(tmp_path);
 		    }
 		    break;
 		case 'P':
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,true))
 		    {
-			piddir = tmp_path;
+			set_piddir(tmp_path);
+			free(tmp_path);
 		    }
 		    break;
 		case 'D':
 		    sprintf(datadir,"%s",optarg);
-		    maxscaledatadir = strdup(optarg);
+		    set_datadir(optarg);
 		    datadir_defined = true;
 		    break;
 		case 'C':
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,false))
 		    {
-			configdir = tmp_path;
+			set_configdir(tmp_path);
+			free(tmp_path);
 		    }
 		    break;
 		case 'B':
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,false))
 		    {
-			libdir = tmp_path;
+			set_libdir(tmp_path);
+			free(tmp_path);
 		    }
 		    break;
 		case 'A':
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,true))
 		    {
-			cachedir = tmp_path;
+			set_cachedir(tmp_path);
+			free(tmp_path);
 		    }
 		    break;
 		case 'S':
@@ -1389,7 +1395,7 @@ int main(int argc, char **argv)
          * read accessibility.
          */
 	char pathbuf[PATH_MAX+1];
-	snprintf(pathbuf,PATH_MAX,"%s",configdir ? configdir:default_configdir);
+	snprintf(pathbuf,PATH_MAX,"%s",get_configdir());
 	if(pathbuf[strlen(pathbuf)-1] != '/')
 	    strcat(pathbuf,"/");
 
@@ -1407,7 +1413,7 @@ int main(int argc, char **argv)
 
 
         /** Use the cache dir for the mysql folder of the embedded library */
-	sprintf(mysql_home, "%s/mysql", cachedir?cachedir:default_cachedir);
+	sprintf(mysql_home, "%s/mysql", get_cachedir());
 	setenv("MYSQL_HOME", mysql_home, 1);
 
 
@@ -1421,27 +1427,10 @@ int main(int argc, char **argv)
                 char buf[1024];
                 char *argv[8];
 		bool succp;
-		
-		/** Use default log directory /var/log/maxscale/ */
-		if(logdir == NULL)
-		{
-
-		    if(access(default_logdir,F_OK) != 0)
-		    {
-			if(mkdir(logdir,0555) != 0)
-			{
-			    fprintf(stderr,
-			     "Error: Cannot create log directory: %s\n",
-			     default_logdir);
-			    goto return_main;
-			}
-		    }
-		    logdir = strdup(default_logdir);
-		}
 
                 argv[0] = "MaxScale";
                 argv[1] = "-j";
-                argv[2] = logdir;
+                argv[2] = get_logdir();
 
 		if(!syslog_enabled)
 		{
@@ -1481,14 +1470,6 @@ int main(int argc, char **argv)
 		}
         }
 
-
-
-	    if(cachedir == NULL)
-		cachedir = strdup(default_cachedir);
-	    if(langdir == NULL)
-		langdir = strdup(default_langdir);
-	    if(libdir == NULL)
-		libdir = strdup(default_libdir);
 	/**
          * Set a data directory for the mysqld library, we use
          * a unique directory name to avoid clauses if multiple
@@ -1528,10 +1509,10 @@ int main(int argc, char **argv)
 			"Module directory   : %s\n"
 			"Service cache      : %s\n\n",
                         cnf_file_path,
-                        logdir,
-                        datadir,
-			libdir,
-			cachedir);
+                        get_logdir(),
+                        get_datadir(),
+			get_libdir(),
+			get_cachedir());
         }
 
         LOGIF(LM,
@@ -1543,27 +1524,27 @@ int main(int argc, char **argv)
 	      (skygw_log_write_flush(
 		LOGFILE_MESSAGE,
 			       "Log directory: %s/",
-			       logdir)));
+			       get_logdir())));
 	LOGIF(LM,
 	 (skygw_log_write_flush(
 		LOGFILE_MESSAGE,
 			  "Data directory: %s",
-			  datadir)));
+			  get_datadir())));
 	LOGIF(LM,
 	 (skygw_log_write_flush(LOGFILE_MESSAGE,
 			  "Module directory: %s",
-			  libdir)));
+			  get_libdir())));
 	LOGIF(LM,
 	 (skygw_log_write_flush(LOGFILE_MESSAGE,
 			  "Service cache: %s",
-			  cachedir)));
+			  get_cachedir())));
 
         /*< Update the server options */
         for (i = 0; server_options[i]; i++)
         {
                 if (!strcmp(server_options[i], "--datadir="))
                 {
-                        snprintf(datadir_arg, 10+PATH_MAX+1, "--datadir=%s", datadir);
+                        snprintf(datadir_arg, 10+PATH_MAX+1, "--datadir=%s", get_datadir());
                         server_options[i] = datadir_arg;
                 }
                 else if (!strcmp(server_options[i], "--language="))
@@ -1571,7 +1552,7 @@ int main(int argc, char **argv)
                         snprintf(language_arg,
                                  11+PATH_MAX+1,
                                  "--language=%s",
-                                 langdir);
+                                 get_langdir());
                         server_options[i] = language_arg;
                 }
         }
@@ -1626,9 +1607,6 @@ int main(int argc, char **argv)
                 goto return_main;
         }
         libmysqld_started = TRUE;
-
-	if(libdir == NULL)
-	    libdir = strdup(default_libdir);
 
         if (!config_load(cnf_file_path))
         {
@@ -1830,7 +1808,7 @@ static int write_pid_file(char *home_dir) {
 
 	int fd = -1;
 
-        snprintf(pidfile, PATH_MAX, "%smaxscale.pid",piddir?piddir:default_piddir);
+        snprintf(pidfile, PATH_MAX, "%smaxscale.pid",get_piddir());
 
         fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
         if (fd == -1) {
@@ -1911,38 +1889,46 @@ bool handle_path_arg(char** dest, char* path, char* arg, bool rd, bool wr)
  */
 static int cnf_preparser(void* data, const char* section, const char* name, const char* value)
 {
-
-    char pathbuffer[PATH_MAX];
-    char* errstr;
-
+    char* tmp;
     /** These are read from the configuration file. These will not override
      * command line parameters but will override default values. */
     if(strcasecmp(section,"maxscale") == 0)
     {
 	if(strcmp(name, "logdir") == 0)
 	{
-	    if(logdir == NULL)
-		handle_path_arg(&logdir,(char*)value,NULL,true,true);
+	    if(strcmp(get_logdir(),default_logdir) == 0)
+	    {
+		handle_path_arg(&tmp,(char*)value,NULL,true,true);
+		set_logdir(tmp);
+		free(tmp);
+	    }
 	}
 	else if(strcmp(name, "libdir") == 0)
 	{
-	    if(libdir == NULL)
-		handle_path_arg(&libdir,(char*)value,NULL,true,false);
+	    if(strcmp(get_libdir(),default_libdir) == 0)
+	    {
+		handle_path_arg(&tmp,(char*)value,NULL,true,false);
+		set_libdir(tmp);
+		free(tmp);
+	    }
 	}
 	else if(strcmp(name, "piddir") == 0)
 	{
-	    if(piddir == NULL)
-		handle_path_arg(&piddir,(char*)value,NULL,true,true);
+	    if(strcmp(get_piddir(),default_piddir) == 0)
+	    {
+		handle_path_arg(&tmp,(char*)value,NULL,true,true);
+		set_piddir(tmp);
+		free(tmp);
+	    }
 	}
 	else if(strcmp(name, "datadir") == 0)
 	{
 	    if(!datadir_defined)
 	    {
-		char* tmp;
 		if(handle_path_arg(&tmp,(char*)value,NULL,true,false))
 		{
 		    sprintf(datadir,"%s",tmp);
-		    maxscaledatadir = strdup(tmp);
+		    set_datadir(tmp);
 		    datadir_defined = true;
 		    free(tmp);
 		}
@@ -1950,13 +1936,21 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 	}
 	else if(strcmp(name, "cachedir") == 0)
 	{
-	    if(cachedir == NULL)
-		handle_path_arg((char**)&cachedir,(char*)value,NULL,true,false);
+	    if(strcmp(get_cachedir(),default_cachedir) == 0)
+	    {
+		handle_path_arg((char**)&tmp,(char*)value,NULL,true,false);
+		set_cachedir(tmp);
+		free(tmp);
+	    }
 	}
 	else if(strcmp(name, "language") == 0)
 	{
-	    if(langdir == NULL)
-		handle_path_arg((char**)&langdir,(char*)value,NULL,true,false);
+	    if(strcmp(get_langdir(),default_langdir) == 0)
+	    {
+		handle_path_arg((char**)&tmp,(char*)value,NULL,true,false);
+		set_langdir(tmp);
+		free(tmp);
+	    }
 	}
     }
 

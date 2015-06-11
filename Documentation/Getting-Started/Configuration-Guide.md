@@ -101,7 +101,11 @@ log_debug=1
 
 To disable the log use the value 0 and to enable it use the value 1.
 
-#### `logdir`
+#### MaxScale directory locations
+
+The following options control where MaxScale will, for example, look for library files, write log and PID files to and store cached authentication data. These values are not updated during a configuration reload since they pose a possibly severe risk of error if misconfigured. If these are changed after an instance of MaxScale has been started, a restart of the process is required.
+
+##### `logdir`
 
 Set the directory where the logfiles are stored. The folder needs to be both readable and writable by the user running MaxScale.
 
@@ -109,7 +113,7 @@ Set the directory where the logfiles are stored. The folder needs to be both rea
 logdir=/tmp/
 ```
 
-#### `datadir`
+##### `datadir`
 
 Set the directory where the data files used by MaxScale are stored. Modules can write to this directory and for example the binlogrouter uses this folder as the default location for storing binary logs.
 
@@ -117,7 +121,7 @@ Set the directory where the data files used by MaxScale are stored. Modules can 
 datadir=/home/user/maxscale_data/
 ```
 
-#### `libdir`
+##### `libdir`
 
 Set the directory where MaxScale looks for modules. The library director is the only directory that MaxScale uses when it searches for modules. If you have custom modules for MaxScale, make sure you have them in this folder.
 
@@ -125,7 +129,7 @@ Set the directory where MaxScale looks for modules. The library director is the 
 libdir=/home/user/lib64/
 ```
 
-#### `cachedir`
+##### `cachedir`
 
 Configure the directory MaxScale uses to store cached data. An example of cached data is the authentication data fetched from the backend servers. MaxScale stores this in case a connection to the backend server is not possible.
 
@@ -133,7 +137,7 @@ Configure the directory MaxScale uses to store cached data. An example of cached
 cachedir=/tmp/maxscale_cache/
 ```
 
-#### `piddir`
+##### `piddir`
 
 Configure the directory for the PID file for MaxScale. This file contains the Process ID for the running MaxScale process.
 
@@ -141,7 +145,7 @@ Configure the directory for the PID file for MaxScale. This file contains the Pr
 piddir=/tmp/maxscale_cache/
 ```
 
-#### `language`
+##### `language`
 
 Set the folder where the errmsg.sys file is located in. MaxScale will look for the errmsg.sys file installed with MaxScale from this folder.
 

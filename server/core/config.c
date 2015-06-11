@@ -76,6 +76,9 @@
 #include <string.h>
 #include <sys/utsname.h>
 
+#ifdef SS_DEBUG
+#include <gwdirs.h>
+#endif
 
 /** Defined in log_manager.cc */
 extern int            lm_enabled_logfiles_bitmask;
@@ -297,7 +300,7 @@ int		rval;
 	    return 0;
 	}
 
-	hashtable_memory_fns(monitorhash,strdup,NULL,free,NULL);
+	hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
 
 	if (ini_parse(config_file, handler, &config) < 0)
 		return 0;
@@ -347,7 +350,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
     return 0;
 }
 
-hashtable_memory_fns(monitorhash,strdup,NULL,free,NULL);
+hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
 	/**
 	 * Process the data and create the services and servers defined
 	 * in the data.
@@ -555,8 +558,8 @@ hashtable_memory_fns(monitorhash,strdup,NULL,free,NULL);
 					
                                         if (!succp)
                                         {
-                                                LOGIF(LM, (skygw_log_write(
-                                                        LOGFILE_MESSAGE,
+                                                LOGIF((LM|LE), (skygw_log_write(
+                                                        (LM|LE),
                                                         "* Warning : invalid value type "
                                                         "for parameter \'%s.%s = %s\'\n\tExpected "
                                                         "type is either <int> for slave connection "
@@ -1272,7 +1275,7 @@ int i;
         }
 	else if (strcmp(name, "ms_timestamp") == 0)
 	{
-		skygw_set_highp(config_truth_value(value));
+		skygw_set_highp(config_truth_value((char*)value));
 	}
 	else
 	{
@@ -1280,7 +1283,7 @@ int i;
 		{
 			if (strcasecmp(name, lognames[i].logname) == 0)
 			{
-				if (config_truth_value(value))
+				if (config_truth_value((char*)value))
 					skygw_log_enable(lognames[i].logfile);
 				else
 					skygw_log_disable(lognames[i].logfile);
@@ -1462,6 +1465,13 @@ CONFIG_CONTEXT		*obj;
 		}
 		obj = obj->next;
 	}
+
+#ifdef SS_DEBUG
+	LOGIF(LD,(skygw_log_write(LD,"data dir:%s",get_datadir())));
+	LOGIF(LD,(skygw_log_write(LD,"cache dir:%s",get_cachedir())));
+	LOGIF(LD,(skygw_log_write(LD,"lib dir:%s",get_libdir())));
+
+#endif
 
 	return 1;
 }
@@ -2035,12 +2045,11 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 						LOGIF(LM, (skygw_log_write(
 							LOGFILE_MESSAGE,
 							"* Warning : invalid value type "
-							"for parameter \'%s.%s = %s\'\n\tExpected "
+							"for parameter \'%s = %s\'\n\tExpected "
 							"type is either <int> for slave connection "
-							"count or\n\t<int>%% for specifying the "
+							"count or\n\t0-100%% for specifying the "
 							"maximum percentage of available the "
 							"slaves that will be connected.",
-							((SERVICE*)obj->element)->name,
 							param->name,
 							param->value)));
 					}
@@ -2120,7 +2129,14 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			auth = config_get_value(obj->parameters, "passwd");
 
 			obj->element = service_alloc(obj->object, router);
-                    
+
+			if(auth_all_servers)
+			    serviceAuthAllServers(obj->element,config_truth_value(auth_all_servers));
+			if(optimize_wildcard)
+			    serviceOptimizeWildcard(obj->element,config_truth_value(optimize_wildcard));
+			if(strip_db_esc)
+			    serviceStripDbEsc(obj->element,config_truth_value(strip_db_esc));
+			
 			if (obj->element && user && auth)
 			{
 				serviceSetUser(obj->element, user, auth);
