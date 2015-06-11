@@ -309,10 +309,10 @@ int		rval;
 	free_config_context(config.next);
 
 	/** Enable/disable feedback task */
+	config_disable_feedback_task();
 	if(feedback.feedback_enable)
 	    config_enable_feedback_task();
-	else
-	    config_disable_feedback_task();
+
 
 	return rval;
 }
