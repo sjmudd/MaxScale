@@ -114,6 +114,7 @@ static char *version_str = "V1.0.0";
  * The filter entry points
  */
 static	FILTER	*createInstance(char **options, FILTER_PARAMETER **);
+static  int      updateInstance(FILTER *instance,char **options, FILTER_PARAMETER **);
 static	void	*newSession(FILTER *instance, SESSION *session);
 static	void 	closeSession(FILTER *instance, void *session);
 static	void 	freeSession(FILTER *instance, void *session);
@@ -125,7 +126,7 @@ static	void	diagnostic(FILTER *instance, void *fsession, DCB *dcb);
 
 static FILTER_OBJECT MyObject = {
     createInstance,
-    NULL,
+    updateInstance,
     newSession,
     closeSession,
     freeSession,
@@ -447,6 +448,45 @@ int		i;
 	return (FILTER *)my_instance;
 }
 
+/**
+ * Update the filter instance
+ * A new filter instance is created with the filter parameters and options and if
+ * successful, the current instance is replaced with the updated one. 
+ * @param instance Instance to update
+ * @param options Filter options
+ * @param param Filter parameters
+ * @return 0 on success, -1 on error
+ */
+static  int
+updateInstance(FILTER *instance,char **options, FILTER_PARAMETER ** param)
+{
+    TEE_INSTANCE *me = (TEE_INSTANCE*)instance;
+    TEE_INSTANCE *updated = (TEE_INSTANCE*)createInstance(options,param);
+    int rval = -1;
+
+    if(updated)
+    {
+	if(me->match)
+	{
+	    free(me->match);
+	    regfree(&me->re);
+	}
+
+	if(me->nomatch)
+	{
+	    free(me->nomatch);
+	    regfree(&me->nore);
+	}
+
+	free(me->source);
+	free(me->userName);
+	memcpy(me,updated,sizeof(TEE_INSTANCE));
+	free(updated);
+	rval = 0;
+    }
+
+    return rval;
+}
 /**
  * Associate a new session with this instance of the filter.
  *
