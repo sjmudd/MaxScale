@@ -226,6 +226,8 @@ void monitorRemoveServer(MONITOR* mon, SERVER* server)
     if(mon->databases->server == server)
     {
 	mon->databases = mon->databases->next;
+	if(ptr->con)
+	    mysql_close(ptr->con);
 	free(ptr);
     }
     else
@@ -236,6 +238,8 @@ void monitorRemoveServer(MONITOR* mon, SERVER* server)
 	    if(ptr->server == server)
 	    {
 		prev->next = ptr->next;
+		if(ptr->con)
+		    mysql_close(ptr->con);
 		free(ptr);
 		break;
 	    }
@@ -259,6 +263,8 @@ void monitorClearServers(MONITOR* mon)
     {
 	ptr = mon->databases;
 	mon->databases = mon->databases->next;
+	if(ptr->con)
+	    mysql_close(ptr->con);
 	free(ptr);
     }
     spinlock_release(&mon->lock);
