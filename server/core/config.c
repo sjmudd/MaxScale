@@ -308,6 +308,12 @@ int		rval;
 	rval = process_config_update(config.next);
 	free_config_context(config.next);
 
+	/** Enable/disable feedback task */
+	if(feedback.feedback_enable)
+	    config_enable_feedback_task();
+	else
+	    config_disable_feedback_task();
+
 	return rval;
 }
 
