@@ -2189,8 +2189,8 @@ void config_server_update(CONFIG_CONTEXT *obj) {
 	if (address && port && protocol)
 	{
 
-		if ((server = server_find(address, atoi(port))) != NULL ||
-		 (server = server_find_by_unique_name(obj->object)) != NULL)
+		if ((server = server_find_by_unique_name(obj->object)) != NULL ||
+		 (server = server_find(address, atoi(port))) != NULL)
 		{
 			server_update(server,
 				protocol,

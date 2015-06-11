@@ -584,7 +584,7 @@ void
 server_update(SERVER *server, char *protocol, char *user, char *passwd, char* address,unsigned short port)
 {
     bool changed = false;
-	if (!strcmp(server->protocol, protocol))
+	if (strcmp(server->protocol, protocol) != 0)
 	{
                 LOGIF(LM, (skygw_log_write(
                         LOGFILE_MESSAGE,
@@ -597,8 +597,8 @@ server_update(SERVER *server, char *protocol, char *user, char *passwd, char* ad
 	}
 
         if (user != NULL && passwd != NULL) {
-                if (strcmp(server->monuser, user) == 0 ||
-                    strcmp(server->monpw, passwd) == 0)
+                if (strcmp(server->monuser, user) != 0 ||
+                    strcmp(server->monpw, passwd) != 0)
                 {
                         LOGIF(LM, (skygw_log_write(
                                 LOGFILE_MESSAGE,
