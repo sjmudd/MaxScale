@@ -168,7 +168,7 @@ static struct option long_options[] = {
 static int cnf_preparser(void* data, const char* section, const char* name, const char* value);
 static void log_flush_shutdown(void);
 static void log_flush_cb(void* arg);
-static int write_pid_file(char *); /* write MaxScale pidfile */
+static int write_pid_file(); /* write MaxScale pidfile */
 static void unlink_pidfile(void); /* remove pidfile */
 static void libmysqld_done(void);
 static bool file_write_header(FILE* outfile);
@@ -927,7 +927,6 @@ int main(int argc, char **argv)
         char	 mysql_home[PATH_MAX+1];
         char	 datadir_arg[10+PATH_MAX+1];  /*< '--datadir='  + PATH_MAX */
         char     language_arg[11+PATH_MAX+1]; /*< '--language=' + PATH_MAX */
-        char*    home_dir = NULL;             /*< home dir, to be freed */
         char*    cnf_file_path = NULL;        /*< conf file, to be freed */
         char*    cnf_file_arg = NULL;         /*< conf filename from cmd-line arg */
         void*    log_flush_thr = NULL;
@@ -1590,7 +1589,7 @@ int main(int argc, char **argv)
                                                 "exactly with that of the errmsg.sys "
                                                 "file.\n*\n",
                                                 mysql_error(NULL),
-                                                home_dir);
+                                                get_langdir());
                                 }
                                 else
                                 {
@@ -1639,7 +1638,7 @@ int main(int argc, char **argv)
                 getpid())));
 
 	/* Write process pid into MaxScale pidfile */
-	write_pid_file(home_dir);
+	write_pid_file();
 
 	/* Init MaxScale poll system */
         poll_init();
@@ -1729,8 +1728,6 @@ int main(int argc, char **argv)
 return_main:
 	if (threads)
 		free(threads);
-	if (home_dir)
-		free(home_dir);
 	if (cnf_file_path)
 		free(cnf_file_path);
 
@@ -1812,7 +1809,7 @@ static void unlink_pidfile(void)
  *
  */
 
-static int write_pid_file(char *home_dir) {
+static int write_pid_file() {
 
 	int fd = -1;
 
