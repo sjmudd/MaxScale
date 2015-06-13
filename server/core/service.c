@@ -1039,12 +1039,12 @@ ReparseFilterConfig(CONFIG_CONTEXT *context,FILTER_DEF* filter)
 
 	if(tok)
 	{
-	    for(x = 0;filter->options[x];x++)
-		free(filter->options[x]);
-
 	    if(filter->options)
+	    {
+		for(x = 0;filter->options[x];x++)
+		    free(filter->options[x]);
 		filter->options[0] = NULL;
-
+	    }
 	    while(tok)
 	    {
 		filterAddOption(filter,tok);
@@ -1053,15 +1053,17 @@ ReparseFilterConfig(CONFIG_CONTEXT *context,FILTER_DEF* filter)
 	}
     }
 
-    for(x = 0;filter->parameters && filter->parameters[x];x++)
+    if(filter->parameters)
     {
-	free(filter->parameters[x]->name);
-	free(filter->parameters[x]->value);
-	free(filter->parameters[x]);
+	for(x = 0;filter->parameters[x];x++)
+	{
+	    free(filter->parameters[x]->name);
+	    free(filter->parameters[x]->value);
+	    free(filter->parameters[x]);
+	}
+	filter->parameters[0] = NULL;
     }
 
-    if(filter->parameters)
-	filter->parameters[0] = NULL;
     param = ptr->parameters;
 
     while(param)
