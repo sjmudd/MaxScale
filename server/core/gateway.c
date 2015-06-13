@@ -1551,7 +1551,7 @@ int main(int argc, char **argv)
         {
                 if (!strcmp(server_options[i], "--datadir="))
                 {
-                        snprintf(datadir_arg, 10+PATH_MAX+1, "--datadir=%s", get_datadir());
+                        snprintf(datadir_arg, 10+PATH_MAX+1, "--datadir=%s", datadir);
                         server_options[i] = datadir_arg;
                 }
                 else if (!strcmp(server_options[i], "--language="))
