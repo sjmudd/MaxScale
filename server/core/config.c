@@ -284,6 +284,10 @@ int		rval;
 	if (!config_file)
 		return 0;
 
+#ifdef CLOSE_ON_RELOAD
+	/** Close all connections to MaxScale */
+	dcb_close_all();
+#endif
 	if (gateway.version_string)
 		free(gateway.version_string);
 
@@ -1951,7 +1955,8 @@ void config_add_param(CONFIG_CONTEXT* obj, char* key,char* value)
 
 /*
  * Service configuration update
- *
+ * Update all services with the new values in the configuration context object.
+ * It updates the router parameters and options and the service parameters.
  * @param obj		The config (type=service) object to update
  *
  */
@@ -2176,7 +2181,9 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 
 /*
  * Server configuration update
- *
+ * For an old server, the protocol, user, password, address and port are updated.
+ * A new servers are created. Old servers which are not in the configuration context
+ * will not be removed by this function.
  * @param obj		The config (type=server) object to update
  *
  */
@@ -2242,7 +2249,7 @@ void config_server_update(CONFIG_CONTEXT *obj) {
 
 /*
  * Listener configuration update
- *
+ * Protocols which have not been started will be started
  * @param obj		The config (type=listener) object to update
  * @param context	The configuration data
  *
@@ -2300,7 +2307,8 @@ void config_listener_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context) {
 }
 
 /*
- * Service update backend servers and filters
+ * Service object update
+ * This function updates backend servers, the router and filters the service uses.
  *
  * @param obj		The config (type=service) object to update
  * @param context	The configuration data
@@ -2316,61 +2324,69 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 	roptions = config_get_value(obj->parameters, "router_options");
 	filters = config_get_value(obj->parameters, "filters");
 
-	if (servers && obj->element)
+	/** Only update a service which was successfully loaded */
+	if(obj->element)
 	{
+	    if (servers)
+	    {
 		char *lasts;
 		char *s = strtok_r(servers, ",", &lasts);
 		serviceClearBackends(obj->element);
 		while (s)
 		{
-			CONFIG_CONTEXT *obj1 = context;
-			int		found = 0;
+		    CONFIG_CONTEXT *obj1 = context;
+		    int		found = 0;
 
-			while (obj1)
+		    while (obj1)
+		    {
+			if (strcmp(trim(s), obj1->object) == 0 &&
+			 obj->element && obj1->element)
 			{
-				if (strcmp(trim(s), obj1->object) == 0 &&
-					obj->element && obj1->element)
-				{
-					found = 1;
-					if (!serviceHasBackend(obj->element, obj1->element))
-					{
-						serviceAddBackend(
-							obj->element,
-							obj1->element);
-					}
-				}
-				obj1 = obj1->next;
+			    found = 1;
+			    if (!serviceHasBackend(obj->element, obj1->element))
+			    {
+				serviceAddBackend(
+					obj->element,
+						 obj1->element);
+			    }
 			}
+			obj1 = obj1->next;
+		    }
 
-			if (!found)
-			{
-				LOGIF(LE, (skygw_log_write_flush(
-                                        LOGFILE_ERROR,
-					"Error: Unable to find "
-					"server '%s' that is "
-					"configured as part of "
-					"service '%s'.",
-					s, obj->object)));
-			}
-			s = strtok_r(NULL, ",", &lasts);
+		    if (!found)
+		    {
+			LOGIF(LE, (skygw_log_write_flush(
+				LOGFILE_ERROR,
+							 "Error: Unable to find "
+				"server '%s' that is "
+				"configured as part of "
+				"service '%s'.",
+							 s, obj->object)));
+		    }
+		    s = strtok_r(NULL, ",", &lasts);
 		}
-	}
-	if (roptions && obj->element)
-	{
+	    }
+	    
+	    /** Clear out the old router options before adding new ones */
+	    serviceClearRouterOptions(obj->element);
+	    if (roptions)
+	    {
 		char *lasts;
 		char *s = strtok_r(roptions, ",", &lasts);
-		serviceClearRouterOptions(obj->element);
 		while (s)
 		{
-			serviceAddRouterOption(obj->element, s);
-			s = strtok_r(NULL, ",", &lasts);
+		    serviceAddRouterOption(obj->element, s);
+		    s = strtok_r(NULL, ",", &lasts);
 		}
-	}
+	    }
 
-	if (filters && obj->element)
+	    if (filters)
+	    {
 		serviceUpdateFilters(obj->element,context, filters);
-	serviceUpdateRouter(obj->element, context);
-
+	    }
+	    
+	    serviceUpdateRouter(obj->element, context);
+	}
 }
 
 /*

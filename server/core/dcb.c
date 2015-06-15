@@ -2103,11 +2103,17 @@ dcb_call_foreach(struct server* server, DCB_REASON reason)
 	
         switch (reason) {
                 case DCB_REASON_CLOSE:
+		    break;
                 case DCB_REASON_DRAINED:
+		    break;
                 case DCB_REASON_HIGH_WATER:
+		    break;
                 case DCB_REASON_LOW_WATER:
+		    break;
                 case DCB_REASON_ERROR:
+		    break;
                 case DCB_REASON_HUP:
+		    break;
                 case DCB_REASON_NOT_RESPONDING: 
                 {
                         DCB* dcb;
@@ -2124,7 +2130,7 @@ dcb_call_foreach(struct server* server, DCB_REASON reason)
                         }
                         break;
                 }
-                        
+		break;
                 default:
                         break;
         }
@@ -2225,4 +2231,34 @@ DCB	*ptr;
 	}
 	spinlock_release(&dcbspin);
 	return rval;
+}
+
+/**
+ * Close all external DCBs
+ * 
+ * Close all DCB that are in a valid state and are in the polling loop. Only 
+ * request handling DCBs are closed and DCBs listening to sockets are left untouched.
+ * @return Number of closed connections
+ */
+int
+dcb_close_all()
+{
+    DCB *ptr,*tmp;
+    int nclosed = 0;
+    spinlock_acquire(&dcbspin);
+    ptr = allDCBs;
+    spinlock_release(&dcbspin);
+
+    while(ptr)
+    {
+	tmp = ptr;
+	ptr = ptr->next;
+	if(tmp->dcb_role == DCB_ROLE_REQUEST_HANDLER &&
+	 tmp->state == DCB_STATE_POLLING)
+	{
+	    dcb_close(tmp);
+	    nclosed++;
+	}
+    }
+    return nclosed;
 }
