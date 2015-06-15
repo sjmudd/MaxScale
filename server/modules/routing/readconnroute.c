@@ -490,6 +490,7 @@ updateInstance(ROUTER *instance, SERVICE *service, char **options)
 	inst->bitmask |= (SERVER_RUNNING);
 	inst->bitvalue |= SERVER_RUNNING;
     }
+    return 0;
 }
 
 /**
