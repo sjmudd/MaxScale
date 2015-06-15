@@ -568,6 +568,8 @@ bool    succp = false;
 			*/
 			rc = close(dcb->fd);
 
+			if(dcb->server)
+			    atomic_add(&dcb->server->stats.n_current, -1);
 			if (rc < 0) 
 			{
 				int eno = errno;

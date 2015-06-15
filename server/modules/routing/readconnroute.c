@@ -789,9 +789,6 @@ DCB*              backend_dcb;
          */
         if (rses_begin_locked_router_action(router_cli_ses))
         {
-		/* decrease server current connection counter */
-		atomic_add(&router_cli_ses->backend->server->stats.n_current, -1);
-
                 backend_dcb = router_cli_ses->backend_dcb;
                 router_cli_ses->backend_dcb = NULL;
                 router_cli_ses->rses_closed = true;
