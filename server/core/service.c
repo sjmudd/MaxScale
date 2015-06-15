@@ -1052,7 +1052,23 @@ ReparseFilterConfig(CONFIG_CONTEXT *context,FILTER_DEF* filter)
 	    }
 	}
     }
-
+    else
+    {
+	if(filter->options == NULL)
+	{
+	    if((filter->options = (char **)malloc(sizeof(char *))) == NULL)
+	    {
+		skygw_log_write(LE,"Error: memory allocation failed");
+		return -1;
+	    }
+	}
+	else
+	{
+	    for(x = 0;filter->options[x];x++)
+		free(filter->options[x]);
+	}
+	filter->options[0] = NULL;
+    }
     if(filter->parameters)
     {
 	for(x = 0;filter->parameters[x];x++)
@@ -1068,7 +1084,8 @@ ReparseFilterConfig(CONFIG_CONTEXT *context,FILTER_DEF* filter)
 
     while(param)
     {
-	filterAddParameter(filter,param->name,param->value);
+	if(strcmp(param->name,"options") != 0)
+	    filterAddParameter(filter,param->name,param->value);
 	param = param->next;
     }
     return 0;
