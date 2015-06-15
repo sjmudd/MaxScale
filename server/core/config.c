@@ -284,10 +284,9 @@ int		rval;
 	if (!config_file)
 		return 0;
 
-#ifdef CLOSE_ON_RELOAD
 	/** Close all connections to MaxScale */
 	dcb_close_all();
-#endif
+
 	if (gateway.version_string)
 		free(gateway.version_string);
 

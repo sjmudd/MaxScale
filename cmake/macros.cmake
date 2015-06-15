@@ -79,9 +79,6 @@ macro(set_variables)
 
   # Profiling
   set(PROFILE FALSE CACHE BOOL "Profiling (gprof)")
-
-  # Enable code that closes all connections on config reload
-  set(CLOSE_ON_RELOAD FALSE CACHE BOOL "Close all connections on config reload")
   
 endmacro()
 

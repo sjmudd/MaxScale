@@ -93,10 +93,6 @@ if(GCOV)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lgcov")
 endif()
 
-if(CLOSE_ON_RELOAD)
-  add_definitions("-DCLOSE_ON_RELOAD")
-endif()
-
 if(PROFILE)
   message(STATUS "Profiling executables")
   set(FLAGS "${FLAGS} -pg " CACHE STRING "Compilation flags" FORCE)

@@ -2236,10 +2236,12 @@ DCB	*ptr;
 }
 
 /**
- * Close all external DCBs
+ * Close all external connections
  * 
- * Close all DCB that are in a valid state and are in the polling loop. Only 
+ * Close all DCB that are in a valid state and are in the polling loop. Only
  * request handling DCBs are closed and DCBs listening to sockets are left untouched.
+ * Instead of directly closing the DCB the close function of each protocol is called to
+ * allow a controlled shutdown of all connections.
  * @return Number of closed connections
  */
 int
@@ -2258,7 +2260,7 @@ dcb_close_all()
 	if(tmp->dcb_role == DCB_ROLE_REQUEST_HANDLER &&
 	 tmp->state == DCB_STATE_POLLING)
 	{
-	    dcb_close(tmp);
+	    tmp->func.close(tmp);
 	    nclosed++;
 	}
     }
