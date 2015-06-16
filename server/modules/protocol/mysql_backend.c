@@ -1311,7 +1311,7 @@ static int backend_write_delayqueue(DCB *dcb)
  * @param dcb		The current backend DCB
  * @param server	The backend server pointer
  * @param in_session	The current session data (MYSQL_session)
- * @param queue		The GWBUF containing the COM_CHANGE_USER receveid
+ * @param queue		The GWBUF containing the COM_CHANGE_USER received
  * @return 1 on success and 0 on failure
  */
 static int gw_change_user(
@@ -1418,7 +1418,7 @@ static int gw_change_user(
 		char *message = NULL;
 		GWBUF* 		buf;
 
-		if (auth_token_len > 0)
+		if (auth_token_len > 0 && client_sha1)
 			password_set = (char *)client_sha1;
 		else
 			password_set = "";
@@ -1451,13 +1451,20 @@ static int gw_change_user(
 		modutil_reply_auth_error(backend, message, 0);
 		rv = 1;
         } else {
-		rv = gw_send_change_user_to_backend(database, username, client_sha1, backend_protocol);
+		rv = gw_send_change_user_to_backend(database, username, backend_protocol);
 		/*
 		 * Now copy new data into user session
 		 */
 		strcpy(current_session->user, username);
 		strcpy(current_session->db, database);
-		memcpy(current_session->client_sha1, client_sha1, sizeof(current_session->client_sha1));
+                if (client_sha1)
+                {
+                    memcpy(current_session->client_sha1, client_sha1, sizeof(current_session->client_sha1));
+                }
+                else 
+                {
+                    current_session->client_sha1 = NULL;
+                }
         }
         
 retblock:

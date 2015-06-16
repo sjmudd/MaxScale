@@ -577,7 +577,7 @@ int gw_send_authentication_to_backend(
         if (strlen(dbname))
                 curr_db = dbname;
 
-        if (strlen((char *)passwd))
+        if (passwd)
                 curr_passwd = passwd;
 
 	dcb = conn->owner_dcb;
@@ -1118,7 +1118,7 @@ GWBUF* gw_create_change_user_packet(
 		curr_db = db;
 	}
 	
-	if (strlen((char *)pwd) > 0)
+	if (pwd)
 	{
 		curr_passwd = pwd;
 	}	
@@ -1277,13 +1277,11 @@ GWBUF* gw_create_change_user_packet(
  * @param conn  MySQL protocol structure
  * @param dbname The selected database
  * @param user The selected user
- * @param passwd The SHA1(real_password)
  * @return 1 on success, 0 on failure
  */
 int gw_send_change_user_to_backend(
 	char 		*dbname, 
 	char		*user, 
-	uint8_t		*passwd, 
 	MySQLProtocol	*conn) 
 {
 	GWBUF 	 	*buffer;
@@ -1310,17 +1308,16 @@ int gw_send_change_user_to_backend(
  * @param token 	The token sent by the client in the authentication request
  * @param token_len 	The token size in bytes
  * @param scramble 	The scramble data sent by the server during handshake
- * @param scramble_len 	The scrable size in bytes
+ * @param scramble_len 	The scramble size in bytes
  * @param username	The current username in the authentication request
  * @param stage1_hash	The SHA1(candidate_password) decoded by this routine
- * @return 0 on succesful check or 1 on failure
+ * @return 0 on successful check or 1 on failure
  *
  */
 int gw_check_mysql_scramble_data(DCB *dcb, uint8_t *token, unsigned int token_len, uint8_t *scramble, unsigned int scramble_len, char *username, uint8_t *stage1_hash) {
 	uint8_t step1[GW_MYSQL_SCRAMBLE_SIZE]="";
 	uint8_t step2[GW_MYSQL_SCRAMBLE_SIZE +1]="";
 	uint8_t check_hash[GW_MYSQL_SCRAMBLE_SIZE]="";
-	char hex_double_sha1[2 * GW_MYSQL_SCRAMBLE_SIZE + 1]="";
 	uint8_t password[GW_MYSQL_SCRAMBLE_SIZE]="";
 	int ret_val = 1;
 
@@ -1337,7 +1334,7 @@ int gw_check_mysql_scramble_data(DCB *dcb, uint8_t *token, unsigned int token_le
 
 	if (ret_val) {
 		/* if password was sent, fill stage1_hash with at least 1 byte in order
-		 * to create rigth error message: (using password: YES|NO)
+		 * to create right error message: (using password: YES|NO)
 		 */
 		if (token_len)
 			memcpy(stage1_hash, (char *)"_", 1);
@@ -1345,20 +1342,23 @@ int gw_check_mysql_scramble_data(DCB *dcb, uint8_t *token, unsigned int token_le
 		return 1;
 	}
 
-	if (token && token_len) {
+	if (!token || 0 == token_len) {
 		/*<
 		 * convert in hex format: this is the content of mysql.user table.
 		 * The field password is without the '*' prefix and it is 40 bytes long
 		 */
-
-		gw_bin2hex(hex_double_sha1, password, SHA_DIGEST_LENGTH);
-	} else {
+            
 		/* check if the password is not set in the user table */
-		if (!strlen((char *)password)) {
-			/* Username without password */
-			return 0;
-		} else {
+		if (strlen((char *)password))
+                {
+                    /* Error condition - no password given but DB says there is one */
 			return 1;
+		} 
+                else 
+                {
+			/* Username without password */
+                        stage1_hash = NULL;
+			return 0;
 		}
 	}
 

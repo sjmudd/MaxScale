@@ -1210,7 +1210,7 @@ int	above_water;
 }
 
 /** 
- * Removes dcb from poll set, and adds it to zombies list. As a consequense,
+ * Removes dcb from poll set, and adds it to zombies list. As a consequence,
  * dcb first moves to DCB_STATE_NOPOLLING, and then to DCB_STATE_ZOMBIE state.
  * At the end of the function state may not be DCB_STATE_ZOMBIE because once
  * dcb_initlock is released parallel threads may change the state.

@@ -342,7 +342,6 @@ GWBUF* mysql_create_custom_error(
 int gw_send_change_user_to_backend(
         char *dbname,
         char *user,
-        uint8_t *passwd,
         MySQLProtocol *protocol);
 
 GWBUF* gw_create_change_user_packet(
