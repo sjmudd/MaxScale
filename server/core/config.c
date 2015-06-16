@@ -2556,3 +2556,12 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 
 	return error_count;
 }
+/**
+ * Return the pointer to the global options for MaxScale.
+ * @return Pointer to the GATEWAY_CONF structure. This is a static structure and
+ * should not be modified.
+ */
+GATEWAY_CONF* config_get_global_options()
+{
+    return &gateway;
+}

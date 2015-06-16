@@ -934,8 +934,8 @@ int main(int argc, char **argv)
 	char* tmp_var;
 	int      option_index;
 	int	 logtofile = 0;	      	      /* Use shared memory or file */
-	int	 syslog_enabled = 0; /** Log to syslog */
-	int	 maxscalelog_enabled = 1; /** Log with MaxScale */
+	int	 *syslog_enabled = &config_get_global_options()->syslog; /** Log to syslog */
+	int	 *maxscalelog_enabled = &config_get_global_options()->maxlog; /** Log with MaxScale */
         ssize_t  log_flush_timeout_ms = 0;
         sigset_t sigset;
         sigset_t sigpipe_mask;
@@ -945,7 +945,8 @@ int main(int argc, char **argv)
                                        write_footer,
                                        NULL};
 
-	
+	*syslog_enabled = 0;
+	*maxscalelog_enabled = 1;
 
         sigemptyset(&sigpipe_mask);
         sigaddset(&sigpipe_mask, SIGPIPE);
@@ -1089,11 +1090,11 @@ int main(int argc, char **argv)
                 {
                     tok++;
                     if(tok)
-                        maxscalelog_enabled = config_truth_value(tok);
+                        *maxscalelog_enabled = config_truth_value(tok);
                 }
                 else
                 {
-                    maxscalelog_enabled = config_truth_value(optarg);
+                    *maxscalelog_enabled = config_truth_value(optarg);
                 }
             }
 		    break;
@@ -1104,11 +1105,11 @@ int main(int argc, char **argv)
                 {
                     tok++;
                     if(tok)
-                        syslog_enabled = config_truth_value(tok);
+                        *syslog_enabled = config_truth_value(tok);
                 }
                 else
                 {
-                    syslog_enabled = config_truth_value(optarg);
+                    *syslog_enabled = config_truth_value(optarg);
                 }
             }
 		    break;
@@ -1439,17 +1440,17 @@ int main(int argc, char **argv)
                 argv[1] = "-j";
                 argv[2] = get_logdir();
 
-		if(!syslog_enabled)
+		if(!(*syslog_enabled))
 		{
 		    printf("Syslog logging is disabled.\n");
 		}
 		
-		if(!maxscalelog_enabled)
+		if(!(*maxscalelog_enabled))
 		{
 		    printf("MaxScale logging is disabled.\n");
 		}
-		logmanager_enable_syslog(syslog_enabled);
-		logmanager_enable_maxscalelog(maxscalelog_enabled);
+		logmanager_enable_syslog(*syslog_enabled);
+		logmanager_enable_maxscalelog(*maxscalelog_enabled);
 
 		if (logtofile)
 		{
@@ -1895,6 +1896,7 @@ bool handle_path_arg(char** dest, char* path, char* arg, bool rd, bool wr)
 static int cnf_preparser(void* data, const char* section, const char* name, const char* value)
 {
     char* tmp;
+    GATEWAY_CONF* cnf = config_get_global_options();
     /** These are read from the configuration file. These will not override
      * command line parameters but will override default values. */
     if(strcasecmp(section,"maxscale") == 0)
@@ -1956,6 +1958,14 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 		set_langdir(tmp);
 		free(tmp);
 	    }
+	}
+	else if(strcmp(name, "syslog") == 0)
+	{
+	    cnf->syslog = config_truth_value((char*)value);
+	}
+	else if(strcmp(name, "maxlog") == 0)
+	{
+	    cnf->maxlog = config_truth_value((char*)value);
 	}
     }
 

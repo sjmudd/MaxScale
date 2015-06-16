@@ -21,6 +21,7 @@ statement routing  | Statement routing is a method of handling requests in which
 connection failover| When a connection currently being used between MaxScale and the database server fails a replacement will be automatically created to another server by MaxScale without client intervention
   backend database | A term used to refer to a database that sits behind MaxScale and is accessed by applications via MaxScale.
             filter | A module that can be placed between the client and the MaxScale router module. All client data passes through the filter module and may be examined or modified by the filter modules.  Filters may be chained together to form processing pipelines.
+boolean value      | A string of characters which defines a true or false statement. Accepted forms for true values are `yes`, `on`, `true` and `1`. For negative values accpted forms are `no`,`off`,`false`,`0`. These values are used when configuring options and parameters.
 
 
 ## Configuration
@@ -54,6 +55,25 @@ threads=1
 ```
 
 It should be noted that additional threads will be created to execute other internal services within MaxScale. This setting is used to configure the number of threads that will be used to manage the user connections.
+
+
+#### `syslog`
+
+Enable or disable writing logs to syslog. This will write enabled log files by using the syslog functionality of the system.  Accepted parameters are boolean values.
+
+```
+# Example
+syslog=true
+```
+
+#### `maxlog`
+
+Enable or disable writing to Maxscale's own log files. With this option, MaxScale will write to its own log files found in the /var/lib/maxscale/ folder by default. Accepted parameters are boolean values.
+
+```
+# Example
+maxlog=true
+```
 
 #### `ms_timestamp`
 
