@@ -417,10 +417,10 @@ static void refreshInstance(
                 param = router->service->svc_config_param;
                 refresh_single = false;
         }
-        paramtype = config_get_paramtype(param);
 
         while (param != NULL)
         {
+	    paramtype = config_get_paramtype(param);
 		/** Catch unused parameter types */
 		ss_dassert(paramtype == COUNT_TYPE ||
 			paramtype == PERCENT_TYPE ||
