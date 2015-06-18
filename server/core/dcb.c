@@ -82,7 +82,7 @@ static	DCB		*allDCBs = NULL;	/* Diagnostics need a list of DCBs */
 static	DCB		*zombies = NULL;
 static	SPINLOCK	dcbspin = SPINLOCK_INIT;
 static	SPINLOCK	zombiespin = SPINLOCK_INIT;
-
+static  int		dcb_close_flag = 0;
 static void dcb_final_free(DCB *dcb);
 static bool dcb_set_state_nomutex(
         DCB*              dcb,
@@ -3169,15 +3169,30 @@ int dcb_connect_SSL(DCB* dcb)
  * request handling DCBs are closed and DCBs listening to sockets are left untouched.
  * Instead of directly closing the DCB the close function of each protocol is called to
  * allow a controlled shutdown of all connections.
- * @return Number of closed connections
  */
-int
+void
 dcb_close_all()
 {
-    DCB *ptr,*tmp;
-    int nclosed = 0;
     spinlock_acquire(&dcbspin);
-    ptr = allDCBs;
+    dcb_close_flag = 1;
+    spinlock_release(&dcbspin);
+}
+
+/**
+ * Check if the dcb_close_flag has been set an if so, close all DCBs. This function
+ * should only be called from inside poll.c from function poll_waitevents.
+ */
+void
+dcb_process_closeall()
+{
+    DCB *ptr = NULL,*tmp;
+
+    spinlock_acquire(&dcbspin);
+    if(dcb_close_flag)
+    {
+	dcb_close_flag = 0;
+	ptr = allDCBs;
+    }
     spinlock_release(&dcbspin);
 
     while(ptr)
@@ -3188,8 +3203,6 @@ dcb_close_all()
 	 tmp->state == DCB_STATE_POLLING)
 	{
 	    dcb_close(tmp);
-	    nclosed++;
 	}
     }
-    return nclosed;
 }
