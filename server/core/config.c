@@ -112,6 +112,8 @@ static	GATEWAY_CONF	gateway;
 static	FEEDBACK_CONF	feedback;
 char			*version_string = NULL;
 static HASHTABLE	*monitorhash;
+static bool		reload_conf = false;
+static SPINLOCK         reload_lock = SPINLOCK_INIT;
 /**
  * Trim whitespace from the front and rear of a string
  *
@@ -372,46 +374,58 @@ int		rval;
 int
 config_reload()
 {
-CONFIG_CONTEXT	config;
-int		rval;
+    CONFIG_CONTEXT	config;
+    int		rval = 1;
 
-	if (!config_file)
-		return 0;
+    if (!config_file)
+	return 0;
 
-	/** Close all connections to MaxScale */
-	dcb_close_all();
+    if(spinlock_acquire_nowait(&reload_lock))
+    {
+	if(reload_conf)
+	{
+	    /** Stop accepting new connections for the duration of the reload */
+	    serviceStopAll();
 
-	if (gateway.version_string)
+	    /** Close all connections to MaxScale */
+	    dcb_close_all();
+
+	    if (gateway.version_string)
 		free(gateway.version_string);
 
-	global_defaults();
+	    global_defaults();
 
-	config.object = "";
-	config.next = NULL;
+	    config.object = "";
+	    config.next = NULL;
 
-	hashtable_free(monitorhash);
+	    hashtable_free(monitorhash);
 
-	if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
-	{
-	    skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate monitor configuration check hashtable.");
-	    return 0;
-	}
+	    if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
+	    {
+		skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate monitor configuration check hashtable.");
+		return 0;
+	    }
 
-	hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
+	    hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
 
-	if (ini_parse(config_file, handler, &config) < 0)
+	    if (ini_parse(config_file, handler, &config) < 0)
 		return 0;
 
-	rval = process_config_update(config.next);
-	free_config_context(config.next);
+	    rval = process_config_update(config.next);
+	    free_config_context(config.next);
 
-	/** Enable/disable feedback task */
-	config_disable_feedback_task();
-	if(feedback.feedback_enable)
-	    config_enable_feedback_task();
+	    /** Enable/disable feedback task */
+	    config_disable_feedback_task();
+	    if(feedback.feedback_enable)
+		config_enable_feedback_task();
 
+	    serviceRestartAll();
 
-	return rval;
+	    reload_conf = false;
+	}
+	spinlock_release(&reload_lock);
+    }
+    return rval;
 }
 
 int
@@ -2712,4 +2726,12 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 GATEWAY_CONF* config_get_global_options()
 {
     return &gateway;
+}
+
+/**
+ * Signal a thread that the configuration should be reloaded.
+ */
+void config_set_reload_flag()
+{
+    reload_conf = true;
 }

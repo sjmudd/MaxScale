@@ -110,6 +110,7 @@ typedef struct {
 
 extern int		config_load(char *);
 extern int		config_reload();
+extern void             config_set_reload_flag();
 extern int              config_read_config(CONFIG_CONTEXT* context);
 extern void             config_free_config(CONFIG_CONTEXT* context);
 extern int		config_threadcount();

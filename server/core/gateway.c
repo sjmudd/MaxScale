@@ -272,7 +272,7 @@ static void sighup_handler (int i)
 	LOGIF(LM, (skygw_log_write(
                 LOGFILE_MESSAGE,
                 "Refreshing configuration following SIGHUP\n")));
-	config_reload();
+	config_set_reload_flag();
 }
 
 /**

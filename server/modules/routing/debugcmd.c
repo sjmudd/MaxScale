@@ -1143,7 +1143,7 @@ static void
 reload_config(DCB *dcb)
 {
 	dcb_printf(dcb, "Reloading configuration from file.\n");
-	config_reload();
+	config_set_reload_flag();
 }
 
 /**

@@ -556,6 +556,37 @@ int		listeners = 0;
 	return listeners;
 }
 
+
+
+/**
+ * Stop all the services
+ *
+ * @return Return the number of services stopped
+ */
+int
+serviceStopAll()
+{
+SERVICE	*ptr;
+int	n = 0,i;
+
+	ptr = allServices;
+	while (ptr && !ptr->svc_do_shutdown)
+	{
+		n += (i = serviceStop(ptr));
+
+		if(i == 0)
+		{
+			LOGIF(LE, (skygw_log_write(
+				LOGFILE_ERROR,
+				"Error : Failed to stop service '%s'.",
+				ptr->name)));
+		}
+
+		ptr = ptr->next;
+	}
+	return n;
+}
+
 /**
  * Restart a service
  *
@@ -573,16 +604,51 @@ int		listeners = 0;
 	port = service->ports;
 	while (port)
 	{
+	    if(port->listener->session->state == SESSION_STATE_LISTENER_STOPPED)
+	    {
                 if (poll_add_dcb(port->listener) == 0) {
                         port->listener->session->state = SESSION_STATE_LISTENER;
                         listeners++;
                 }
-		port = port->next;
+	    }
+	    else
+		listeners++;
+
+	    port = port->next;
 	}
 
 	return listeners;
 }
 
+
+/**
+ * Restart all the services
+ *
+ * @return Return the number of services restarted
+ */
+int
+serviceRestartAll()
+{
+SERVICE	*ptr;
+int	n = 0,i;
+
+	ptr = allServices;
+	while (ptr && !ptr->svc_do_shutdown)
+	{
+		n += (i = serviceRestart(ptr));
+
+		if(i == 0)
+		{
+			LOGIF(LE, (skygw_log_write(
+				LOGFILE_ERROR,
+				"Error : Failed to restart service '%s'.",
+				ptr->name)));
+		}
+
+		ptr = ptr->next;
+	}
+	return n;
+}
 
 /**
  * Deallocate the specified service
