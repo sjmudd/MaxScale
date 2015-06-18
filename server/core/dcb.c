@@ -3187,7 +3187,7 @@ dcb_close_all()
 	if(tmp->dcb_role == DCB_ROLE_REQUEST_HANDLER &&
 	 tmp->state == DCB_STATE_POLLING)
 	{
-	    tmp->func.hangup(tmp);
+	    dcb_close(tmp);
 	    nclosed++;
 	}
     }
