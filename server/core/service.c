@@ -257,7 +257,9 @@ GWPROTOCOL	*funcs;
 				if (loaded == -1)
 				{
 					hashtable_free(service->users->data);
+					service->users->data = NULL;
 					free(service->users);
+					service->users = NULL;
 					dcb_free(port->listener);
 					port->listener = NULL;
 					goto retblock;
@@ -338,8 +340,10 @@ GWPROTOCOL	*funcs;
 		if (service->users->data)
 		{
 			hashtable_free(service->users->data);
+			service->users->data = NULL;
 		}
 		free(service->users);
+		service->users = NULL;
 		dcb_free(port->listener);
 		port->listener = NULL;
 		LOGIF(LE, (skygw_log_write_flush(
@@ -377,8 +381,10 @@ GWPROTOCOL	*funcs;
 			if (service->users->data)
 			{
 				hashtable_free(service->users->data);
+				service->users->data = NULL;
 			}
 			free(service->users);
+			service->users = NULL;
                         dcb_close(port->listener);
 			port->listener = NULL;
 			goto retblock;
@@ -395,8 +401,10 @@ GWPROTOCOL	*funcs;
 		if (service->users->data)
 		{
 			hashtable_free(service->users->data);
+			service->users->data = NULL;
 		}
 		free(service->users);
+		service->users = NULL;
 		dcb_close(port->listener);
 		port->listener = NULL;
         }
@@ -1326,6 +1334,14 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 	    serviceStartPort(service,ptr);
 	}
 	ptr = ptr->next;
+    }
+
+    if(service->ssl_mode != SSL_DISABLED)
+    {
+	if(serviceInitSSL(service) != 0){
+	    skygw_log_write(LE,"[%s] Error: SSL initialization failed on config reload.",
+		     service->name);
+	}
     }
 
     if(service->router->updateInstance && is_update)
@@ -2310,4 +2326,38 @@ int serviceInitSSL(SERVICE* service)
 	service->ssl_init_done = true;
     }
     return 0;
+}
+
+/**
+ * Disable obsolete services from MaxScale.
+ * This will disable obsolete services in MaxScale but will not free them.
+ * @param ctx Configuraton context
+ */
+void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
+{
+    CONFIG_CONTEXT* ptr;
+    SERVICE* service;
+
+    spinlock_acquire(&service_spin);
+    service = allServices;
+
+    while(service)
+    {
+	ptr = ctx;
+	bool obsolete = true;
+	while(ptr)
+	{
+	    if(strcmp(ptr->object,service->name) == 0)
+	    {
+		obsolete = false;
+		break;
+	    }
+	    ptr = ptr->next;
+	}
+	if(obsolete)
+	    serviceStop(service);
+	service = service->next;
+    }
+
+    spinlock_release(&service_spin);
 }

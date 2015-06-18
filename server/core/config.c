@@ -112,7 +112,6 @@ static	GATEWAY_CONF	gateway;
 static	FEEDBACK_CONF	feedback;
 char			*version_string = NULL;
 static HASHTABLE	*monitorhash;
-
 /**
  * Trim whitespace from the front and rear of a string
  *
@@ -203,6 +202,101 @@ CONFIG_PARAMETER	*param, *p1;
 	ptr->parameters = param;
 
 	return 1;
+}
+
+/**
+ *
+ * @param obj
+ * @param mode
+ * @param ssl_cert
+ * @param ssl_key
+ * @param ssl_ca_cert
+ * @param ssl_version
+ * @param verify_depth
+ * @return
+ */
+int config_handle_ssl(SERVICE* service,
+		      char* mode,
+		      char* ssl_cert,
+		      char* ssl_key,
+		      char* ssl_ca_cert,
+		      char* ssl_version,
+		      char* verify_depth)
+{
+    int error_count = 0;
+    if(ssl_cert == NULL)
+    {
+	error_count++;
+	skygw_log_write(LE,"Error: Server certificate missing for service '%s'."
+		"Please provide the path to the server certificate by adding the ssl_cert=<path> parameter",
+		 service->name);
+    }
+    if(ssl_ca_cert == NULL)
+    {
+	error_count++;
+	skygw_log_write(LE,"Error: CA Certificate missing for service '%s'."
+		"Please provide the path to the certificate authority certificate by adding the ssl_ca_cert=<path> parameter",
+		 service->name);
+    }
+    if(ssl_key == NULL)
+    {
+	error_count++;
+	skygw_log_write(LE,"Error: Server private key missing for service '%s'. "
+		"Please provide the path to the server certificate key by adding the ssl_key=<path> parameter"
+		,service->name);
+    }
+
+    if(access(ssl_ca_cert,F_OK) != 0)
+    {
+	skygw_log_write(LE,"Error: Certificate authority file for service '%s' not found: %s",
+		 service->name,
+		 ssl_ca_cert);
+	error_count++;
+    }
+    if(access(ssl_cert,F_OK) != 0)
+    {
+	skygw_log_write(LE,"Error: Server certificate file for service '%s' not found: %s",
+		 service->name,
+		 ssl_cert);
+	error_count++;
+    }
+    if(access(ssl_key,F_OK) != 0)
+    {
+	skygw_log_write(LE,"Error: Server private key file for service '%s' not found: %s",
+		 service->name,
+		 ssl_key);
+	error_count++;
+    }
+
+    if(error_count == 0)
+    {
+	if(serviceSetSSL(service,mode) != 0)
+	{
+	    skygw_log_write(LE,"Error: Unknown parameter for service '%s': %s",service->name,mode);
+	    error_count++;
+	}
+	else
+	{
+	    serviceSetCertificates(service,ssl_cert,ssl_key,ssl_ca_cert);
+	    if(ssl_version)
+	    {
+		if(serviceSetSSLVersion(service,ssl_version) != 0)
+		{
+		    skygw_log_write(LE,"Error: Unknown parameter value for 'ssl_version' for service '%s': %s",service->name,ssl_version);
+		    error_count++;
+		}
+	    }
+	    if(verify_depth)
+	    {
+		if(serviceSetSSLVerifyDepth(service,atoi(verify_depth)) != 0)
+		{
+		    skygw_log_write(LE,"Error: Invalid parameter value for 'ssl_cert_verify_depth' for service '%s': %s",service->name,verify_depth);
+		    error_count++;
+		}
+	    }
+	}
+    }
+    return error_count;
 }
 
 /**
@@ -503,79 +597,13 @@ hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NU
 
 				if(ssl)
 				{
-				    if(ssl_cert == NULL)
-				    {
-					error_count++;
-					skygw_log_write(LE,"Error: Server certificate missing for service '%s'."
-						"Please provide the path to the server certificate by adding the ssl_cert=<path> parameter",
-						 obj->object);
-				    }
-				    if(ssl_ca_cert == NULL)
-				    {
-					error_count++;
-					skygw_log_write(LE,"Error: CA Certificate missing for service '%s'."						
-						"Please provide the path to the certificate authority certificate by adding the ssl_ca_cert=<path> parameter",
-						 obj->object);
-				    }
-				    if(ssl_key == NULL)
-				    {
-					error_count++;
-					skygw_log_write(LE,"Error: Server private key missing for service '%s'. "
-						"Please provide the path to the server certificate key by adding the ssl_key=<path> parameter"
-						,obj->object);
-				    }
-
-				    if(access(ssl_ca_cert,F_OK) != 0)
-				    {
-					skygw_log_write(LE,"Error: Certificate authority file for service '%s' not found: %s",
-						 obj->object,
-						 ssl_ca_cert);
-					error_count++;
-				    }
-				    if(access(ssl_cert,F_OK) != 0)
-				    {
-					skygw_log_write(LE,"Error: Server certificate file for service '%s' not found: %s",
-						 obj->object,
-						 ssl_cert);
-					error_count++;
-				    }
-				    if(access(ssl_key,F_OK) != 0)
-				    {
-					skygw_log_write(LE,"Error: Server private key file for service '%s' not found: %s",
-						 obj->object,
-						 ssl_key);
-					error_count++;
-				    }
-
-				    if(error_count == 0)
-				    {
-					if(serviceSetSSL(obj->element,ssl) != 0)
-					{
-					    skygw_log_write(LE,"Error: Unknown parameter for service '%s': %s",obj->object,ssl);
-					    error_count++;
-					}
-					else
-					{
-					    serviceSetCertificates(obj->element,ssl_cert,ssl_key,ssl_ca_cert);
-					    if(ssl_version)
-					    {
-						if(serviceSetSSLVersion(obj->element,ssl_version) != 0)
-						{
-						    skygw_log_write(LE,"Error: Unknown parameter value for 'ssl_version' for service '%s': %s",obj->object,ssl_version);
-						    error_count++;
-						}
-					    }
-					    if(ssl_cert_verify_depth)
-					    {
-						if(serviceSetSSLVerifyDepth(obj->element,atoi(ssl_cert_verify_depth)) != 0)
-						{
-						    skygw_log_write(LE,"Error: Invalid parameter value for 'ssl_cert_verify_depth' for service '%s': %s",obj->object,ssl_cert_verify_depth);
-						    error_count++;
-						}
-					    }
-					}
-				    }
-
+				    error_count += config_handle_ssl(obj->element,
+								     ssl,
+								     ssl_cert,
+								     ssl_key,
+								     ssl_ca_cert,
+								     ssl_version,
+								     ssl_cert_verify_depth);
 				}
 
 				if (enable_root_user)
@@ -1497,6 +1525,8 @@ CONFIG_CONTEXT		*obj;
         /** Remove old servers before adding any new or renamed ones */
 	server_remove_old_servers(context);
 
+	/** Disable obsolete services */
+	serviceRemoveObsolete(context);
 	/**
 	 * Process the data and create the services and servers defined
 	 * in the data.
@@ -2073,6 +2103,15 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			char* max_slave_rlag_str;
 			char *version_string;
 			char *allow_localhost_match_wildcard_host;
+			char *ssl,*ssl_cert,*ssl_key,*ssl_ca_cert,*ssl_version;
+			char* ssl_cert_verify_depth;
+
+			ssl = config_get_value(obj->parameters, "ssl");
+			ssl_cert = config_get_value(obj->parameters, "ssl_cert");
+			ssl_key = config_get_value(obj->parameters, "ssl_key");
+			ssl_ca_cert = config_get_value(obj->parameters, "ssl_ca_cert");
+			ssl_version = config_get_value(obj->parameters, "ssl_version");
+			ssl_cert_verify_depth = config_get_value(obj->parameters, "ssl_cert_verify_depth");
 
 			enable_root_user = config_get_value(obj->parameters, "enable_root_user");
 
@@ -2203,6 +2242,10 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 						}
 					}
 				}
+				if(ssl)
+				{
+				    config_handle_ssl(service,ssl,ssl_cert,ssl_key,ssl_ca_cert,ssl_version,ssl_cert_verify_depth);
+				}
 			}
 
 			obj->element = service;
@@ -2217,7 +2260,15 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			char *auth_all_servers;
 			char *optimize_wildcard;
 			char *strip_db_esc;
+			char *ssl,*ssl_cert,*ssl_key,*ssl_ca_cert,*ssl_version;
+			char* ssl_cert_verify_depth;
 
+			ssl = config_get_value(obj->parameters, "ssl");
+			ssl_cert = config_get_value(obj->parameters, "ssl_cert");
+			ssl_key = config_get_value(obj->parameters, "ssl_key");
+			ssl_ca_cert = config_get_value(obj->parameters, "ssl_ca_cert");
+			ssl_version = config_get_value(obj->parameters, "ssl_version");
+			ssl_cert_verify_depth = config_get_value(obj->parameters, "ssl_cert_verify_depth");
 			enable_root_user = config_get_value(obj->parameters, "enable_root_user");
 
 			connection_timeout = config_get_value(obj->parameters, "connection_timeout");
@@ -2255,7 +2306,13 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 					serviceEnableLocalhostMatchWildcardHost(
 						obj->element,
 						config_truth_value(allow_localhost_match_wildcard_host));
+
+				if(ssl)
+				{
+				    config_handle_ssl(obj->element,ssl,ssl_cert,ssl_key,ssl_ca_cert,ssl_version,ssl_cert_verify_depth);
+				}
 			}
+			
 		}
 	}
 	else
