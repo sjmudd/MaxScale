@@ -177,7 +177,7 @@ int		i;
 
 	if ((my_instance = calloc(1, sizeof(QLA_INSTANCE))) != NULL)
 	{
-		if (options){
+		if (options && options[0]){
 			my_instance->filebase = strdup(options[0]);
 		}else{
 			my_instance->filebase = strdup("qla");
