@@ -149,10 +149,24 @@ monitorStart(MONITOR *monitor, void* params)
 void
 monitorStop(MONITOR *monitor)
 {
+    MONITOR_SERVERS* ptr;
     if(monitor->state != MONITOR_STATE_STOPPED)
     {
+	ptr = monitor->databases;
 	monitor->state = MONITOR_STATE_STOPPING;
 	monitor->module->stopMonitor(monitor);
+
+	/** Close all MySQL connections */
+	while(ptr)
+	{
+	    if(ptr->con)
+	    {
+		mysql_close(ptr->con);
+		ptr->con = NULL;
+	    }
+	    ptr = ptr->next;
+	}
+
 	monitor->state = MONITOR_STATE_STOPPED;
     }
 }
