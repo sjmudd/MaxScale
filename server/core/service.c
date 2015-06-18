@@ -543,8 +543,10 @@ int		listeners = 0;
 	while (port)
 	{
 		if(port->listener)
+		{
 		    poll_remove_dcb(port->listener);
-		port->listener->session->state = SESSION_STATE_LISTENER_STOPPED;
+		    port->listener->session->state = SESSION_STATE_LISTENER_STOPPED;
+		}
 		listeners++;
 
 		port = port->next;
