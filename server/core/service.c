@@ -1093,8 +1093,7 @@ int		n = 0;
 			LOGIF(LE, (skygw_log_write_flush(
                                 LOGFILE_ERROR,
 				"Warning : Unable to find filter '%s' for service '%s'\n",
-					trim(ptr), service->name
-					)));
+					trim(ptr), service->name)));
 			n--;
 		}
 		else
