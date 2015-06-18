@@ -1299,7 +1299,36 @@ serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context, char *filters)
  */
 void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 {
-    if(service->router->updateInstance)
+    bool is_update = true;
+    if(service->router_instance == NULL)
+    {
+	is_update = false;
+	/** The router has not been created */
+	spinlock_acquire(&service->spin);
+	if((service->router_instance = service->router->createInstance(
+		    service,
+		    service->routerOptions)) == NULL)
+	{
+	    skygw_log_write(LE,"[%s] Error: Router instance creation failed on configuration reload.",
+		    service->name);
+	    spinlock_release(&service->spin);
+	    return;
+	}
+	spinlock_release(&service->spin);
+    }
+
+    /** Start new ports */
+    SERV_PROTOCOL* ptr = service->ports;
+    while(ptr)
+    {
+	if(ptr->listener == NULL)
+	{
+	    serviceStartPort(service,ptr);
+	}
+	ptr = ptr->next;
+    }
+
+    if(service->router->updateInstance && is_update)
     {
 	spinlock_acquire(&service->spin);
 	if(service->router->updateInstance(
