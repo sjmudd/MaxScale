@@ -867,16 +867,7 @@ updateInstance(ROUTER *instance,SERVICE *service, char **options)
 
     if(alloc_backends(router,service) != 0)
 	rval = -1;
-    client = router->connections;
-    router->connections = NULL;
     spinlock_release(&router->lock);
-
-    while(client)
-    {
-	client->rses_client_dcb->func.hangup(client->rses_client_dcb);
-	client = client->next;
-    }
-
     return rval;
 
 }

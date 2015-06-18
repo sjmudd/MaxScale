@@ -679,15 +679,6 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     router->connections = NULL;
     spinlock_release(&router->lock);
 
-    while(client)
-    {
-	if(client->rses_closed == false &&
-	 client->client_dcb->state == DCB_STATE_POLLING)
-	    dcb_close(client->client_dcb);
-	client = client->next;
-    }
-
-
     /**
          * Set default value for max_slave_connections and for slave selection
          * criteria. If parameter is set in config file max_slave_connections
