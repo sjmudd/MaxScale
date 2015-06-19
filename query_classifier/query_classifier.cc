@@ -1504,7 +1504,8 @@ void parsing_info_done(
         void* ptr)
 {
         parsing_info_t* pi;
-	
+	THD* thd;
+
 	if (ptr)
 	{
 		pi = (parsing_info_t *)ptr;
@@ -1515,6 +1516,8 @@ void parsing_info_done(
 			
 			if (mysql->thd != NULL)
 			{
+                                thd = (THD*)mysql->thd;
+                                thd->end_statement ();
 				(*mysql->methods->free_embedded_thd)(mysql);
 				mysql->thd = NULL;
 			}

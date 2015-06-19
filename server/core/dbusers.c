@@ -583,6 +583,7 @@ getAllUsers(SERVICE *service, USERS *users)
 						sizeof(char) + 
 						MYSQL_DATABASE_MAXLEN;
 	int		dbnames = 0;
+	int		db_grants = 0;
 	
 	if (serviceGetUser(service, &service_user, &service_passwd) == 0)
 	{
@@ -883,6 +884,7 @@ getAllUsers(SERVICE *service, USERS *users)
                  * users successfully loaded with db grants.
                  */
                 skygw_log_write(LOGFILE_DEBUG,"[%s] Loading users with db grants.",service->name);
+		db_grants = 1;
             }
             
             result = mysql_store_result(con);
@@ -949,24 +951,101 @@ getAllUsers(SERVICE *service, USERS *users)
                         password = row[2];
 		}
                 
-		/* set ANY DB for the user */
-		rc = add_mysql_users_with_host_ipv4(users, row[0], row[1], password, "Y", NULL);
+		/* 
+                 * add user@host and DB global priv and specificsa grant (if possible)
+                 */
+                bool havedb = false;
 
+		if (db_grants) {
+                    /* we have dbgrants, store them */
+		    if(row[5]){
+			unsigned long *rowlen = mysql_fetch_lengths(result);
+			memcpy(dbnm,row[5],rowlen[5]);
+			memset(dbnm + rowlen[5],0,1);
+			havedb = true;
+			if(service->strip_db_esc) {
+			    strip_escape_chars(dbnm);
+			    LOGIF(LD, (skygw_log_write(
+				    LOGFILE_DEBUG,
+						     "[%s]: %s -> %s",
+						     service->name,
+						     row[5],
+						     dbnm)));
+			}
+		    }
+
+		    if(havedb && wildcard_db_grant(dbnm))
+		    {
+			if(service->optimize_wildcard)
+			{
+			    rc = add_wildcard_users(users, row[0], row[1], password, row[4], dbnm, service->resources);
+			    skygw_log_write(LOGFILE_DEBUG|LOGFILE_TRACE,"%s: Converted '%s' to %d individual database grants.",service->name,dbnm,rc);
+			}
+			else
+			{
+			    /** Use ANYDB for wildcard grants */
+			    rc = add_mysql_users_with_host_ipv4(users, row[0], row[1], password, "Y", NULL);
+			}
+		    }
+		    else
+		    {
+			rc = add_mysql_users_with_host_ipv4(users, row[0], row[1], password, row[4], havedb ? dbnm : NULL);
+		    }
+		    
+		    LOGIF(LD,(skygw_log_write(LOGFILE_DEBUG,"%s: Adding user:%s host:%s anydb:%s db:%s.",
+			     service->name,row[0],row[1],row[4],
+			     havedb ? dbnm : NULL)));
+		} else {
+                    /* we don't have dbgrants, simply set ANY DB for the user */	
+                    rc = add_mysql_users_with_host_ipv4(users, row[0], row[1], password, "Y", NULL);
+		}
                 
 		if (rc == 1) {
-
-		    /* Log the user being added (without db grants) */
-		    LOGIF(LD, (skygw_log_write_flush(
-			    LOGFILE_DEBUG|LOGFILE_TRACE,
-			    "%s: User %s@%s added to service user table.",
-			    service->name,row[0],row[1])));
-
+                    if (db_grants) {
+                        char dbgrant[MYSQL_DATABASE_MAXLEN + 1]="";
+                        if (row[4] != NULL) {
+                            if (strcmp(row[4], "Y"))
+                                strcpy(dbgrant, "ANY");
+                            else {
+                                if (row[5])
+                                    strncpy(dbgrant, row[5], MYSQL_DATABASE_MAXLEN);
+                            }
+                        }
+                        
+                        if (!strlen(dbgrant))
+                            strcpy(dbgrant, "no db");
+                        
+                        /* Log the user being added with its db grants */
+                        LOGIF(LD, (skygw_log_write_flush(
+                                LOGFILE_DEBUG|LOGFILE_TRACE,
+                                                         "%s: User %s@%s for database %s added to "
+                                "service user table.",
+                                                         service->name,
+                                                         row[0],
+                                                         row[1],
+                                                         dbgrant)));
+                    } else {
+                        /* Log the user being added (without db grants) */
+                        LOGIF(LD, (skygw_log_write_flush(
+                                LOGFILE_DEBUG|LOGFILE_TRACE,
+                                                         "%s: User %s@%s added to service user table.",
+                                                         service->name,
+                                                         row[0],
+                                                         row[1])));
+                    }
+                    
                     /* Append data in the memory area for SHA1 digest */	
                     strncat(users_data, row[3], users_data_row_len);
+                    
                     total_users++;
 
 		} else if(rc == -1) {
 		    /** Duplicate user*/
+		    LOGIF(LE,(skygw_log_write(LT|LE,
+					     "Warning: Duplicate MySQL user found for service [%s]: %s@%s%s%s",
+					     service->name,
+					     row[0],row[1],havedb?" for database: ":"",
+					     havedb ?dbnm:"")));
 		} else {
                     LOGIF(LE, (skygw_log_write_flush(
                             LOGFILE_ERROR|LOGFILE_TRACE,
@@ -1412,10 +1491,18 @@ getUsers(SERVICE *service, USERS *users)
 			}
 		    }
 
-		    if(service->optimize_wildcard && havedb && wildcard_db_grant(row[5]))
+		    if(havedb && wildcard_db_grant(row[5]))
 		    {
-			rc = add_wildcard_users(users, row[0], row[1], password, row[4], dbnm, service->resources);
-			skygw_log_write(LOGFILE_DEBUG|LOGFILE_TRACE,"%s: Converted '%s' to %d individual database grants.",service->name,row[5],rc);
+			if(service->optimize_wildcard)
+			{
+			    rc = add_wildcard_users(users, row[0], row[1], password, row[4], dbnm, service->resources);
+			    skygw_log_write(LOGFILE_DEBUG|LOGFILE_TRACE,"%s: Converted '%s' to %d individual database grants.",service->name,row[5],rc);
+			}
+			else
+			{
+			    /** Use ANYDB for wildcard grants */
+			    rc = add_mysql_users_with_host_ipv4(users, row[0], row[1], password, "Y", NULL);
+			}
 		    }
 		    else
 		    {

@@ -25,6 +25,7 @@
 
  - [MaxAdmin](Reference/MaxAdmin.md)
  - [MaxScale HA with Corosync-Pacemaker](Reference/MaxScale-HA-with-Corosync-Pacemaker.md)
+ - [MaxScale HA with Lsyncd](Reference/MaxScale-HA-with-lsyncd.md)
  - [How Errors are Handled in MaxScale](Reference/How-errors-are-handled-in-MaxScale.md)
  - [Debug and Diagnostic Support](Reference/Debug-And-Diagnostic-Support.md)
  
@@ -58,6 +59,12 @@ Here are detailed documents about the filters MaxScale offers. They contain conf
  - [Top N Filter](filters/Top-N-Filter.md)
  - [Database Firewall Filter](filters/Database-Firewall-Filter.md)
  - [RabbitMQ Filter](filters/RabbitMQ-Filter.md)
+
+## Monitors
+ - [MySQL Monitor](monitors/MySQL-Monitor.md)
+ - [Galera Monitor](monitors/Galera-Monitor.md)
+ - [Multi-Master Monitor](monitors/MM-Monitor.md)
+ - [MySQL Cluster Monitor](monitors/NDB-Cluster-Monitor.md)
 
 ## Utilities
 

@@ -31,8 +31,8 @@ target_link_libraries(test_users fullcore)
 target_link_libraries(test_adminusers fullcore)
 target_link_libraries(testmemlog fullcore log_manager)
 target_link_libraries(testfeedback fullcore)
-target_link_libraries(testarray fullcore)
-target_link_libraries(testhashiterator fullcore)
+target_link_libraries(testarray fullcore log_manager)
+target_link_libraries(testhashiterator fullcore log_manager)
 add_test(Internal-TestMySQLUsers test_mysql_users)
 add_test(Internal-TestHash test_hash)
 add_test(Internal-TestHashIterator testhashiterator)
@@ -50,21 +50,4 @@ add_test(Internal-TestAdminUsers test_adminusers)
 add_test(Internal-TestMemlog testmemlog)
 add_test(Internal-TestArray testarray)
 add_test(TestFeedback testfeedback)
-set_tests_properties(Internal-TestMySQLUsers
-  Internal-TestHash
-  Internal-TestHashIterator
-  Internal-TestHint
-  Internal-TestSpinlock
-  Internal-TestFilter
-  Internal-TestBuffer
-  Internal-TestDCB
-  Internal-TestModutil
-  Internal-TestPoll
-  Internal-TestService
-  Internal-TestServer
-  Internal-TestUsers
-  Internal-TestAdminUsers
-  Internal-TestMemlog 
-  Internal-TestArray
-  TestFeedback PROPERTIES ENVIRONMENT MAXSCALE_HOME=${CMAKE_BINARY_DIR}/)
 set_tests_properties(TestFeedback PROPERTIES TIMEOUT 30)
