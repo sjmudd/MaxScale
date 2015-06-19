@@ -218,35 +218,36 @@ void fprint_token(FILE* dest,struct parser_token_t* head, int depth)
 {
     struct parser_token_t* ptr;
     int i;
+    for(i = 0;i<depth;i++)
+        fprintf(dest,"    ");
+
     switch(head->type)
     {
     case PARSER_STRING:
+        fprintf(dest,"STRING: %s\n",head->value.stringval);
+        break;
     case PARSER_QUOTED_STRING:
+        fprintf(dest,"QUOTED_STRING: %s\n",head->value.stringval);
+        break;
     case PARSER_ABS_PATH:
-        fprintf(dest,"%s ",head->value.stringval);
+        fprintf(dest,"ABS_PATH: %s\n",head->value.stringval);
         break;
     case PARSER_INT:
-        fprintf(dest,"%d ",head->value.intval);
+        fprintf(dest,"INT: %d\n",head->value.intval);
         break;
     case PARSER_FLOAT:
-        fprintf(dest,"%f ",head->value.floatval);
+        fprintf(dest,"FLOAT: %f\n",head->value.floatval);
         break;
     case PARSER_PAIR:
-        fprintf(dest,"%s=",head->value.pairval.key);
-        fprintf(dest,"%s ",head->value.pairval.value);
+        fprintf(dest,"PAIR: %s=",head->value.pairval.key);
+        fprintf(dest,"%s\n",head->value.pairval.value);
         break;
     case PARSER_SUBSTRING:
-        fprintf(dest,"(\n");
-        for(i = 0;i<depth;i++)
-            fprintf(dest,"    ");
-        fprint_all_tokens(dest,head->value.substring,depth);
-        fprintf(dest,"\n");
-        for(i = 0;i<depth-1;i++)
-            fprintf(dest,"    ");
-        fprintf(dest,") ");
+        fprintf(dest,"SUBSTRING:\n");        
+        fprint_all_tokens(dest,head->value.substring,depth+1);
         break;
     default:
-        fprintf(dest,"ERROR");        
+        fprintf(dest,"ERROR!\n");        
         break;
     }
 }
@@ -257,7 +258,7 @@ void fprint_all_tokens(FILE* dest,struct parser_token_t* head,int depth)
     struct parser_token_t* ptr = head;
     while(ptr)
     {
-        fprint_token(dest,ptr,depth + 1);
+        fprint_token(dest,ptr,depth);
         ptr = ptr->next;
     }
 }

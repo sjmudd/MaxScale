@@ -29,16 +29,13 @@ int main(int argc, char** argv)
         strcat(argstr," ");
     }
     argstr[strlen(argstr)-1] = '\0';
-    printf("Parsing: '%s'\n",argstr);
     tokenize_string(&head,(char*)argstr,strlen(argstr));
     if(head == NULL)
     {
         printf("Error: parsing failed.\n");
         return 1;
     }
-    printf("Printing tokens...\n");
     print_all_tokens(stdout,head);
-    printf("\n");
     free_all_tokens(head);
  
     return 0;

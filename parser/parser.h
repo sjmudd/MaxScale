@@ -1,6 +1,9 @@
 #ifndef _PARSER_H
 #define _PARSER_H
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>

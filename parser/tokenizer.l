@@ -18,7 +18,9 @@ sq_str 		['][^']+[']
 dq_str 		["][^"]+["]
 float		{num}+[.]{num}+
 posix	    [a-zA-Z0-9._-]
-keyvalue	{posix}+={posix}+
+keyvalue1	{posix}+=['][^']+[']
+keyvalue2	{posix}+=["][^"]+["]
+keyvalue3	{posix}+={posix}+
 beginparen  [(]
 endparen    [)]
 %%
@@ -46,7 +48,17 @@ endparen    [)]
             link_tokens(yyextra,tok);
             }
 
-{keyvalue}	{
+{keyvalue1}	{
+            struct parser_token_t* tok = create_token(PARSER_PAIR,yytext);
+            link_tokens(yyextra,tok);
+            }
+
+{keyvalue2}	{
+            struct parser_token_t* tok = create_token(PARSER_PAIR,yytext);
+            link_tokens(yyextra,tok);
+            }
+
+{keyvalue3}	{
             struct parser_token_t* tok = create_token(PARSER_PAIR,yytext);
             link_tokens(yyextra,tok);
             }
