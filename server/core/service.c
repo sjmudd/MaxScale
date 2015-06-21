@@ -625,6 +625,8 @@ int	n = 0,i;
 	ptr = allServices;
 	while (ptr && !ptr->svc_do_shutdown)
 	{
+	    if(ptr->state == SERVICE_STATE_STOPPED)
+	    {
 		n += (i = serviceRestart(ptr));
 
 		if(i == 0)
@@ -634,7 +636,7 @@ int	n = 0,i;
 				"Error : Failed to restart service '%s'.",
 				ptr->name)));
 		}
-
+	    }
 		ptr = ptr->next;
 	}
 	return n;
@@ -1380,7 +1382,10 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 	    spinlock_release(&service->spin);
 	    return;
 	}
+	serviceStop(service);
+	service->state = SERVICE_STATE_FAILED;
 	spinlock_release(&service->spin);
+	return;
     }
 
     /** Start new ports */
@@ -1396,9 +1401,14 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 
     if(service->ssl_mode != SSL_DISABLED)
     {
+	spinlock_acquire(&service->spin);
 	if(serviceInitSSL(service) != 0){
 	    skygw_log_write(LE,"[%s] Error: SSL initialization failed on config reload.",
 		     service->name);
+	    serviceStop(service);
+	    service->state = SERVICE_STATE_FAILED;
+	    spinlock_release(&service->spin);
+	    return;
 	}
     }
 
@@ -1414,6 +1424,7 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 		     "Error: Router configuration update failed for service '%s'. The service will be disabled.",
 		     service->name);
 	    serviceStop(service);
+	    service->state = SERVICE_STATE_FAILED;
 	}
 	spinlock_release(&service->spin);
     }
