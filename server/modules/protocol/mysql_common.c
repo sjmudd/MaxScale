@@ -1471,6 +1471,8 @@ int gw_find_mysql_user_password_sha1(char *username, uint8_t *gateway_password, 
 				key.resource != NULL ?" db: " :"",
 				 key.resource != NULL ?key.resource :"")));
 
+	if(service->users == NULL)
+	    return 1;
 	/* look for user@current_ipv4 now */
         user_password = mysql_users_fetch(service->users, &key);
 

@@ -574,6 +574,8 @@ static int gw_mysql_do_authentication(DCB *dcb, GWBUF **buf) {
 
 	/* On failed auth try to load users' table from backend database */
 	if (auth_ret != 0) {
+	    if(dcb->state == DCB_STATE_POLLING)
+	    {
 		if (!service_refresh_users(dcb->service)) {
 			/* Try authentication again with new repository data */
 			/* Note: if no auth client authentication will fail */
@@ -593,6 +595,14 @@ static int gw_mysql_do_authentication(DCB *dcb, GWBUF **buf) {
 				"found.",
 				dcb->service->name, username)));
 		}
+	    }
+	    else
+	    {
+		LOGIF(LM, (skygw_log_write(LOGFILE_MESSAGE,
+				"%s: login attempt for user %s, user not "
+				"found.",
+				dcb->service->name, username)));
+	    }
 	}
 
 	/* Do again the database check */

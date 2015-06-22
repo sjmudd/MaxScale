@@ -386,7 +386,8 @@ config_reload()
 	{
 	    /** Stop accepting new connections for the duration of the reload */
 	    serviceStopAll();
-
+	    /** Stop all monitors */
+	    monitorStopAll();
 	    /** Close all connections to MaxScale */
 	    dcb_close_all();
 

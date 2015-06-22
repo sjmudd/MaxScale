@@ -603,7 +603,8 @@ int		listeners = 0;
 	port = service->ports;
 	while (port)
 	{
-	    listeners += serviceStartPort(service,port);
+	    if(service->state != SERVICE_STATE_OBSOLETE)
+		listeners += serviceStartPort(service,port);
 	    port = port->next;
 	}
 	service->state = SERVICE_STATE_STARTED;
@@ -1507,7 +1508,8 @@ SERVICE	*ptr;
 	ptr = allServices;
 	while (ptr)
 	{
-		printService(ptr);
+		if(ptr->state != SERVICE_STATE_OBSOLETE)
+		    printService(ptr);
 		ptr = ptr->next;
 	}
 	spinlock_release(&service_spin);
@@ -1528,7 +1530,8 @@ SERVICE	*ptr;
 	ptr = allServices;
 	while (ptr)
 	{
-		dprintService(dcb, ptr);
+		if(ptr->state != SERVICE_STATE_OBSOLETE)
+		    dprintService(dcb, ptr);
 		ptr = ptr->next;
 	}
 	spinlock_release(&service_spin);
@@ -1625,10 +1628,13 @@ SERVICE	*ptr;
 	}
 	while (ptr)
 	{
+	    if(ptr->state != SERVICE_STATE_OBSOLETE)
+	    {
 		ss_dassert(ptr->stats.n_current >= 0);
 		dcb_printf(dcb, "%-25s | %-20s | %6d | %5d\n",
 			ptr->name, ptr->routerModule,
 			ptr->stats.n_current, ptr->stats.n_sessions);
+	    }
 		ptr = ptr->next;
 	}
 	if (allServices)
@@ -1659,6 +1665,8 @@ SERV_PROTOCOL	*lptr;
 	}
 	while (ptr)
 	{
+	    if(ptr->state != SERVICE_STATE_OBSOLETE)
+	    {
 		lptr = ptr->ports;
 		while (lptr)
 		{
@@ -1674,6 +1682,7 @@ SERV_PROTOCOL	*lptr;
 
 			lptr = lptr->next;
 		}
+	    }
 		ptr = ptr->next;
 	}
 	if (allServices)
@@ -2424,7 +2433,10 @@ void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
 	    ptr = ptr->next;
 	}
 	if(obsolete)
+	{
 	    serviceStop(service);
+	    service->state = SERVICE_STATE_OBSOLETE;
+	}
 	service = service->next;
     }
 
