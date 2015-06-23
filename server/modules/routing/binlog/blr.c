@@ -68,6 +68,7 @@ static char *version_str = "V1.0.6";
 
 /* The router entry points */
 static	ROUTER	*createInstance(SERVICE *service, char **options);
+static  int      updateInstance(ROUTER *instance,SERVICE *service, char **options);
 static	void	*newSession(ROUTER *instance, SESSION *session);
 static	void 	closeSession(ROUTER *instance, void *router_session);
 static	void 	freeSession(ROUTER *instance, void *router_session);
@@ -91,7 +92,7 @@ static  uint8_t getCapabilities (ROUTER* inst, void* router_session);
 /** The module object definition */
 static ROUTER_OBJECT MyObject = {
     createInstance,
-    NULL,
+    updateInstance,
     newSession,
     closeSession,
     freeSession,
@@ -437,6 +438,160 @@ unsigned char	*defuuid;
 	return (ROUTER *)inst;
 }
 
+/**
+ * Update the binlog router options and re-initialize the master connection
+ * @param instance Router instance
+ * @param service Router service
+ * @param options Router options
+ * @return 0 for success, -1 for error
+ */
+static int updateInstance(ROUTER *instance,SERVICE *service, char **options)
+{
+    ROUTER_INSTANCE	*inst = (ROUTER_INSTANCE*)instance;
+    char *value;
+    int i;
+    if(service->servers == NULL ||
+       service->servers->next != NULL)
+    {
+	LOGIF(LE, (skygw_log_write(
+		LOGFILE_ERROR,
+				 "Error : Exactly one database server may be "
+		"for use with the binlog router.")));
+	return -1;
+    }
+
+    dcb_close(inst->master);
+
+    if (options)
+    {
+	for (i = 0; options[i]; i++)
+	{
+	    if ((value = strchr(options[i], '=')) == NULL)
+	    {
+		LOGIF(LE, (skygw_log_write(
+			LOGFILE_ERROR, "Warning : Unsupported router "
+			"option %s for binlog router.",
+					 options[i])));
+		return -1;
+	    }
+	    else
+	    {
+		*value = 0;
+		value++;
+		if (strcmp(options[i], "uuid") == 0)
+		{
+		    free(inst->uuid);
+		    inst->uuid = strdup(value);
+		}
+		else if (strcmp(options[i], "server-id") == 0)
+		{
+		    inst->serverid = atoi(value);
+		}
+		else if (strcmp(options[i], "user") == 0)
+		{
+		    free(inst->user);
+		    inst->user = strdup(value);
+		}
+		else if (strcmp(options[i], "password") == 0)
+		{
+		    free(inst->password);
+		    inst->password = strdup(value);
+		}
+		else if (strcmp(options[i], "passwd") == 0)
+		{
+		    free(inst->password);
+		    inst->password = strdup(value);
+		}
+		else if (strcmp(options[i], "master-id") == 0)
+		{
+		    inst->masterid = atoi(value);
+		}
+		else if (strcmp(options[i], "filestem") == 0)
+		{
+		    free(inst->fileroot);
+		    inst->fileroot = strdup(value);
+		}
+		else if (strcmp(options[i], "initialfile") == 0)
+		{
+		    inst->initbinlog = atoi(value);
+		}
+		else if (strcmp(options[i], "file") == 0)
+		{
+		    inst->initbinlog = atoi(value);
+		}
+		else if (strcmp(options[i], "lowwater") == 0)
+		{
+		    inst->low_water = atoi(value);
+		}
+		else if (strcmp(options[i], "highwater") == 0)
+		{
+		    inst->high_water = atoi(value);
+		}
+		else if (strcmp(options[i], "shortburst") == 0)
+		{
+		    inst->short_burst = atoi(value);
+		}
+		else if (strcmp(options[i], "longburst") == 0)
+		{
+		    inst->long_burst = atoi(value);
+		}
+		else if (strcmp(options[i], "burstsize") == 0)
+		{
+		    unsigned long size = atoi(value);
+		    char	*ptr = value;
+		    while (*ptr && isdigit(*ptr))
+			ptr++;
+		    switch (*ptr)
+		    {
+		    case 'G':
+		    case 'g':
+			size = size * 1024 * 1000 * 1000;
+			break;
+		    case 'M':
+		    case 'm':
+			size = size * 1024 * 1000;
+			break;
+		    case 'K':
+		    case 'k':
+			size = size * 1024;
+			break;
+		    }
+		    inst->burst_size = size;
+
+		}
+		else if (strcmp(options[i], "heartbeat") == 0)
+		{
+		    inst->heartbeat = atoi(value);
+		}
+		else if (strcmp(options[i], "binlogdir") == 0)
+		{
+		    free(inst->binlogdir);
+		    inst->binlogdir = strdup(value);
+		}
+		else
+		{
+		    LOGIF(LE, (skygw_log_write(
+			    LOGFILE_ERROR,
+					     "Warning : Unsupported router "
+			    "option %s for binlog router.",
+					     options[i])));
+		    return -1;
+		}
+	    }
+	}
+    }
+    else
+    {
+	LOGIF(LE, (skygw_log_write(
+		LOGFILE_ERROR, "%s: No router options supplied for binlogrouter",
+				 service->name)));
+	return -1;
+    }
+
+    blr_start_master(inst);
+
+    return 0;
+}
 /**
  * Associate a new session with this instance of the router.
  *
