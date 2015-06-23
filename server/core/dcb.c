@@ -1241,7 +1241,7 @@ int dcb_read_SSL(
 
         } /*< while (true) */
 return_n:
-        return n;
+        return nread;
 }
 /**
  * General purpose routine to write to a DCB
