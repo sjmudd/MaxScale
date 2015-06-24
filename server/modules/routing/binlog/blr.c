@@ -35,6 +35,8 @@
  * 02/04/2014	Mark Riddoch		Initial implementation
  * 17/02/2015	Massimiliano Pinto	Addition of slave port and username in diagnostics
  * 18/02/2015	Massimiliano Pinto	Addition of dcb_close in closeSession
+ * 07/05/2015   Massimiliano Pinto      Addition of MariaDB 10 compatibility support
+
  *
  * @endverbatim
  */
@@ -197,6 +199,7 @@ unsigned char	*defuuid;
 	inst->retry_backoff = 1;
 	inst->binlogdir = NULL;
 	inst->heartbeat = 300;	// Default is every 5 minutes
+	inst->mariadb10_compat = false;
 
 	inst->user = strdup(service->credentials.name);
 	inst->password = strdup(service->credentials.authdata);
@@ -283,6 +286,10 @@ unsigned char	*defuuid;
 				else if (strcmp(options[i], "master-id") == 0)
 				{
 					inst->masterid = atoi(value);
+				}
+				else if (strcmp(options[i], "mariadb10-compatibility") == 0)
+				{
+					inst->mariadb10_compat = config_truth_value(value);
 				}
 				else if (strcmp(options[i], "filestem") == 0)
 				{
@@ -390,6 +397,7 @@ unsigned char	*defuuid;
 	inst->saved_master.selectvercom = blr_cache_read_response(inst, "selectvercom");
 	inst->saved_master.selecthostname = blr_cache_read_response(inst, "selecthostname");
 	inst->saved_master.map = blr_cache_read_response(inst, "map");
+	inst->saved_master.mariadb10 = blr_cache_read_response(inst, "mariadb10");
 
 	/*
 	 * Initialise the binlog file and position
@@ -646,6 +654,7 @@ ROUTER_SLAVE		*slave;
 	strcpy(slave->binlogfile, "unassigned");
 	slave->connect_time = time(0);
 	slave->lastEventTimestamp = 0;
+	slave->mariadb10_compat = false;
 
 	/**
          * Add this session to the list of active sessions.

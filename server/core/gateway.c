@@ -208,6 +208,15 @@ static int set_user();
 
 /** SSL multi-threading functions and structures */
 
+static SPINLOCK* ssl_locks;
+
+static void ssl_locking_function(int mode,int n,const char* file, int line)
+{
+    if(mode & CRYPTO_LOCK)
+	spinlock_acquire(&ssl_locks[n]);
+    else
+	spinlock_release(&ssl_locks[n]);
+}
 /**
  * OpenSSL requires this struct to be defined in order to use dynamic locks
  */
@@ -261,6 +270,15 @@ static void ssl_lock_dynlock(int mode,struct CRYPTO_dynlock_value * n,const char
 static void ssl_free_dynlock(struct CRYPTO_dynlock_value * n,const char* file, int line)
 {
     free(n);
+}
+
+/**
+ * The thread ID callback function for OpenSSL dynamic locks.
+ * @param id Id to modify
+ */
+static void maxscale_ssl_id(CRYPTO_THREADID* id)
+{
+    CRYPTO_THREADID_set_numeric(id,pthread_self());
 }
 
 /**
@@ -1462,10 +1480,6 @@ int main(int argc, char **argv)
 	SSL_library_init();
 	SSL_load_error_strings();
 	OPENSSL_add_all_algorithms_noconf();
-	CRYPTO_set_dynlock_create_callback(ssl_create_dynlock);
-	CRYPTO_set_dynlock_destroy_callback(ssl_free_dynlock);
-	CRYPTO_set_dynlock_lock_callback(ssl_lock_dynlock);
-	CRYPTO_set_id_callback(pthread_self);
 
 	/* register exit function for embedded MySQL library */
         l = atexit(libmysqld_done);
@@ -1771,6 +1785,26 @@ int main(int argc, char **argv)
         LOGIF(LM, (skygw_log_write(LOGFILE_MESSAGE,
                         "MaxScale started with %d server threads.",
                                    config_threadcount())));
+	int numlocks = CRYPTO_num_locks();
+	if((ssl_locks = malloc(sizeof(SPINLOCK)*(numlocks + 1))) == NULL)
+	{
+	    char* logerr = "Memory allocation failed";
+	    print_log_n_stderr(true, true, logerr, logerr, eno);
+	    rc = MAXSCALE_INTERNALERROR;
+	    goto return_main;
+	}
+
+	for(i = 0;i<numlocks + 1;i++)
+	    spinlock_init(&ssl_locks[i]);
+	CRYPTO_set_locking_callback(ssl_locking_function);
+	CRYPTO_set_dynlock_create_callback(ssl_create_dynlock);
+	CRYPTO_set_dynlock_destroy_callback(ssl_free_dynlock);
+	CRYPTO_set_dynlock_lock_callback(ssl_lock_dynlock);
+#ifdef OPENSSL_1_0
+	CRYPTO_THREADID_set_callback(maxscale_ssl_id);
+#else
+	CRYPTO_set_id_callback(pthread_self);
+#endif
 
 	MaxScaleStarted = time(0);
         /*<
