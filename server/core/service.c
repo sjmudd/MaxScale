@@ -542,13 +542,24 @@ int		listeners = 0;
 	port = service->ports;
 	while (port)
 	{
-	    if(port->listener &&
-	     port->listener->session->state == SESSION_STATE_LISTENER)
+	    if(port->listener)
 	    {
-		if(poll_remove_dcb(port->listener) == 0)
+		switch(port->listener->session->state)
 		{
-		    port->listener->session->state = SESSION_STATE_LISTENER_STOPPED;
+		case SESSION_STATE_LISTENER:
+		    if(poll_remove_dcb(port->listener) == 0)
+		    {
+			port->listener->session->state = SESSION_STATE_LISTENER_STOPPED;
+			listeners++;
+		    }
+		    break;
+		case SESSION_STATE_LISTENER_STOPPED:
 		    listeners++;
+		    break;
+		default:
+		    skygw_log_write(LE,"[%s] Error: Listener session is in invalid state: %s",
+			     service->name,STRSESSIONSTATE(port->listener->session->state));
+		    break;
 		}
 	    }
 	    port = port->next;
@@ -606,13 +617,24 @@ int		listeners = 0;
 	port = service->ports;
 	while (port)
 	{
-	    if(port->listener &&
-	     port->listener->session->state == SESSION_STATE_LISTENER_STOPPED)
+	    if(port->listener)
 	    {
-		if(poll_add_dcb(port->listener) == 0)
+		switch(port->listener->session->state)
 		{
-		    port->listener->session->state = SESSION_STATE_LISTENER;
+		case SESSION_STATE_LISTENER_STOPPED:
+		    if(poll_add_dcb(port->listener) == 0)
+		    {
+			port->listener->session->state = SESSION_STATE_LISTENER;
+			listeners++;
+		    }
+		    break;
+		case SESSION_STATE_LISTENER:
 		    listeners++;
+		    break;
+		default:
+		    skygw_log_write(LE,"[%s] Error: Listener session is in invalid state: %s",
+			     service->name,STRSESSIONSTATE(port->listener->session->state));
+		    break;
 		}
 	    }
 	    port = port->next;
