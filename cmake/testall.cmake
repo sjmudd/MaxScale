@@ -1,3 +1,8 @@
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/log/maxscale)
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/lib/maxscale)
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/cache/maxscale)
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/run/maxscale)
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/share)
 execute_process(COMMAND /bin/sh -c "${CMAKE_BINARY_DIR}/bin/maxscale -f ${CMAKE_BINARY_DIR}/maxscale.cnf --logdir=${CMAKE_BINARY_DIR}/ --datadir=${CMAKE_BINARY_DIR}/ --cachedir=${CMAKE_BINARY_DIR}/ &> ${CMAKE_BINARY_DIR}/maxscale.output"
 OUTPUT_VARIABLE MAXSCALE_OUT)
 execute_process(COMMAND make test RESULT_VARIABLE RVAL)

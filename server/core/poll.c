@@ -854,7 +854,7 @@ unsigned long	qtime;
 				&tls_log_info.li_enabled_logs)));
 			dcb->func.accept(dcb);
 		}
-		else
+		else if(dcb->state == DCB_STATE_POLLING)
 		{
 			LOGIF(LD, (skygw_log_write(
 				LOGFILE_DEBUG,
@@ -870,6 +870,17 @@ unsigned long	qtime;
 				&tls_log_info.li_sesid, 
 				&tls_log_info.li_enabled_logs)));
 			dcb->func.read(dcb);
+		}
+		else
+		{
+		    LOGIF(LD, (skygw_log_write(
+				LOGFILE_DEBUG,
+				"%lu [poll_waitevents] "
+				"Read in dcb %p fd %d state %s",
+				pthread_self(),
+				dcb,
+				dcb->fd,
+				STRDCBSTATE(dcb->state))));
 		}
 #if MUTEX_BLOCK
 		dcb->dcb_read_active = FALSE;

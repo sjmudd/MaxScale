@@ -86,6 +86,7 @@ init_test_env(NULL);
         ss_info_dassert(0 != serviceAddProtocol(service, "testprotocol", "localhost", 9876), "Add Protocol should succeed");
         ss_info_dassert(0 != serviceHasProtocol(service, "testprotocol", 9876), "Service should have new protocol as requested");
         serviceStartProtocol(service, "testprotocol", 9876);
+	ss_info_dassert(service->ports->listener != NULL, "Service listener is not NULL");
         skygw_log_sync_all();
         ss_dfprintf(stderr, "\t..done\nStarting Service.");
         result = serviceStart(service);

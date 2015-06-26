@@ -128,7 +128,8 @@ session_alloc(SERVICE *service, DCB *client_dcb)
          * DCBs. Note that this doesn't mean that router is initialized yet!
          */
         session->state = SESSION_STATE_READY;
-        
+	atomic_add(&service->stats.n_current, 1);
+
         /*< Release session lock */
         spinlock_release(&session->ses_lock);
 
@@ -235,7 +236,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
 		spinlock_release(&session->ses_lock);		
 		spinlock_acquire(&session_spin);
 		/** Assign a session id and increase */
-		session->ses_id = ++session_id; 
+		session->ses_id = atomic_add(&session_id,1);
 		session->next = allSessions;
                 allSessions = session;
                 spinlock_release(&session_spin);
@@ -259,7 +260,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
 				session->client->remote)));			
 		}
 		atomic_add(&service->stats.n_sessions, 1);
-                atomic_add(&service->stats.n_current, 1);
+		ss_dassert(session->service->stats.n_current > 0);
                 CHK_SESSION(session);
         }        
 return_session:
@@ -403,6 +404,7 @@ bool session_free(
 	}
 	spinlock_release(&session_spin);
 	atomic_add(&session->service->stats.n_current, -1);
+	ss_dassert(session->service->stats.n_current >= 0);
 
 	/**
 	 * If session is not child of some other session, free router_session.
