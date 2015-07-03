@@ -1534,6 +1534,14 @@ int main(int argc, char **argv)
                 char *argv[8];
 		bool succp;
 
+		if(mkdir(get_logdir(),0777) != 0 && errno != EEXIST)
+		{
+		    fprintf(stderr,
+		     "Error: Cannot create log directory: %s\n",
+		     default_logdir);
+		    goto return_main;
+		}
+
                 argv[0] = "MaxScale";
                 argv[1] = "-j";
                 argv[2] = get_logdir();
