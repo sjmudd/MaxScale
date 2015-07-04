@@ -69,10 +69,25 @@ server_alloc(char *servname, char *protocol, unsigned short port)
 {
 SERVER 	*server;
 
+	if(servname == NULL || protocol == NULL || port < 1)
+	    return NULL;
+
 	if ((server = (SERVER *)calloc(1, sizeof(SERVER))) == NULL)
 		return NULL;
-	server->name = strdup(servname);
-	server->protocol = strdup(protocol);
+
+	if((server->name = strdup(servname)) == NULL)
+	{
+	    free(server);
+	    return NULL;
+	}
+
+	if((server->protocol = strdup(protocol)) == NULL)
+	{
+	    free(server->name);
+	    free(server);
+	    return NULL;
+	}
+
 	server->port = port;
 	server->status = SERVER_RUNNING;
 	server->node_id = -1;
@@ -834,6 +849,7 @@ void server_remove_old_servers(CONFIG_CONTEXT* context)
 	    spinlock_acquire(&server_spin);
 	    server = server->next;
 	    spinlock_release(&server_spin);
+	    skygw_log_write(LD,"Removing server '%s'",tmp->unique_name);
 	    server_free(tmp);
 	}
 	else
