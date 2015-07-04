@@ -1587,7 +1587,7 @@ int main(int argc, char **argv)
 	/**
          * Set a data directory for the mysqld library, we use
          * a unique directory name to avoid clauses if multiple
-         * instances of the gateway are beign run on the same
+         * instances of the gateway are being run on the same
          * machine.
          */
 
