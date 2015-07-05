@@ -1445,6 +1445,7 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 	    spinlock_release(&service->spin);
 	    return;
 	}
+	spinlock_release(&service->spin);
     }
 
     if(service->router->updateInstance && is_update)

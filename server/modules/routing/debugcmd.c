@@ -346,6 +346,7 @@ struct subcommand clearoptions[] = {
 static void reload_dbusers(DCB *dcb, SERVICE *service);
 static void reload_config(DCB *dcb);
 static void reload_filter(DCB *dcb, FILTER_DEF *filter);
+static void reload_service(DCB *dcb, SERVICE* service);
 /**
  * The subcommands of the reload command
  */
@@ -358,6 +359,10 @@ struct subcommand reloadoptions[] = {
 		"Reload the configuration data for a filter.",
 		"Reload the configuration data for a filter.",
 				{ARG_TYPE_FILTER, 0, 0} },
+	{ "service",	1, reload_service,
+		"Reload the configuration data for a service.",
+		"Reload the configuration data for a service.",
+				{ARG_TYPE_SERVICE, 0, 0} },
 	{ "dbusers",	1, reload_dbusers,
 		"Reload the dbuser data for a service. E.g. reload dbusers \"splitter service\"",
 		"Reload the dbuser data for a service. E.g. reload dbusers 0x849420",
@@ -1134,6 +1139,56 @@ reload_filter(DCB *dcb, FILTER_DEF *filter)
 		 filter->name);
     }
 }
+
+
+/**
+ *
+ * @param dcb
+ * @param filter
+ */
+static void
+reload_service(DCB *dcb, SERVICE* service)
+{
+    CONFIG_CONTEXT ctx;
+    CONFIG_CONTEXT* ptr;
+    int rval = 0;
+    config_read_config(&ctx);
+
+    ptr = ctx.next;
+
+    while(ptr && strcmp(ptr->object,service->name) != 0)
+    {
+	ptr = ptr->next;
+    }
+
+    if(ptr == NULL)
+    {
+	dcb_printf(dcb, "Service %s was not in the configuration file.\n",
+		 service->name);
+	rval = -1;
+    }
+    else
+    {
+	config_service_update(ptr);
+	config_service_update_objects(ptr,ctx.next);
+	if(service->state == SERVICE_STATE_FAILED)
+	    rval = -1;
+    }
+    config_free_config(ctx.next);
+
+    if(rval == 0)
+    {
+	dcb_printf(dcb, "Reloaded service %s.\n",
+		 service->name);
+    }
+    else
+    {
+	dcb_printf(dcb, "Failed to reload service %s!\n"
+		"Please confirm that the configuration is correct.\n",
+		 service->name);
+    }
+}
+
 /**
  * Relaod the configuration data from the config file
  *
