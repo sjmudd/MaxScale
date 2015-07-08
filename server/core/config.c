@@ -90,6 +90,7 @@ static	int	process_config_context(CONFIG_CONTEXT	*);
 static	int	process_config_update(CONFIG_CONTEXT *);
 static	void	free_config_context(CONFIG_CONTEXT	*);
 static	char 	*config_get_value(CONFIG_PARAMETER *, const char *);
+static	const char 	*config_get_value_string(CONFIG_PARAMETER *, const char *);
 static	int	handle_global_item(const char *, const char *);
 static	int	handle_feedback_item(const char *, const char *);
 static	void	global_defaults();
@@ -855,6 +856,9 @@ hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NU
 			}
 			if (obj->element)
 			{
+                                SERVER *server = obj->element;
+                                server->persistpoolmax = strtol(config_get_value_string(obj->parameters, "persistpoolmax"), NULL, 0);
+                                server->persistmaxtime = strtol(config_get_value_string(obj->parameters, "persistmaxtime"), NULL, 0);
 				CONFIG_PARAMETER *params = obj->parameters;
 				while (params)
 				{
@@ -868,6 +872,10 @@ hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NU
 								"monitorpw")
 						&& strcmp(params->name,
 								"type")
+						&& strcmp(params->name,
+								"persistpoolmax")
+						&& strcmp(params->name,
+								"persistmaxtime")
 						)
 					{
 						serverAddParameter(obj->element,
@@ -1135,6 +1143,25 @@ config_get_value(CONFIG_PARAMETER *params, const char *name)
 		params = params->next;
 	}
 	return NULL;
+}
+
+/**
+ * Get the value of a config parameter as a string
+ *
+ * @param params	The linked list of config parameters
+ * @param name		The parameter to return
+ * @return the parameter value or null string if not found
+ */
+static const char *
+config_get_value_string(CONFIG_PARAMETER *params, const char *name)
+{
+	while (params)
+	{
+		if (!strcmp(params->name, name))
+			return (const char *)params->value;
+		params = params->next;
+	}
+	return "";
 }
 
 

@@ -50,6 +50,10 @@
  * 07/05/2014	Mark Riddoch		Addition of callback mechanism
  * 20/06/2014	Mark Riddoch		Addition of dcb_clone
  * 29/05/2015	Markus Makela           Addition of dcb_write_SSL
+ * 11/06/2015	Martin Brampton		Persistent connnections and tidy up
+ * 07/07/2015   Martin Brampton         Merged add to zombieslist into dcb_close,
+ *                                      fixes for various error situations,
+ *                                      remove dcb_set_state etc, simplifications.
  *
  * @endverbatim
  */
@@ -57,6 +61,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <signal.h>
 #include <dcb.h>
 #include <spinlock.h>
 #include <server.h>
@@ -84,31 +90,19 @@ static	SPINLOCK	dcbspin = SPINLOCK_INIT;
 static	SPINLOCK	zombiespin = SPINLOCK_INIT;
 static  int		dcb_close_flag = 0;
 static void dcb_final_free(DCB *dcb);
-static bool dcb_set_state_nomutex(
-        DCB*              dcb,
-        const dcb_state_t new_state,
-        dcb_state_t*      old_state);
 static void dcb_call_callback(DCB *dcb, DCB_REASON reason);
-static DCB* dcb_get_next (DCB* dcb);
+static DCB * dcb_get_next (DCB *dcb);
 static int  dcb_null_write(DCB *dcb, GWBUF *buf);
 static int  dcb_null_close(DCB *dcb);
 static int  dcb_null_auth(DCB *dcb, SERVER *server, SESSION *session, GWBUF *buf);
 static int  dcb_isvalid_nolock(DCB *dcb);
+static void dcb_close_finish(DCB *);
+static bool dcb_maybe_add_persistent(DCB *);
 
 size_t dcb_get_session_id(
-	DCB* dcb)
+	DCB *dcb)
 {
-	size_t rval;
-	
-	if (dcb != NULL && dcb->session != NULL)
-	{
-		rval = dcb->session->ses_id;
-	}
-	else
-	{
-		rval = 0;
-	}
-	return rval;
+    return (dcb && dcb->session) ? dcb->session->ses_id : 0;
 }
 
 /**
@@ -124,27 +118,17 @@ size_t dcb_get_session_id(
  *parameters was NULL.
  */ 
 bool dcb_get_ses_log_info(
-	DCB*    dcb,
-	size_t* sesid,
-	int*    enabled_logs)
+    DCB     *dcb,
+    size_t  *sesid,
+    int     *enabled_logs)
 {
-	bool succp;
-	
-	if (dcb == NULL || 
-		dcb->session == NULL || 
-		sesid == NULL || 
-		enabled_logs == NULL)
-	{
-		succp = false;
-	}
-	else
-	{
-		*sesid = dcb->session->ses_id;
-		*enabled_logs = dcb->session->ses_enabled_logs;
-		succp = true;
-	}
-	
-	return succp;
+    if (sesid && enabled_logs && dcb && dcb->session)
+    {
+        *sesid = dcb->session->ses_id;
+        *enabled_logs = dcb->session->ses_enabled_logs;
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -170,64 +154,67 @@ dcb_get_zombies(void)
 DCB *
 dcb_alloc(dcb_role_t role)
 {
-DCB	*rval;
+DCB	*newdcb;
 
-	if ((rval = calloc(1, sizeof(DCB))) == NULL)
+	if ((newdcb = calloc(1, sizeof(DCB))) == NULL)
 	{
 		return NULL;
 	}
-#if defined(SS_DEBUG)
-        rval->dcb_chk_top = CHK_NUM_DCB;
-        rval->dcb_chk_tail = CHK_NUM_DCB;
-#endif
-	rval->dcb_errhandle_called = false;
-        rval->dcb_role = role;
-        spinlock_init(&rval->dcb_initlock);
-	spinlock_init(&rval->writeqlock);
-	spinlock_init(&rval->delayqlock);
-	spinlock_init(&rval->authlock);
-	spinlock_init(&rval->cb_lock);
-	spinlock_init(&rval->pollinlock);
-	spinlock_init(&rval->polloutlock);
-	rval->pollinbusy = 0;
-	rval->readcheck = 0;
-	rval->polloutbusy = 0;
-	rval->writecheck = 0;
-        rval->fd = DCBFD_CLOSED;
-	rval->server = NULL;
-	rval->service = NULL;
-	rval->evq.next = NULL;
-	rval->evq.prev = NULL;
-	rval->evq.pending_events = 0;
-	rval->evq.processing = 0;
-	spinlock_init(&rval->evq.eventqlock);
+    newdcb->dcb_chk_top = CHK_NUM_DCB;
+    newdcb->dcb_chk_tail = CHK_NUM_DCB;
+        
+	newdcb->dcb_errhandle_called = false;
+    newdcb->dcb_role = role;
+    spinlock_init(&newdcb->dcb_initlock);
+	spinlock_init(&newdcb->writeqlock);
+	spinlock_init(&newdcb->delayqlock);
+	spinlock_init(&newdcb->authlock);
+	spinlock_init(&newdcb->cb_lock);
+	spinlock_init(&newdcb->pollinlock);
+	spinlock_init(&newdcb->polloutlock);
+	newdcb->pollinbusy = 0;
+	newdcb->readcheck = 0;
+	newdcb->polloutbusy = 0;
+	newdcb->writecheck = 0;
+    newdcb->fd = DCBFD_CLOSED;
 
-	memset(&rval->stats, 0, sizeof(DCBSTATS));	// Zero the statistics
-	rval->state = DCB_STATE_ALLOC;
-	bitmask_init(&rval->memdata.bitmask);
-	rval->writeqlen = 0;
-	rval->high_water = 0;
-	rval->low_water = 0;
-	rval->next = NULL;
-	rval->callbacks = NULL;
-	rval->data = NULL;
+	newdcb->evq.next = NULL;
+	newdcb->evq.prev = NULL;
+	newdcb->evq.pending_events = 0;
+	newdcb->evq.processing = 0;
+	spinlock_init(&newdcb->evq.eventqlock);
 
-	rval->remote = NULL;
-	rval->user = NULL;
-	rval->flags = 0;
+	memset(&newdcb->stats, 0, sizeof(DCBSTATS));	// Zero the statistics
+	newdcb->state = DCB_STATE_ALLOC;
+	bitmask_init(&newdcb->memdata.bitmask);
+	newdcb->writeqlen = 0;
+	newdcb->high_water = 0;
+	newdcb->low_water = 0;
+    newdcb->session = NULL;
+    newdcb->server = NULL;
+    newdcb->service = NULL;
+	newdcb->next = NULL;
+    newdcb->nextpersistent = NULL;
+    newdcb->persistentstart = 0;
+	newdcb->callbacks = NULL;
+	newdcb->data = NULL;
+
+	newdcb->remote = NULL;
+	newdcb->user = NULL;
+	newdcb->flags = 0;
 
 	spinlock_acquire(&dcbspin);
 	if (allDCBs == NULL)
-		allDCBs = rval;
+		allDCBs = newdcb;
 	else
 	{
 		DCB *ptr = allDCBs;
 		while (ptr->next)
 			ptr = ptr->next;
-		ptr->next = rval;
+		ptr->next = newdcb;
 	}
 	spinlock_release(&dcbspin);
-	return rval;
+	return newdcb;
 }
 
 
@@ -239,62 +226,15 @@ DCB	*rval;
 void
 dcb_free(DCB *dcb)
 {
-	if (dcb->fd == DCBFD_CLOSED)
-	{
-		dcb_final_free(dcb);
-	}
-	else
-	{
-		LOGIF(LE, (skygw_log_write_flush(
-               		LOGFILE_ERROR,
-			"Error : Attempt to free a DCB via dcb_free "
-			"that has been associated with a descriptor.")));
-	}
-}
-
-/** 
- * Add the DCB to the end of zombies list. 
- *
- * Adding to list occurs once per DCB. This is ensured by changing the
- * state of DCB to DCB_STATE_ZOMBIE after addition. Prior insertion, DCB state
- * is checked and operation proceeds only if state differs from DCB_STATE_ZOMBIE.
- * @param dcb The DCB to add to the zombie list
- * @return none
- */
-void
-dcb_add_to_zombieslist(DCB *dcb)
-{
-        bool        succp = false;
-        dcb_state_t prev_state = DCB_STATE_UNDEFINED;
-        
-        CHK_DCB(dcb);        
-
-        /*<
-         * Protect zombies list access.
-         */
-	spinlock_acquire(&zombiespin);
-        /*<
-         * If dcb is already added to zombies list, return.
-         */
-        if (dcb->state != DCB_STATE_NOPOLLING) {
-                ss_dassert(dcb->state != DCB_STATE_POLLING &&
-                           dcb->state != DCB_STATE_LISTENING);
-                spinlock_release(&zombiespin);
-                return;
-        }
-        /*<
-         * Add closing dcb to the top of the list.
-         */
-        dcb->memdata.next = zombies;
-        zombies = dcb;
-        /*<
-         * Set state which indicates that it has been added to zombies
-         * list.
-         */
-        succp = dcb_set_state(dcb, DCB_STATE_ZOMBIE, &prev_state);
-        ss_info_dassert(succp, "Failed to set DCB_STATE_ZOMBIE");
-        
-	spinlock_release(&zombiespin);
+    if (dcb->fd != DCBFD_CLOSED)
+    {
+        LOGIF(LE, (skygw_log_write_flush(
+            LOGFILE_ERROR,
+            "Error : Attempt to free a DCB via dcb_free "
+            "that has been associated with a descriptor.")));
+    }
+    assert(dcb->fd == DCBFD_CLOSED);
+    dcb_final_free(dcb);
 }
 
 /*
@@ -307,31 +247,28 @@ dcb_add_to_zombieslist(DCB *dcb)
 DCB *
 dcb_clone(DCB *orig)
 {
-DCB	*clone;
+DCB *clonedcb;
 
-	if ((clone = dcb_alloc(DCB_ROLE_REQUEST_HANDLER)) == NULL)
-	{
-		return NULL;
-	}
+    if ((clonedcb = dcb_alloc(DCB_ROLE_REQUEST_HANDLER)))
+    {
+	    clonedcb->fd = DCBFD_CLOSED;
+	    clonedcb->flags |= DCBF_CLONE;
+	    clonedcb->state = orig->state;
+	    clonedcb->data = orig->data;
+	    if (orig->remote)
+		    clonedcb->remote = strdup(orig->remote);
+	    if (orig->user)
+		    clonedcb->user = strdup(orig->user);
+	    clonedcb->protocol = orig->protocol;
 
-	clone->fd = DCBFD_CLOSED;
-	clone->flags |= DCBF_CLONE;
-	clone->state = orig->state;
-	clone->data = orig->data;
-	if (orig->remote)
-		clone->remote = strdup(orig->remote);
-	if (orig->user)
-		clone->user = strdup(orig->user);
-	clone->protocol = orig->protocol;
-
-	clone->func.write = dcb_null_write;
-	/** 
-	 * Close triggers closing of router session as well which is needed. 
-	 */
-	clone->func.close = orig->func.close;
-	clone->func.auth = dcb_null_auth;
-
-	return clone;
+	    clonedcb->func.write = dcb_null_write;
+	    /** 
+	     * Close triggers closing of router session as well which is needed. 
+	     */
+	    clonedcb->func.close = orig->func.close;
+	    clonedcb->func.auth = dcb_null_auth;
+    }
+    return clonedcb;
 }
 
 /**
@@ -410,7 +347,9 @@ DCB_CALLBACK		*cb;
 	}
 
 	if (dcb->protocol && (!DCB_IS_CLONE(dcb)))
-		free(dcb->protocol);	
+		free(dcb->protocol);
+        if (dcb->protoname)
+                free(dcb->protoname);
 	if (dcb->remote)
 		free(dcb->remote);
 	if (dcb->user)
@@ -455,9 +394,9 @@ DCB_CALLBACK		*cb;
 DCB *
 dcb_process_zombies(int threadid)
 {
-DCB	*ptr, *lptr;
-DCB*    dcb_list = NULL;
-DCB*    dcb = NULL;
+DCB	*zombiedcb, *previousdcb;
+DCB     *listofdcb = NULL;
+DCB     *dcb = NULL;
 bool    succp = false;
 
 	/**
@@ -480,44 +419,42 @@ bool    succp = false;
 	 * spinlock.
 	 */
 	spinlock_acquire(&zombiespin);
-	ptr = zombies;
-	lptr = NULL;
-	while (ptr)
+	zombiedcb = zombies;
+	previousdcb = NULL;
+	while (zombiedcb)
 	{
-		CHK_DCB(ptr);
+		CHK_DCB(zombiedcb);
 
 		/*
 		 * Skip processing of DCB's that are
 		 * in the event queue waiting to be processed.
 		 */
-		if (ptr->evq.next || ptr->evq.prev)
+		if (zombiedcb->evq.next || zombiedcb->evq.prev)
 		{
-			lptr = ptr;
-			ptr = ptr->memdata.next;
+			previousdcb = zombiedcb;
+			zombiedcb = zombiedcb->memdata.next;
 		}
 		else
 		{
 
-			bitmask_clear(&ptr->memdata.bitmask, threadid);
+			bitmask_clear(&zombiedcb->memdata.bitmask, threadid);
 			
-			if (bitmask_isallclear(&ptr->memdata.bitmask))
+			if (bitmask_isallclear(&zombiedcb->memdata.bitmask))
 			{
 				/**
 				 * Remove the DCB from the zombie queue
 				 * and call the final free routine for the
 				 * DCB
 				 *
-				 * ptr is the DCB we are processing
-				 * lptr is the previous DCB on the zombie queue
-				 * or NULL if the DCB is at the head of the
-				 * queue tptr is the DCB after the one we are
-				 * processing on the zombie queue
+				 * zombiedcb is the DCB we are processing
+				 * previousdcb is the previous DCB on the zombie 
+				 * queue or NULL if the DCB is at the head of the
+				 * queue.  Remove zombiedcb from the zombies list.
 				 */
-				DCB	*tptr = ptr->memdata.next;
-				if (lptr == NULL)
-					zombies = tptr;
+				if (previousdcb == NULL)
+					zombies = zombiedcb->memdata.next;
 				else
-					lptr->memdata.next = tptr;
+					previousdcb->memdata.next = zombiedcb->memdata.next;
 				
 				LOGIF(LD, (skygw_log_write_flush(
 					LOGFILE_DEBUG,
@@ -525,28 +462,40 @@ bool    succp = false;
 					"%p fd %d " "in state %s from the "
 					"list of zombies.",
 					pthread_self(),
-					ptr,
-					ptr->fd,
-					STRDCBSTATE(ptr->state)))); 
-				ss_info_dassert(ptr->state == DCB_STATE_ZOMBIE,
-						"dcb not in DCB_STATE_ZOMBIE state.");
+					zombiedcb,
+					zombiedcb->fd,
+					STRDCBSTATE(zombiedcb->state)))); 
+				ss_info_dassert(zombiedcb->state == DCB_STATE_ZOMBIE,
+                                    "dcb not in DCB_STATE_ZOMBIE state.");
 				/*<
-				 * Move dcb to linked list of victim dcbs.
+				 * Move zombie dcb to linked list of victim dcbs.
+                                 * The variable dcb is used to hold the last DCB
+                                 * to have been added to the linked list, or NULL
+                                 * if none has yet been added.  If the list 
+                                 * (listofdcb) is not NULL, then it follows that
+                                 * dcb will also not be null.
 				 */
-				if (dcb_list == NULL) {
-					dcb_list = ptr;
-					dcb = dcb_list;
-				} else {
-					dcb->memdata.next = ptr;
-					dcb = dcb->memdata.next;
+				if (listofdcb == NULL) 
+                                {
+					listofdcb = zombiedcb;
+				} 
+                                else 
+                                {
+					dcb->memdata.next = zombiedcb;
 				}
+                                /* Set dcb for next iteration of loop */
+                                dcb = zombiedcb;
+				zombiedcb = zombiedcb->memdata.next;
+                                /* After we've moved zombiedcb forward, set
+                                 link to null as dcb is last of the new list */
 				dcb->memdata.next = NULL;
-				ptr = tptr;
 			}
 			else
 			{
-				lptr = ptr;
-				ptr = ptr->memdata.next;
+                            /* Since we didn't remove this dcb from the zombies 
+                             list, we need to advance the previous pointer */
+				previousdcb = zombiedcb;
+				zombiedcb = zombiedcb->memdata.next;
 			}
 		}
 	}
@@ -558,9 +507,9 @@ bool    succp = false;
 	 * The corresponding file descriptor is closed, the DCB marked
 	 * as disconnected and the DCB itself is fianlly freed.
 	 */
-        dcb = dcb_list;
+        dcb = listofdcb;
         while (dcb != NULL) {
-		DCB* dcb_next = NULL;
+		DCB *nextdcb = NULL;
                 int  rc = 0;
 
 		if (dcb->fd > 0)
@@ -606,11 +555,10 @@ bool    succp = false;
 			&tls_log_info.li_sesid, 
 			&tls_log_info.li_enabled_logs)));
 
-                succp = dcb_set_state(dcb, DCB_STATE_DISCONNECTED, NULL);
-                ss_dassert(succp);
-		dcb_next = dcb->memdata.next;
+                dcb->state = DCB_STATE_DISCONNECTED;
+		nextdcb = dcb->memdata.next;
                 dcb_final_free(dcb);
-                dcb = dcb_next;
+                dcb = nextdcb;
         }
         /** Reset threads session data */
         LOGIF(LT, tls_log_info.li_sesid = 0);
@@ -622,7 +570,7 @@ bool    succp = false;
  * Connect to a server
  * 
  * This routine will create a server connection
- * If succesful the new dcb will be put in
+ * If successful the new dcb will be put in
  * epoll set by dcb->func.connect
  *
  * @param server	The server to connect to
@@ -633,11 +581,49 @@ bool    succp = false;
 DCB *
 dcb_connect(SERVER *server, SESSION *session, const char *protocol)
 {
-DCB		*dcb;
-GWPROTOCOL	*funcs;
-int             fd;
-int             rc;
+    DCB		*dcb;
+    GWPROTOCOL	*funcs;
+    int         fd;
+    int         rc;
+    char        *user;
 
+        user = session_getUser(session);
+        if (user && strlen(user))
+        {
+            LOGIF(LD, (skygw_log_write(
+                LOGFILE_DEBUG,
+		"%lu [dcb_connect] Looking for persistent connection DCB user %s protocol %s\n", pthread_self(), user, protocol)));
+            dcb = server_get_persistent(server, user, protocol);
+            if (dcb)
+            {
+                /**
+                * Link dcb to session. Unlink is called in dcb_final_free
+                */
+                if (!session_link_dcb(session, dcb))
+                {
+                    LOGIF(LD, (skygw_log_write(
+                        LOGFILE_DEBUG,
+			"%lu [dcb_connect] Failed to link to session, the "
+                        "session has been removed.\n",
+                        pthread_self())));
+                    dcb_close(dcb);
+                    return NULL;
+                }
+                LOGIF(LD, (skygw_log_write(
+                    LOGFILE_DEBUG,
+                    "%lu [dcb_connect] Reusing a persistent connection, dcb %p\n", pthread_self(), dcb)));
+                dcb->persistentstart = 0;
+                return dcb;
+            }
+            else
+            {
+                LOGIF(LD, (skygw_log_write(
+                    LOGFILE_DEBUG,
+                    "%lu [dcb_connect] Failed to find a reusable persistent connection.\n",
+                    pthread_self())));
+            }
+        }
+        
 	if ((dcb = dcb_alloc(DCB_ROLE_REQUEST_HANDLER)) == NULL)
 	{
 		return NULL;
@@ -646,7 +632,7 @@ int             rc;
 	if ((funcs = (GWPROTOCOL *)load_module(protocol,
                                                MODULE_PROTOCOL)) == NULL)
 	{
-                dcb_set_state(dcb, DCB_STATE_DISCONNECTED, NULL);
+                dcb->state = DCB_STATE_DISCONNECTED;
 		dcb_final_free(dcb);
 		LOGIF(LE, (skygw_log_write_flush(
                         LOGFILE_ERROR,
@@ -657,6 +643,7 @@ int             rc;
 		return NULL;
 	}
 	memcpy(&(dcb->func), funcs, sizeof(GWPROTOCOL));
+        dcb->protoname = strdup(protocol);
 
         /**
          * Link dcb to session. Unlink is called in dcb_final_free
@@ -684,7 +671,7 @@ int             rc;
                         dcb,
                         session->client,
                         session->client->fd)));
-                dcb_set_state(dcb, DCB_STATE_DISCONNECTED, NULL);
+                dcb->state = DCB_STATE_DISCONNECTED;
                 dcb_final_free(dcb);
                 return NULL;
 	} else {
@@ -712,7 +699,7 @@ int             rc;
 
         /** Copy status field to DCB */
         dcb->dcb_server_status = server->status;
-        ss_debug(dcb->dcb_port = server->port;)
+        dcb->dcb_port = server->port;
         
 	/**
 	 * backend_dcb is connected to backend server, and once backend_dcb
@@ -726,8 +713,8 @@ int             rc;
          */
         rc = poll_add_dcb(dcb);
 
-        if (rc == DCBFD_CLOSED) {
-                dcb_set_state(dcb, DCB_STATE_DISCONNECTED, NULL);
+        if (rc) {
+                dcb->state = DCB_STATE_DISCONNECTED;
                 dcb_final_free(dcb);
                 return NULL;
         }
@@ -1822,7 +1809,6 @@ int	above_water;
 	return n;
 }
 
-
 /**
  * Drain the write queue of a DCB. This is called as part of the EPOLLOUT handling
  * of a socket and will try to send any buffered data from the write queue
@@ -1922,7 +1908,7 @@ dcb_drain_writeq_SSL(DCB *dcb)
 }
 
 /** 
- * Removes dcb from poll set, and adds it to zombies list. As a consequense,
+ * Removes dcb from poll set, and adds it to zombies list. As a consequence,
  * dcb first moves to DCB_STATE_NOPOLLING, and then to DCB_STATE_ZOMBIE state.
  * At the end of the function state may not be DCB_STATE_ZOMBIE because once
  * dcb_initlock is released parallel threads may change the state.
@@ -1935,74 +1921,182 @@ dcb_drain_writeq_SSL(DCB *dcb)
 void
 dcb_close(DCB *dcb)
 {
-        int  rc = 0;
+    CHK_DCB(dcb);
 
-        CHK_DCB(dcb);
+    LOGIF(LD, (skygw_log_write(LOGFILE_DEBUG,
+        "%lu [dcb_close] DCB %p in state %s",
+        pthread_self(),
+        dcb,
+        dcb ? STRDCBSTATE(dcb->state) : "Invalid DCB")));                                
 
-	LOGIF(LD, (skygw_log_write(LOGFILE_DEBUG,
-				"%lu [dcb_close]",
-				pthread_self())));                                
-	
-        /**
-         * dcb_close may be called for freshly created dcb, in which case
-         * it only needs to be freed.
-         */
-        if (dcb->state == DCB_STATE_ALLOC)
+    if (DCB_STATE_ZOMBIE == dcb->state)
+    {
+        return;
+    }
+    
+    if (DCB_STATE_UNDEFINED == dcb->state 
+        || DCB_STATE_DISCONNECTED == dcb->state)
+    {
+        LOGIF(LE, (skygw_log_write(
+            LOGFILE_ERROR,
+            "%lu [dcb_close] Error : Removing DCB %p but was in state %s "
+            "which is not legal for a call to dcb_close. ",
+            pthread_self(),
+            dcb,
+            STRDCBSTATE(dcb->state))));
+        raise(SIGABRT);
+    }
+    
+    /**
+     * dcb_close may be called for freshly created dcb, in which case
+     * it only needs to be freed.
+     */
+    if (dcb->state == DCB_STATE_ALLOC && dcb->fd != DCBFD_CLOSED)
+    {
+        dcb_final_free(dcb);
+        return;
+    }
+        
+    /*<
+     * Stop dcb's listening and modify state accordingly.
+     */
+    if (dcb->state == DCB_STATE_POLLING  || dcb->state == DCB_STATE_LISTENING)
+    {
+        if (dcb->state == DCB_STATE_LISTENING)
         {
-                dcb_set_state(dcb, DCB_STATE_DISCONNECTED, NULL);
-                dcb_final_free(dcb);
-                return;
+            LOGIF(LE, (skygw_log_write(
+                LOGFILE_ERROR,
+                "%lu [dcb_close] Error : Removing DCB %p but was in state %s "
+                "which is not expected for a call to dcb_close, although it"
+                "should be processed correctly. ",
+                pthread_self(),
+                dcb,
+                STRDCBSTATE(dcb->state))));
         }
-        
-        ss_dassert(dcb->state == DCB_STATE_POLLING ||
-               dcb->state == DCB_STATE_NOPOLLING ||
-               dcb->state == DCB_STATE_ZOMBIE);
-        
-        /*<
-        * Stop dcb's listening and modify state accordingly.
-        */
-	if (dcb->state == DCB_STATE_POLLING)
+	if ((dcb->state == DCB_STATE_POLLING && !dcb_maybe_add_persistent(dcb))
+            || (dcb->state == DCB_STATE_LISTENING))
 	{
-		rc = poll_remove_dcb(dcb);
-
-		if (rc == 0) {
-			LOGIF(LD, (skygw_log_write(
-				LOGFILE_DEBUG,
-				"%lu [dcb_close] Removed dcb %p in state %s from "
-				"poll set.",
-				pthread_self(),
-				dcb,
-				STRDCBSTATE(dcb->state))));
-		} else {
-			LOGIF(LE, (skygw_log_write(
-				LOGFILE_ERROR,
-				"Error : Removing DCB fd == %d in state %s from "
-				"poll set failed.",
-				dcb->fd,
-				STRDCBSTATE(dcb->state))));
-		}
-	
-		if (rc == 0)
-		{
-			/**
-			 * close protocol and router session
-			 */
-			if (dcb->func.close != NULL)
-			{
-				dcb->func.close(dcb);
-			}
-			/** Call possible callback for this DCB in case of close */
-			dcb_call_callback(dcb, DCB_REASON_CLOSE);
-			
-			if (dcb->state == DCB_STATE_NOPOLLING) 
-			{
-				dcb_add_to_zombieslist(dcb);
-			}
-		}
-	        ss_dassert(dcb->state == DCB_STATE_NOPOLLING ||
-					dcb->state == DCB_STATE_ZOMBIE);	
-	}
+            poll_remove_dcb(dcb);
+            /*
+             * Return will always be 0 or function will have crashed, so we
+             * threw away return value.
+             */
+            LOGIF(LD, (skygw_log_write(
+                LOGFILE_DEBUG,
+                "%lu [dcb_close] Removed dcb %p in state %s from "
+                "poll set.",
+                pthread_self(),
+                dcb,
+                STRDCBSTATE(dcb->state))));
+            /**
+             * close protocol and router session
+             */
+            if (dcb->func.close != NULL)
+            {
+                dcb->func.close(dcb);
+            }
+            /** Call possible callback for this DCB in case of close */
+            dcb_call_callback(dcb, DCB_REASON_CLOSE);
+        }
+    }
+    
+    spinlock_acquire(&zombiespin);
+    if (dcb->state == DCB_STATE_NOPOLLING  || dcb->state == DCB_STATE_ALLOC)
+    {
+        /*<
+         * Add closing dcb to the top of the list.
+         */
+        dcb->memdata.next = zombies;
+        zombies = dcb;
+        /*<
+         * Set state which indicates that it has been added to zombies
+         * list.
+         */
+        dcb->state = DCB_STATE_ZOMBIE;
+    }
+    spinlock_release(&zombiespin);
 }
+
+/**
+ * Add DCB to persistent pool if it qualifies, close otherwise
+ *
+ * @param dcb	The DCB to go to persistent pool or be closed
+ * @return      bool - whether the DCB was added to the pool
+ *
+ */
+static bool
+dcb_maybe_add_persistent(DCB *dcb)
+{
+    char *user;
+    int  poolcount = -1;
+    user = session_getUser(dcb->session);
+    if (user 
+        && strlen(user)
+        && dcb->server 
+        && dcb->server->persistpoolmax 
+        && !dcb->dcb_errhandle_called
+        && !(dcb->flags & DCBF_HUNG)
+        && (poolcount = dcb_persistent_clean_count(dcb, false)) < dcb->server->persistpoolmax)
+    {
+        LOGIF(LD, (skygw_log_write(
+            LOGFILE_DEBUG,
+            "%lu [dcb_maybe_add_persistent] Adding DCB to persistent pool, user %s.\n",
+            pthread_self(),
+            user)));
+        dcb->user = strdup(user);
+        dcb->persistentstart = time(NULL);
+        spinlock_acquire(&dcb->server->persistlock);
+        dcb->nextpersistent = dcb->server->persistent;
+        dcb->server->persistent = dcb;
+        dcb->session = NULL;
+        spinlock_release(&dcb->server->persistlock);
+        atomic_add(&dcb->server->stats.n_persistent, 1);
+        atomic_add(&dcb->server->stats.n_current, -1);
+        return true;
+    }
+    else
+    {
+      LOGIF(LD, (skygw_log_write(
+            LOGFILE_DEBUG,
+            "%lu [dcb_maybe_add_persistent] Not adding DCB %p to persistent pool, user %s, "
+            "max for pool %d, error handle called %s, hung flag %s, pool count %d.\n",
+            pthread_self(),
+            dcb,
+            user ? user : "",
+            (dcb->server && dcb->server->persistpoolmax) ? dcb->server->persistpoolmax : 0,
+            dcb->dcb_errhandle_called ? "true" : "false",
+            (dcb->flags & DCBF_HUNG) ? "true" : "false",
+            poolcount)));
+    }
+    return false;
+}
+
+/**
+ * Final calls for DCB close
+ *
+ * @param dcb	The DCB to print
+ *
+ */
+static void
+dcb_close_finish(DCB *dcb)
+{
+    /**
+     * check persistent list, close protocol and router session
+     */
+    if (dcb->func.close)
+    {
+        dcb->func.close(dcb);
+    }
+    if (dcb->server)
+    {
+        if (dcb->server->persistent) CHK_DCB(dcb->server->persistent);
+        if (0 == dcb->persistentstart) atomic_add(&dcb->server->stats.n_current, -1);
+    }
+    /** Call possible callback for this DCB in case of close */
+    dcb_call_callback(dcb, DCB_REASON_CLOSE);
+    /** Must be DCB_STATE_NOPOLLING when this function is called */
+    dcb_close(dcb);
+ }
 
 /**
  * Diagnostic to print a DCB
@@ -2018,9 +2112,23 @@ printDCB(DCB *dcb)
 	if (dcb->remote)
 		printf("\tConnected to:		%s\n", dcb->remote);
 	if (dcb->user)
-		printf("\tUsername to:		%s\n", dcb->user);
+		printf("\tUsername:		%s\n", dcb->user);
+	if (dcb->protoname)
+		printf("\tProtocol:		%s\n", dcb->protoname);
 	if (dcb->writeq)
 		printf("\tQueued write data:	%d\n",gwbuf_length(dcb->writeq));
+        char *statusname = server_status(dcb->server);
+        if (statusname) 
+        {
+            printf("\tServer status:            %s\n", statusname);
+            free(statusname);
+        }
+        char *rolename = dcb_role_name(dcb);
+        if (rolename)
+        {
+            printf("\tRole:                     %s\n", rolename);
+            free(rolename);
+        }
 	printf("\tStatistics:\n");
 	printf("\t\tNo. of Reads: 			%d\n",
 				dcb->stats.n_reads);
@@ -2067,12 +2175,70 @@ DCB	*dcb;
 	spinlock_release(&dcbspin);
 }
 
-
+/**
+ * Diagnostic to print one DCB in the system
+ *
+ * @param       pdcb    DCB to print results to
+ * @param       dcb     DCB to be printed
+ */
+void 
+dprintOneDCB(DCB *pdcb, DCB *dcb)
+{
+		dcb_printf(pdcb, "DCB: %p\n", (void *)dcb);
+		dcb_printf(pdcb, "\tDCB state:          %s\n",
+					gw_dcb_state2string(dcb->state));
+		if (dcb->session && dcb->session->service)
+			dcb_printf(pdcb, "\tService:            %s\n",
+					dcb->session->service->name);
+		if (dcb->remote)
+			dcb_printf(pdcb, "\tConnected to:       %s\n",
+					dcb->remote);
+		if (dcb->user)
+			dcb_printf(pdcb, "\tUsername:           %s\n",
+					dcb->user);
+		if (dcb->protoname)
+			dcb_printf(pdcb, "\tProtocol:           %s\n",
+					dcb->protoname);
+		if (dcb->writeq)
+			dcb_printf(pdcb, "\tQueued write data:  %d\n",
+					gwbuf_length(dcb->writeq));
+                char *statusname = server_status(dcb->server);
+                if (statusname) 
+                {
+                    dcb_printf(pdcb, "\tServer status:            %s\n", statusname);
+                    free(statusname);
+                }
+                char *rolename = dcb_role_name(dcb);
+                if (rolename)
+                {
+                    dcb_printf(pdcb, "\tRole:                     %s\n", rolename);
+                    free(rolename);
+                }
+		dcb_printf(pdcb, "\tStatistics:\n");
+		dcb_printf(pdcb, "\t\tNo. of Reads:           	%d\n", dcb->stats.n_reads);
+		dcb_printf(pdcb, "\t\tNo. of Writes:          	%d\n", dcb->stats.n_writes);
+		dcb_printf(pdcb, "\t\tNo. of Buffered Writes: 	%d\n", dcb->stats.n_buffered);
+		dcb_printf(pdcb, "\t\tNo. of Accepts:         	%d\n", dcb->stats.n_accepts);
+		dcb_printf(pdcb, "\t\tNo. of High Water Events:	%d\n", dcb->stats.n_high_water);
+		dcb_printf(pdcb, "\t\tNo. of Low Water Events:	%d\n", dcb->stats.n_low_water);
+		if (dcb->flags & DCBF_CLONE)
+			dcb_printf(pdcb, "\t\tDCB is a clone.\n");
+        if (dcb->persistentstart)
+        {
+            char buff[20];
+            struct tm * timeinfo;
+            timeinfo = localtime (&dcb->persistentstart);
+            strftime(buff, sizeof(buff), "%b %d %H:%M:%S", timeinfo);    
+            dcb_printf(pdcb, "\t\tAdded to persistent pool:       %s\n", buff);
+        }
+}
 /**
  * Diagnostic to print all DCB allocated in the system
  *
+ * @param       pdcb    DCB to print results to
  */
-void dprintAllDCBs(DCB *pdcb)
+void 
+dprintAllDCBs(DCB *pdcb)
 {
 DCB	*dcb;
 
@@ -2086,37 +2252,14 @@ DCB	*dcb;
 	dcb = allDCBs;
 	while (dcb)
 	{
-		dcb_printf(pdcb, "DCB: %p\n", (void *)dcb);
-		dcb_printf(pdcb, "\tDCB state:          %s\n",
-					gw_dcb_state2string(dcb->state));
-		if (dcb->session && dcb->session->service)
-			dcb_printf(pdcb, "\tService:            %s\n",
-					dcb->session->service->name);
-		if (dcb->remote)
-			dcb_printf(pdcb, "\tConnected to:       %s\n",
-					dcb->remote);
-		if (dcb->user)
-			dcb_printf(pdcb, "\tUsername:           %s\n",
-					dcb->user);
-		if (dcb->writeq)
-			dcb_printf(pdcb, "\tQueued write data:  %d\n",
-					gwbuf_length(dcb->writeq));
-		dcb_printf(pdcb, "\tStatistics:\n");
-		dcb_printf(pdcb, "\t\tNo. of Reads:           	%d\n", dcb->stats.n_reads);
-		dcb_printf(pdcb, "\t\tNo. of Writes:          	%d\n", dcb->stats.n_writes);
-		dcb_printf(pdcb, "\t\tNo. of Buffered Writes: 	%d\n", dcb->stats.n_buffered);
-		dcb_printf(pdcb, "\t\tNo. of Accepts:         	%d\n", dcb->stats.n_accepts);
-		dcb_printf(pdcb, "\t\tNo. of High Water Events:	%d\n", dcb->stats.n_high_water);
-		dcb_printf(pdcb, "\t\tNo. of Low Water Events:	%d\n", dcb->stats.n_low_water);
-		if (dcb->flags & DCBF_CLONE)
-			dcb_printf(pdcb, "\t\tDCB is a clone.\n");
-		dcb = dcb->next;
+            dprintOneDCB(pdcb, dcb);
+            dcb = dcb->next;
 	}
 	spinlock_release(&dcbspin);
 }
 
 /** 
- * Diagnotic routine to print DCB data in a tabular form.
+ * Diagnostic routine to print DCB data in a tabular form.
  * 
  * @param       pdcb    DCB to print results to
  */
@@ -2146,7 +2289,7 @@ DCB     *dcb;
 }
 
 /** 
- * Diagnotic routine to print client DCB data in a tabular form.
+ * Diagnostic routine to print client DCB data in a tabular form.
  * 
  * @param       pdcb    DCB to print results to
  */
@@ -2199,11 +2342,26 @@ dprintDCB(DCB *pdcb, DCB *dcb)
 	if (dcb->user)
 		dcb_printf(pdcb, "\tUsername:			%s\n",
 					dcb->user);
+	if (dcb->protoname)
+		dcb_printf(pdcb, "\tProtocol:			%s\n",
+					dcb->protoname);
 	dcb_printf(pdcb, "\tOwning Session:   	%p\n", dcb->session);
 	if (dcb->writeq)
 		dcb_printf(pdcb, "\tQueued write data:	%d\n", gwbuf_length(dcb->writeq));
 	if (dcb->delayq)
 		dcb_printf(pdcb, "\tDelayed write data:	%d\n", gwbuf_length(dcb->delayq));
+        char *statusname = server_status(dcb->server);
+        if (statusname) 
+        {
+            dcb_printf(pdcb, "\tServer status:            %s\n", statusname);
+            free(statusname);
+        }
+        char *rolename = dcb_role_name(dcb);
+        if (rolename)
+        {
+            dcb_printf(pdcb, "\tRole:                     %s\n", rolename);
+            free(rolename);
+        }
 	dcb_printf(pdcb, "\tStatistics:\n");
 	dcb_printf(pdcb, "\t\tNo. of Reads: 			%d\n",
 						dcb->stats.n_reads);
@@ -2239,6 +2397,14 @@ dprintDCB(DCB *pdcb, DCB *dcb)
 	dcb_printf(pdcb, "\tCallback Lock Statistics:\n");
 	spinlock_stats(&dcb->cb_lock, spin_reporter, pdcb);
 #endif
+        if (dcb->persistentstart)
+        {
+            char buff[20];
+            struct tm * timeinfo;
+            timeinfo = localtime (&dcb->persistentstart);
+            strftime(buff, sizeof(buff), "%b %d %H:%M:%S", timeinfo);    
+            dcb_printf(pdcb, "\t\tAdded to persistent pool:       %s\n", buff);
+        }
 }
 
 /**
@@ -2249,12 +2415,15 @@ dprintDCB(DCB *pdcb, DCB *dcb)
  *
  */
 const char *
-gw_dcb_state2string (int state) {
+gw_dcb_state2string (int state) 
+{
 	switch(state) {
 		case DCB_STATE_ALLOC:
 			return "DCB Allocated";
 		case DCB_STATE_POLLING:
 			return "DCB in the polling loop";
+		case DCB_STATE_NOPOLLING:
+			return "DCB not in the polling loop";
 		case DCB_STATE_LISTENING:
 			return "DCB for listening socket";
 		case DCB_STATE_DISCONNECTED:
@@ -2263,14 +2432,16 @@ gw_dcb_state2string (int state) {
 			return "DCB memory could be freed";
 		case DCB_STATE_ZOMBIE:
 			return "DCB Zombie";
+		case DCB_STATE_UNDEFINED:
+			return "DCB undefined state";
 		default:
-			return "DCB (unknown)";
+			return "DCB (unknown - erroneous)";
 	}
 }
 
 /**
  * A  DCB based wrapper for printf. Allows formatting printing to
- * a descritor control block.
+ * a descriptor control block.
  *
  * @param dcb	Descriptor to write to
  * @param fmt	A printf format string
@@ -2319,8 +2490,8 @@ dcb_isclient(DCB *dcb)
  * @param table		The hash table
  */
 void dcb_hashtable_stats(
-        DCB*  dcb,
-        void* table)
+        DCB     *dcb,
+        void    *table)
 {
         int total;
         int longest;
@@ -2343,171 +2514,6 @@ void dcb_hashtable_stats(
 	dcb_printf(dcb, "\tLongest chain length:	%d\n", longest);
 }
 
-
-bool dcb_set_state(
-        DCB*              dcb,
-        const dcb_state_t new_state,
-        dcb_state_t*      old_state)
-{
-        bool              succp;
-        dcb_state_t       state ;
-        
-        CHK_DCB(dcb);
-        spinlock_acquire(&dcb->dcb_initlock);
-        succp = dcb_set_state_nomutex(dcb, new_state, &state);
-        
-        spinlock_release(&dcb->dcb_initlock);
-
-        if (old_state != NULL) {
-                *old_state = state;
-        }
-        return succp;
-}
-
-static bool dcb_set_state_nomutex(
-        DCB*              dcb,
-        const dcb_state_t new_state,
-        dcb_state_t*      old_state)
-{
-        bool        succp = false;
-        dcb_state_t state = DCB_STATE_UNDEFINED;
-        
-        CHK_DCB(dcb);
-
-        state = dcb->state;
-        
-        if (old_state != NULL) {
-                *old_state = state;
-        }
-        
-        switch (state) {
-        case DCB_STATE_UNDEFINED:
-                dcb->state = new_state;
-                succp = true;
-                break;
-
-        case DCB_STATE_ALLOC:
-                switch (new_state) {
-			/** fall through, for client requests */
-			case DCB_STATE_POLLING: 
-			/** fall through, for connect listeners */
-			case DCB_STATE_LISTENING: 
-			/** for failed connections */
-			case DCB_STATE_DISCONNECTED: 
-				dcb->state = new_state;
-				succp = true;
-				break;
-			default:                        
-				ss_dassert(old_state != NULL);
-				break;
-                }
-                break;
-                
-        case DCB_STATE_POLLING:
-                switch(new_state) {
-			case DCB_STATE_NOPOLLING:
-				dcb->state = new_state;
-				succp = true;
-				break;
-			default:
-				ss_dassert(old_state != NULL);
-				break;
-                }
-                break;
-
-        case DCB_STATE_LISTENING:
-                switch(new_state) {
-			case DCB_STATE_NOPOLLING:
-				dcb->state = new_state;
-				succp = true;
-				break;
-			default:
-				ss_dassert(old_state != NULL);
-				break;
-                }
-                break;
-                
-        case DCB_STATE_NOPOLLING:
-                switch (new_state) {
-		    /** Stopped services which are restarting will go from
-		     *  DCB_STATE_NOPOLLING to DCB_STATE_LISTENING.*/
-			case DCB_STATE_LISTENING:
-			case DCB_STATE_ZOMBIE: /*< fall through */
-				dcb->state = new_state;
-			case DCB_STATE_POLLING: /*< ok to try but state can't change */
-				succp = true;
-				break;
-			default:
-				ss_dassert(old_state != NULL);
-				break;
-                }
-                break;
-
-        case DCB_STATE_ZOMBIE:
-                switch (new_state) {
-			case DCB_STATE_DISCONNECTED: /*< fall through */
-				dcb->state = new_state;
-			case DCB_STATE_POLLING: /*< ok to try but state can't change */
-				succp = true;
-				break;
-			default:
-				ss_dassert(old_state != NULL);
-				break;
-                }
-                break;
-
-        case DCB_STATE_DISCONNECTED:
-                switch (new_state) {
-			case DCB_STATE_FREED:
-				dcb->state = new_state;
-				succp = true;
-				break;
-			default:
-				ss_dassert(old_state != NULL);
-				break;
-                }
-                break;
-
-        case DCB_STATE_FREED:
-                ss_dassert(old_state != NULL);
-                break;
-                
-        default:
-                LOGIF(LE, (skygw_log_write_flush(
-                        LOGFILE_ERROR,
-                        "Error : Unknown dcb state %s for "
-                        "dcb %p",
-                        STRDCBSTATE(dcb->state),
-                        dcb)));
-                ss_dassert(false);
-                break;
-        } /*< switch (dcb->state) */
-
-        if (succp) {
-                LOGIF(LD, (skygw_log_write_flush(
-                        LOGFILE_DEBUG,
-                        "%lu [dcb_set_state_nomutex] dcb %p fd %d %s -> %s",
-                        pthread_self(),
-                        dcb,
-                        dcb->fd,
-                        STRDCBSTATE(state),
-                        STRDCBSTATE(dcb->state))));
-        }
-        else
-        {
-                LOGIF(LD, (skygw_log_write(
-                                   LOGFILE_DEBUG,
-                                   "%lu [dcb_set_state_nomutex] Failed "
-                                   "to change state of DCB %p. "
-                                   "Old state %s > new state %s.",
-                                   pthread_self(),
-                                   dcb,
-				   (old_state == NULL ? "NULL" : STRDCBSTATE(*old_state)),
-                                   STRDCBSTATE(new_state))));
-        }
-        return succp;
-}
-
 /**
  * Write data to a socket through an SSL structure. The SSL structure is linked to a DCB's socket
  * and all communication is encrypted and done via the SSL structure.
@@ -2520,14 +2526,14 @@ static bool dcb_set_state_nomutex(
 int
 gw_write_SSL(SSL* ssl, const void *buf, size_t nbytes)
 {
-        int w = 0;
+    int w = 0;
 	int fd = SSL_get_fd(ssl);
 
 	if (fd > 0)
 	{
 		w = SSL_write(ssl, buf, nbytes);
 	}
-        return w;
+    return w;
 }
 
 
@@ -2816,7 +2822,7 @@ int	rval = 0;
  * @return	The pointer to the next DCB or NULL if this is the last
  */
 static DCB *
-dcb_get_next (DCB* dcb)
+dcb_get_next (DCB *dcb)
 {
         spinlock_acquire(&dcbspin);
         if (dcb) {
@@ -2855,7 +2861,7 @@ dcb_call_foreach(struct server* server, DCB_REASON reason)
 		    break;
                 case DCB_REASON_NOT_RESPONDING: 
                 {
-                        DCB* dcb;
+                        DCB *dcb;
                         dcb = dcb_get_next(NULL);
                         
                         while (dcb != NULL)
@@ -2921,6 +2927,69 @@ static int
 dcb_null_auth(DCB *dcb, SERVER *server, SESSION *session, GWBUF *buf)
 {
 	return 0;
+}
+
+/**
+ * Check persistent pool for expiry or excess size and count
+ *
+ * @param dcb		The DCB being closed.
+ * @param cleanall	Boolean, if true the whole pool is cleared for the
+ *                      server related to the given DCB
+ * @return              A count of the DCBs remaining in the pool
+ */
+int
+dcb_persistent_clean_count(DCB *dcb, bool cleanall)
+{
+    int count = 0;
+    if (dcb && dcb->server)
+    {
+        SERVER *server = dcb->server;
+        DCB *previousdcb = NULL;
+        DCB *persistentdcb, *nextdcb;
+        DCB *disposals = NULL;
+    
+        CHK_SERVER(server);
+        spinlock_acquire(&server->persistlock);
+        persistentdcb = server->persistent;
+        while (persistentdcb) {
+            CHK_DCB(persistentdcb);
+            nextdcb = persistentdcb->nextpersistent;
+            if (cleanall 
+		|| persistentdcb-> dcb_errhandle_called 
+		|| count >= server->persistpoolmax 
+		|| (time(NULL) - persistentdcb->persistentstart) > server->persistmaxtime)
+            {
+                /* Remove from persistent pool */
+                if (previousdcb) {
+                    previousdcb->nextpersistent = nextdcb;
+                }
+                else
+                {
+                    server->persistent = nextdcb;
+                }
+                /* Add removed DCBs to disposal list for processing outside spinlock */
+                persistentdcb->nextpersistent = disposals;
+                disposals = persistentdcb;
+                atomic_add(&server->stats.n_persistent, -1);
+            }
+            else 
+            {
+                count++;
+                previousdcb = persistentdcb;
+            }
+            persistentdcb = nextdcb;
+        }
+        spinlock_release(&server->persistlock);
+        /** Call possible callback for this DCB in case of close */
+        while (disposals)
+        {
+            nextdcb = disposals->nextpersistent;
+            poll_remove_dcb(disposals);
+            dcb_close_finish(disposals);
+            disposals = nextdcb;
+        }
+    }
+    return count;
 }
 
 /**
@@ -3002,6 +3071,7 @@ int dcb_create_SSL(DCB* dcb)
 
     return 0;
 }
+
 /**
  * Accept a SSL connection and do the SSL authentication handshake.
  * This function accepts a client connection to a DCB. It assumes that the SSL
@@ -3168,6 +3238,33 @@ int dcb_connect_SSL(DCB* dcb)
     }
 
     return rval;
+}
+
+/**
+ * Convert a DCB role to a string, the returned
+ * string has been malloc'd and must be free'd by the caller
+ *
+ * @param DCB    The DCB to return the role of
+ * @return       A string representation of the DCB role
+ */
+char *
+dcb_role_name(DCB *dcb)
+{
+char	*name = NULL;
+
+	if (NULL != (name = (char *)malloc(64)))
+        {
+            name[0] = 0;
+            if (DCB_ROLE_SERVICE_LISTENER == dcb->dcb_role)
+		strcat(name, "Service Listener");
+            else if (DCB_ROLE_REQUEST_HANDLER == dcb->dcb_role)
+		strcat(name, "Request Handler");
+            else if (DCB_ROLE_INTERNAL == dcb->dcb_role)
+		strcat(name, "Internal");
+            else
+                strcat(name, "Unknown");
+        }
+	return name;
 }
 /*
  * Close all external connections

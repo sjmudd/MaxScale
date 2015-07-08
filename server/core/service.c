@@ -36,7 +36,8 @@
  * 06/02/15	Mark Riddoch		Added caching of authentication data
  * 18/02/15	Mark Riddoch		Added result set management
  * 03/03/15	Massimiliano Pinto	Added config_enable_feedback_task() call in serviceStartAll
- *
+ * 19/06/15	Martin Brampton		More meaningful names for temp variables
+
  * @endverbatim
  */
 #include <stdio.h>
@@ -176,19 +177,19 @@ SERVICE 	*service;
 int
 service_isvalid(SERVICE *service)
 {
-SERVICE		*ptr;
+SERVICE		*checkservice;
 int		rval = 0;
 
 	spinlock_acquire(&service_spin);
-	ptr = allServices;
-	while (ptr)
+	checkservice = allServices;
+	while (checkservice)
 	{
-		if (ptr == service)
+		if (checkservice == service)
 		{
 			rval = 1;
 			break;
 		}
-		ptr = ptr->next;
+		checkservice = checkservice->next;
 	}
 	spinlock_release(&service_spin);
 	return rval;
@@ -1649,11 +1650,11 @@ int		i;
 void
 dListServices(DCB *dcb)
 {
-SERVICE	*ptr;
+SERVICE	*service;
 
 	spinlock_acquire(&service_spin);
-	ptr = allServices;
-	if (ptr)
+	service = allServices;
+	if (service)
 	{
 		dcb_printf(dcb, "Services.\n");
 		dcb_printf(dcb, "--------------------------+----------------------+--------+---------------\n");
@@ -1661,16 +1662,16 @@ SERVICE	*ptr;
 			"Service Name", "Router Module");
 		dcb_printf(dcb, "--------------------------+----------------------+--------+---------------\n");
 	}
-	while (ptr)
+	while (service)
 	{
-	    if(ptr->state != SERVICE_STATE_OBSOLETE)
+	    if(service->state != SERVICE_STATE_OBSOLETE)
 	    {
-		ss_dassert(ptr->stats.n_current >= 0);
+		ss_dassert(service->stats.n_current >= 0);
 		dcb_printf(dcb, "%-25s | %-20s | %6d | %5d\n",
-			ptr->name, ptr->routerModule,
-			ptr->stats.n_current, ptr->stats.n_sessions);
+			service->name, service->routerModule,
+			service->stats.n_current, service->stats.n_sessions);
 	    }
-		ptr = ptr->next;
+		service = service->next;
 	}
 	if (allServices)
 		dcb_printf(dcb, "--------------------------+----------------------+--------+---------------\n\n");
@@ -1685,12 +1686,12 @@ SERVICE	*ptr;
 void
 dListListeners(DCB *dcb)
 {
-SERVICE		*ptr;
+SERVICE		*service;
 SERV_PROTOCOL	*lptr;
 
 	spinlock_acquire(&service_spin);
-	ptr = allServices;
-	if (ptr)
+	service = allServices;
+	if (service)
 	{
 		dcb_printf(dcb, "Listeners.\n");
 		dcb_printf(dcb, "---------------------+--------------------+-----------------+-------+--------\n");
@@ -1698,15 +1699,15 @@ SERV_PROTOCOL	*lptr;
 			"Service Name", "Protocol Module", "Address");
 		dcb_printf(dcb, "---------------------+--------------------+-----------------+-------+--------\n");
 	}
-	while (ptr)
+	while (service)
 	{
-	    if(ptr->state != SERVICE_STATE_OBSOLETE)
+	    if(service->state != SERVICE_STATE_OBSOLETE)
 	    {
-		lptr = ptr->ports;
+		lptr = service->ports;
 		while (lptr)
 		{
 			dcb_printf(dcb, "%-20s | %-18s | %-15s | %5d | %s\n",
-				ptr->name, lptr->protocol, 
+				service->name, lptr->protocol, 
 				(lptr && lptr->address) ? lptr->address : "*",
 				lptr->port,
 				(!lptr->listener || 
@@ -1718,7 +1719,7 @@ SERV_PROTOCOL	*lptr;
 			lptr = lptr->next;
 		}
 	    }
-		ptr = ptr->next;
+		service = service->next;
 	}
 	if (allServices)
 		dcb_printf(dcb, "---------------------+--------------------+-----------------+-------+--------\n\n");
@@ -2137,15 +2138,15 @@ void service_shutdown()
 int
 serviceSessionCountAll()
 {
-SERVICE	*ptr;
+SERVICE	*service;
 int	rval = 0;
 
 	spinlock_acquire(&service_spin);
-	ptr = allServices;
-	while (ptr)
+	service = allServices;
+	while (service)
 	{
-		rval += ptr->stats.n_current;
-		ptr = ptr->next;
+		rval += service->stats.n_current;
+		service = service->next;
 	}
 	spinlock_release(&service_spin);
 	return rval;
@@ -2166,16 +2167,16 @@ int		*rowno = (int *)data;
 int		i = 0;;
 char		buf[20];
 RESULT_ROW	*row;
-SERVICE		*ptr;
+SERVICE		*service;
 SERV_PROTOCOL	*lptr = NULL;
 
 	spinlock_acquire(&service_spin);
-	ptr = allServices;
-	if (ptr)
-		lptr = ptr->ports;
-	while (i < *rowno && ptr)
+	service = allServices;
+	if (service)
+		lptr = service->ports;
+	while (i < *rowno && service)
 	{
-		lptr = ptr->ports;
+		lptr = service->ports;
 		while (i < *rowno && lptr)
 		{
 			if ((lptr = lptr->next) != NULL)
@@ -2183,8 +2184,8 @@ SERV_PROTOCOL	*lptr = NULL;
 		}
 		if (i < *rowno)
 		{
-			ptr = ptr->next;
-			if (ptr && (lptr = ptr->ports) != NULL)
+			service = service->next;
+			if (service && (lptr = service->ports) != NULL)
 				i++;
 		}
 	}
@@ -2196,7 +2197,7 @@ SERV_PROTOCOL	*lptr = NULL;
 	}
 	(*rowno)++;
 	row = resultset_make_row(set);
-	resultset_row_set(row, 0, ptr->name);
+	resultset_row_set(row, 0, service->name);
 	resultset_row_set(row, 1, lptr->protocol);
 	resultset_row_set(row, 2, (lptr && lptr->address) ? lptr->address : "*");
 	sprintf(buf, "%d", lptr->port);
@@ -2251,16 +2252,16 @@ int		*rowno = (int *)data;
 int		i = 0;;
 char		buf[20];
 RESULT_ROW	*row;
-SERVICE		*ptr;
+SERVICE		*service;
 
 	spinlock_acquire(&service_spin);
-	ptr = allServices;
-	while (i < *rowno && ptr)
+	service = allServices;
+	while (i < *rowno && service)
 	{
 		i++;
-		ptr = ptr->next;
+		service = service->next;
 	}
-	if (ptr == NULL)
+	if (service == NULL)
 	{
 		spinlock_release(&service_spin);
 		free(data);
@@ -2268,11 +2269,11 @@ SERVICE		*ptr;
 	}
 	(*rowno)++;
 	row = resultset_make_row(set);
-	resultset_row_set(row, 0, ptr->name);
-	resultset_row_set(row, 1, ptr->routerModule);
-	sprintf(buf, "%d", ptr->stats.n_current);
+	resultset_row_set(row, 0, service->name);
+	resultset_row_set(row, 1, service->routerModule);
+	sprintf(buf, "%d", service->stats.n_current);
 	resultset_row_set(row, 2, buf);
-	sprintf(buf, "%d", ptr->stats.n_sessions);
+	sprintf(buf, "%d", service->stats.n_sessions);
 	resultset_row_set(row, 3, buf);
 	spinlock_release(&service_spin);
 	return row;

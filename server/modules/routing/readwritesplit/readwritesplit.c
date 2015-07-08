@@ -3518,8 +3518,7 @@ static rses_property_t* rses_property_init(
 	prop->rses_prop_chk_top = CHK_NUM_ROUTER_PROPERTY;
 	prop->rses_prop_chk_tail = CHK_NUM_ROUTER_PROPERTY;
 #endif
-
-return_prop:
+	
 	CHK_RSES_PROP(prop);
 	return prop;
 }
@@ -3752,7 +3751,7 @@ static GWBUF* sescmd_cursor_process_replies(
 				 dcb_close(bref->bref_dcb);
 			     *reconnect = true;
 			     if(replybuf)
-				 gwbuf_consume(replybuf,gwbuf_length(replybuf));
+				 while((replybuf = gwbuf_consume(replybuf,gwbuf_length(replybuf))));
 			}
                 }
                 /** This is a response from the master and it is the "right" one.
@@ -3795,7 +3794,7 @@ static GWBUF* sescmd_cursor_process_replies(
 		    skygw_log_write(LOGFILE_DEBUG,"Slave '%s' responded faster to a session command.",
 			     bref->bref_backend->backend_server->unique_name);
 		    if(replybuf)
-			gwbuf_free(replybuf);
+			while((replybuf = gwbuf_consume(replybuf,gwbuf_length(replybuf))));
 		    return NULL;
 		}
 
@@ -3976,7 +3975,7 @@ static bool execute_sescmd_in_backend(
 	bool             succp;
 	int              rc = 0;
 	sescmd_cursor_t* scur;
-
+	GWBUF* buf;
 	if(backend_ref == NULL)
 	{
 	    skygw_log_write(LE,"Error: NULL parameter passed to execute_sescmd_in_backend. (%s:%d)",__FILE__,__LINE__);
@@ -4013,36 +4012,18 @@ static bool execute_sescmd_in_backend(
                 /** Cursor is left active when function returns. */
                 sescmd_cursor_set_active(scur, true);
         }
-#if defined(SS_DEBUG)
-        LOGIF(LT, tracelog_routed_query(scur->scmd_cur_rses,
-                                        "execute_sescmd_in_backend",
-                                        backend_ref,
-                                        sescmd_cursor_clone_querybuf(scur)));
 
-        {
-                GWBUF* tmpbuf = sescmd_cursor_clone_querybuf(scur);
-                uint8_t* ptr = GWBUF_DATA(tmpbuf);
-                unsigned char cmd = MYSQL_GET_COMMAND(ptr);
+	buf = sescmd_cursor_clone_querybuf(scur);
 
-                LOGIF(LD, (skygw_log_write(
-                        LOGFILE_DEBUG,
-                        "%lu [execute_sescmd_in_backend] Just before write, fd "
-                        "%d : cmd %s.",
-                        pthread_self(),
-                        dcb->fd,
-                        STRPACKETTYPE(cmd))));
-                gwbuf_free(tmpbuf);
-        }
-#endif /*< SS_DEBUG */
         switch (scur->scmd_cur_cmd->my_sescmd_packet_type) {
                 case MYSQL_COM_CHANGE_USER:
 			/** This makes it possible to handle replies correctly */
 			gwbuf_set_type(scur->scmd_cur_cmd->my_sescmd_buf, GWBUF_TYPE_SESCMD);
 			rc = dcb->func.auth(
-                                dcb,
-                                NULL,
-                                dcb->session,
-                                sescmd_cursor_clone_querybuf(scur));
+                                dcb, 
+                                NULL, 
+                                dcb->session, 
+                                buf);
                         break;
 
 		case MYSQL_COM_INIT_DB:
@@ -4068,10 +4049,11 @@ static bool execute_sescmd_in_backend(
                          * Mark session command buffer, it triggers writing
                          * MySQL command to protocol
                          */
+
                         gwbuf_set_type(scur->scmd_cur_cmd->my_sescmd_buf, GWBUF_TYPE_SESCMD);
                         rc = dcb->func.write(
-                                dcb,
-                                sescmd_cursor_clone_querybuf(scur));
+                                dcb, 
+                                buf);
                         break;
         }
 
@@ -4081,6 +4063,7 @@ static bool execute_sescmd_in_backend(
         }
         else
         {
+		while((buf = GWBUF_CONSUME_ALL(buf)) != NULL);
                 succp = false;
         }
 return_succp:

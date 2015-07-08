@@ -199,7 +199,7 @@ char            c;
 	  for (i = optind +1; i < argc; i++)
 	  {
 	    strcat(cmd, " ");
-	    /* Arguments after the seconf are quoted to allow for names
+	    /* Arguments after the second are quoted to allow for names
 	     * that contain white space
 	     */
 	    if (i - optind > 1)
@@ -433,10 +433,10 @@ char	buf[20];
 }
 
 /**
- * Send a comamnd using the MaxScaled protocol, display the return data
+ * Send a command using the MaxScaled protocol, display the return data
  * on standard output.
  *
- * Input terminates with a lien containing just the text OK
+ * Input terminates with a line containing just the text OK
  *
  * @param so	The socket connect to MaxScale
  * @param cmd	The command to send
