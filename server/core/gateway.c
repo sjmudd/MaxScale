@@ -2019,12 +2019,7 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
      * command line parameters but will override default values. */
     if(strcasecmp(section,"maxscale") == 0)
     {
-	if(strcmp(name, "logdir") == 0)
-	{
-	    if(logdir == NULL)
-		handle_path_arg(&logdir,(char*)value,NULL,true,true);
-	}
-	else if(strcmp(name, "libdir") == 0)
+	if(strcmp(name, "libdir") == 0)
 	{
 	    if(libdir == NULL)
 		handle_path_arg(&libdir,(char*)value,NULL,true,false);
