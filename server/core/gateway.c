@@ -561,50 +561,28 @@ static bool resolve_maxscale_conf_fname(
         char*  cnf_file_arg)
 {
         bool  succp = false;
-        
+	char logbuf[PATH_MAX + 256];
+
         if (cnf_file_arg != NULL)
         {
                 char* home_etc_dir;
                 /*<
                  * 1. argument is valid full pathname
-                 * '- /home/jdoe/MaxScale/myconf.cnf'
+                 * '-f /home/jdoe/MaxScale/myconf.cnf'
                  */
-                if (file_is_readable(cnf_file_arg))
-                {
+                if (access(cnf_file_arg,F_OK) == 0)
+		{
+		    if(file_is_readable(cnf_file_arg))
+		    {
                         *cnf_full_path = cnf_file_arg;
                         succp = true;
-                        goto return_succp;
-                }
-                /*<
-                 * 2. argument is file name only and file is located in home
-                 * directory.
-                 * '-f MaxScale.cnf' 
-                 */
-                *cnf_full_path = get_expanded_pathname(NULL,
-                                                       home_dir,
-                                                       cnf_file_arg);
-
-                if (*cnf_full_path != NULL)
-                {
-                         if (file_is_readable(*cnf_full_path))
-                         {
-                                 succp = true;
-                                 goto return_succp;
-                         }
-                         else
-                         {
-                                 char* logstr = "Found config file but wasn't "
-                                         "able to read it.";
-                                 int eno = errno;
-                                 print_log_n_stderr(true, true, logstr, logstr, eno);
-                                 goto return_succp;
-                         }                        
-                }
-                else 
-		{
-			/** Allocate memory for use of realpath */
-			*cnf_full_path = (char *)malloc(PATH_MAX+1);
+		    }
+		    goto return_succp;
 		}
+
+		/** Allocate memory for use of realpath */
+		*cnf_full_path = (char *)malloc(PATH_MAX+1);
+
                 /*<
                  * 3. argument is valid relative pathname
                  * '-f ../myconf.cnf'
@@ -619,19 +597,20 @@ static bool resolve_maxscale_conf_fname(
                          else
                          {
                                  char* logstr = "Failed to open read access to "
-                                         "config file.";
+                                         "config file '%s'.";
                                  int eno = errno;
-                                 print_log_n_stderr(true, true, logstr, logstr, eno);
+				 sprintf(logbuf,logstr,cnf_file_arg);
+                                 print_log_n_stderr(true, true, (char*)logbuf, (char*)logbuf, eno);
                                  goto return_succp;
                          }
                 }
                 else
                 {
-                        char* logstr = "Failed to expand config file name to "
-                                "complete path.";
+                        char* logstr = "Failed to read config file %s.";
                         int eno = errno;
                         errno = 0;
-                        print_log_n_stderr(true, true, logstr, logstr, eno);
+                        sprintf(logbuf,logstr,cnf_file_arg);
+			print_log_n_stderr(true, true, (char*)logbuf, (char*)logbuf, eno);
                         goto return_succp;
                 }
         }
@@ -765,14 +744,14 @@ static bool file_is_readable(
                 if (!daemon_mode)
                 {
                         fprintf(stderr,
-                                "*\n* Warning : Failed to read the configuration "
+                                "*\n* Error : Failed to read the configuration "
                                 "file %s. %s.\n*\n",
                                 absolute_pathname,
                                 strerror(eno));
                 }
                 LOGIF(LE, (skygw_log_write_flush(
                         LOGFILE_ERROR,
-                        "Warning : Failed to read the configuration file %s due "
+                        "Error : Failed to read the configuration file %s due "
                         "to %d, %s.",
                         absolute_pathname,
                         eno,
@@ -1490,32 +1469,6 @@ int main(int argc, char **argv)
                 goto return_main;                
         }
 
-        /**
-         * Resolve the full pathname for configuration file and check for
-         * read accessibility.
-         */
-	char pathbuf[PATH_MAX+1];
-	snprintf(pathbuf,PATH_MAX,"%s",configdir ? configdir:default_configdir);
-	if(pathbuf[strlen(pathbuf)-1] != '/')
-	    strcat(pathbuf,"/");
-
-        if (!resolve_maxscale_conf_fname(&cnf_file_path, pathbuf, cnf_file_arg))
-        {
-                ss_dassert(cnf_file_path == NULL);
-                rc = MAXSCALE_BADCONFIG;
-                goto return_main;
-        }
-
-	ini_parse(cnf_file_path,cnf_preparser,NULL);
-
-	if(!datadir_defined)
-	    sprintf(datadir,"%s",default_datadir);
-
-
-        /** Use the cache dir for the mysql folder of the embedded library */
-	sprintf(mysql_home, "%s/mysql", cachedir?cachedir:default_cachedir);
-	setenv("MYSQL_HOME", mysql_home, 1);
-
 
         /**
          * Init Log Manager for MaxScale.
@@ -1583,6 +1536,31 @@ int main(int argc, char **argv)
 		}
         }
 
+
+        /**
+         * Resolve the full pathname for configuration file and check for
+         * read accessibility.
+         */
+	char pathbuf[PATH_MAX+1];
+	snprintf(pathbuf,PATH_MAX,"%s",configdir ? configdir:default_configdir);
+	if(pathbuf[strlen(pathbuf)-1] != '/')
+	    strcat(pathbuf,"/");
+
+        if (!resolve_maxscale_conf_fname(&cnf_file_path, pathbuf, cnf_file_arg))
+        {
+                rc = MAXSCALE_BADCONFIG;
+                goto return_main;
+        }
+
+	ini_parse(cnf_file_path,cnf_preparser,NULL);
+
+	if(!datadir_defined)
+	    sprintf(datadir,"%s",default_datadir);
+
+
+        /** Use the cache dir for the mysql folder of the embedded library */
+	sprintf(mysql_home, "%s/mysql", cachedir?cachedir:default_cachedir);
+	setenv("MYSQL_HOME", mysql_home, 1);
 
 
 	    if(cachedir == NULL)
