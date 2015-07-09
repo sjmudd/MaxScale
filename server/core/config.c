@@ -2763,3 +2763,73 @@ void config_set_reload_flag()
 {
     reload_conf = true;
 }
+
+/**
+ * Reload a service and all modules used by it.
+ * @param data Pointer to service to reload
+ * @return 0 for success, -1 on error
+ */
+int config_reload_service(void* data)
+{
+    SERVICE* service = (SERVICE*)data;
+    CONFIG_CONTEXT ctx;
+    CONFIG_CONTEXT *ptr,*sptr;
+    CONFIG_PARAMETER *param;
+    char* servers = NULL;
+    char *saved,*tok;
+    int rval = 0;
+    config_read_config(&ctx);
+
+    ptr = ctx.next;
+
+    while(ptr && strcmp(ptr->object,service->name) != 0)
+    {
+	ptr = ptr->next;
+    }
+
+    if(ptr == NULL)
+    {
+	skygw_log_write(LE, "Service %s was not in the configuration file.\n",
+		 service->name);
+	rval = -1;
+    }
+    else
+    {
+	param = ptr->parameters;
+	while(param)
+	{
+	    if(strcmp(param->name,"servers") == 0)
+	    {
+		servers = strdup(param->value);
+		break;
+	    }
+	    param = param->next;
+	}
+
+	if(servers)
+	{
+	    tok = strtok_r(servers,", ",&saved);
+	    while(tok)
+	    {
+		sptr = ctx.next;
+		while(sptr)
+		{
+		    if(strcmp(sptr->object,tok) == 0)
+			break;
+		    sptr = sptr->next;
+		}
+		if(sptr)
+		    config_server_update(sptr);
+		tok = strtok_r(NULL,", ",&saved);
+	    }
+	    free(servers);
+	}
+
+	config_service_update(ptr);
+	config_service_update_objects(ptr,ctx.next);
+	if(service->state == SERVICE_STATE_FAILED)
+	    rval = -1;
+    }
+    config_free_config(ctx.next);
+    return rval;
+}

@@ -99,7 +99,7 @@ static int find_type(typelib_t* tl, const char* needle, int maxlen);
 static void service_add_qualified_param(
         SERVICE*          svc,
         CONFIG_PARAMETER* param);
-
+void serviceRemoveObsolete(CONFIG_CONTEXT* ctx);
 /**
  * Allocate a new service for the gateway to support
  *
@@ -2452,7 +2452,7 @@ void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
 {
     CONFIG_CONTEXT* ptr;
     SERVICE* service;
-
+    SERV_PROTOCOL* ports;
     spinlock_acquire(&service_spin);
     service = allServices;
 
@@ -2472,6 +2472,13 @@ void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
 	if(obsolete)
 	{
 	    serviceStop(service);
+	    ports = service->ports;
+	    while(ports)
+	    {
+		dcb_close(ports->listener);
+		ports->listener = NULL;
+		ports = ports->next;
+	    }
 	    service->state = SERVICE_STATE_OBSOLETE;
 	}
 	service = service->next;

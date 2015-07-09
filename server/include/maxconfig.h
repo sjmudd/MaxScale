@@ -121,8 +121,7 @@ config_param_type_t 	config_get_paramtype(CONFIG_PARAMETER* param);
 CONFIG_PARAMETER*	config_clone_param(CONFIG_PARAMETER* param);
 extern int		config_truth_value(char *);
 extern double           config_percentage_value(char *str);
-void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
-void config_service_update(CONFIG_CONTEXT *obj);
+int config_reload_service(void* service);
 bool config_set_qualified_param(
         CONFIG_PARAMETER* param, 
         void* val, 

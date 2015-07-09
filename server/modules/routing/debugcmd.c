@@ -1154,32 +1154,7 @@ reload_filter(DCB *dcb, FILTER_DEF *filter)
 static void
 reload_service(DCB *dcb, SERVICE* service)
 {
-    CONFIG_CONTEXT ctx;
-    CONFIG_CONTEXT* ptr;
-    int rval = 0;
-    config_read_config(&ctx);
-
-    ptr = ctx.next;
-
-    while(ptr && strcmp(ptr->object,service->name) != 0)
-    {
-	ptr = ptr->next;
-    }
-
-    if(ptr == NULL)
-    {
-	dcb_printf(dcb, "Service %s was not in the configuration file.\n",
-		 service->name);
-	rval = -1;
-    }
-    else
-    {
-	config_service_update(ptr);
-	config_service_update_objects(ptr,ctx.next);
-	if(service->state == SERVICE_STATE_FAILED)
-	    rval = -1;
-    }
-    config_free_config(ctx.next);
+    int rval = config_reload_service(service);
 
     if(rval == 0)
     {
