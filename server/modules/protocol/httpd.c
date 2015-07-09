@@ -80,11 +80,12 @@ static GWPROTOCOL MyObject = {
 	httpd_error,				/**< Error - EPOLLERR handler	 */
 	httpd_hangup,				/**< HangUp - EPOLLHUP handler	 */
 	httpd_accept,				/**< Accept			 */
-	NULL,					/**< Connect			 */
+	NULL,						/**< Connect			 */
 	httpd_close,				/**< Close			 */
 	httpd_listen,				/**< Create a listener		 */
-	NULL,					/**< Authentication		 */
-	NULL					/**< Session			 */
+	NULL,						/**< Authentication		 */
+	NULL,						/**< Session			 */
+	NULL						/**< Persistent reuse			 */
 	};
 
 /**

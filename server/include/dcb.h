@@ -100,6 +100,7 @@ typedef struct gw_protocol {
 	int		(*listen)(struct dcb *, char *);
 	int		(*auth)(struct dcb *, struct server *, struct session *, GWBUF *);
 	int		(*session)(struct dcb *, void *);
+	int		(*persistent)(struct dcb*, struct session *);
 } GWPROTOCOL;
 
 /**
@@ -131,7 +132,7 @@ typedef struct {
  * the GWPROTOCOL structure is changed. See the rules defined in modinfo.h
  * that define how these numbers should change.
  */
-#define	GWPROTOCOL_VERSION	{1, 0, 0}
+#define	GWPROTOCOL_VERSION	{1, 1, 0}
 
 #define DCBFD_CLOSED -1
 

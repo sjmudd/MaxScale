@@ -54,6 +54,7 @@ static int test_close(DCB *dcb){ return 1;}
 static int test_listen(DCB *dcb, char *config){ return 1;}
 static int test_auth(DCB* dcb, struct server *srv, struct session *ses, GWBUF *buf){ return 1;}
 static int test_session(DCB *dcb, void* data){ return 1;}
+static int test_persist(DCB *dcb, void* data){ return 1;}
 /**
  * The "module object" for the httpd protocol module.
  */
@@ -68,7 +69,8 @@ static GWPROTOCOL MyObject = {
 	test_close,				/**< Close			 */
 	test_listen,				/**< Create a listener		 */
 	test_auth,					/**< Authentication		 */
-	test_session					/**< Session			 */
+	test_session,					/**< Session			 */
+	test_persist				/**< Persistent reuse */
 	};
 
 

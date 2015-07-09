@@ -39,6 +39,7 @@
  * 10/11/2014	Massimiliano Pinto	Added: client charset added to protocol struct
  * 29/05/2015   Markus Makela           Added SSL support
  * 11/06/2015   Martin Brampton		COM_QUIT suppressed for persistent connections
+ * 09/07/2015	Martin Brampton		Added gw_persistent_reuse
  */
 #include <skygw_utils.h>
 #include <log_manager.h>
@@ -48,6 +49,7 @@
 #include <sys/stat.h>
 #include <modutil.h>
 #include <netinet/tcp.h>
+#include <mysql.h>
 
 MODULE_INFO info = {
 	MODULE_API_PROTOCOL,
@@ -71,6 +73,7 @@ static int gw_MySQLWrite_client(DCB *dcb, GWBUF *queue);
 static int gw_error_client_event(DCB *dcb);
 static int gw_client_close(DCB *dcb);
 static int gw_client_hangup_event(DCB *dcb);
+static int gw_persistent_reuse(DCB *dcb, SESSION *session);
 int gw_read_client_event_SSL(DCB* dcb);
 int gw_MySQLWrite_client_SSL(DCB *dcb, GWBUF *queue);
 int gw_write_client_event_SSL(DCB *dcb);
@@ -93,12 +96,13 @@ static GWPROTOCOL MyObject = {
 	gw_write_client_event,			/* WriteReady - EPOLLOUT handler */
 	gw_error_client_event,			/* Error - EPOLLERR handler	 */
 	gw_client_hangup_event,			/* HangUp - EPOLLHUP handler	 */
-	gw_MySQLAccept,				/* Accept			 */
-	NULL,					/* Connect			 */
-	gw_client_close,			/* Close			 */
-	gw_MySQLListener,			/* Listen			 */
-	NULL,					/* Authentication		 */
-	NULL					/* Session			 */
+	gw_MySQLAccept,					/* Accept			 */
+	NULL,							/* Connect			 */
+	gw_client_close,				/* Close			 */
+	gw_MySQLListener,				/* Listen			 */
+	NULL,							/* Authentication		 */
+	NULL,							/* Session			 */
+	gw_persistent_reuse				/* Persistent reuse	 */
 };
 
 /**
@@ -1668,7 +1672,7 @@ int gw_MySQLAccept(DCB *listener)
                         goto return_rc;
                 }
                 client_dcb->protocol = protocol;
-                // assign function poiters to "func" field
+                // assign function pointers to "func" field
                 memcpy(&client_dcb->func, &MyObject, sizeof(GWPROTOCOL));
                 //send handshake to the client_dcb
                 MySQLSendHandshake(client_dcb);
@@ -1850,6 +1854,32 @@ retblock:
         return 1;
 }
 
+/**
+ * Handle a persistent reuse event on the client side descriptor.
+ *
+ * We look to see if a database was specified by the user and
+ * if so send a USE dbname request to the backend referred to by
+ * the given DCB parameter
+ *
+ * @param dcb		The DCB of the connection
+ */
+static int
+gw_client_hangup_event(DCB *dcb, SESSION *session)
+{
+	char usecommand[MYSQL_DATABASE_MAXLEN+6];
+	int namelen;
+	MYSQL_session *client_data;
+	if (session && session->client && session->client->data) {
+		client_data = (MYSQL_session *)session->client->data;
+		namelen = strlen(client_data->db);
+		if (namelen)
+		{
+			if (namelen > MYSQL_DATABASE_MAXLEN) raise(SIGABRT);
+			sprintf(usecommand, "USE %s;", client_data->db);
+			mysql_query(dcb, usecommand);
+		}
+	}
+}
 
 /**
  * Detect if buffer includes partial mysql packet or multiple packets.

@@ -93,7 +93,8 @@ static GWPROTOCOL MyObject = {
 	gw_backend_close,			/* Close			 */
 	NULL,					/* Listen			 */
 	gw_change_user,				/* Authentication		 */
-        NULL                                    /* Session                       */
+    NULL                                    /* Session                       */
+    NULL                                    /* Persistent reuse              */
 };
 
 /*

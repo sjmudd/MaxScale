@@ -611,6 +611,7 @@ dcb_connect(SERVER *server, SESSION *session, const char *protocol)
                     LOGFILE_DEBUG,
                     "%lu [dcb_connect] Reusing a persistent connection, dcb %p\n", pthread_self(), dcb)));
                 dcb->persistentstart = 0;
+				if (dcb->func.persistent) dcb->func.persistent(dcb, session);
                 return dcb;
             }
             else
