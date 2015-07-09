@@ -1864,7 +1864,7 @@ retblock:
  * @param dcb		The DCB of the connection
  */
 static int
-gw_client_hangup_event(DCB *dcb, SESSION *session)
+gw_persistent_reuse(DCB *dcb, SESSION *session)
 {
 	char usecommand[MYSQL_DATABASE_MAXLEN+6];
 	int namelen;
