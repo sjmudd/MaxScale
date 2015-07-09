@@ -348,7 +348,7 @@ const char* get_err_suffix_default(void)
 
 const char* get_logpath_default(void)
 {
-        return "/tmp";
+        return "/var/log/maxscale/";
 }
 
 static bool logmanager_init_nomutex(

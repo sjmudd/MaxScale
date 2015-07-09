@@ -712,13 +712,13 @@ static void print_log_n_stderr(
         char* fpr_end   = "\n*\n";
         
         if (do_log) {
-                LOGIF(LE, (skygw_log_write_flush(
+                skygw_log_write_flush(
                                    LOGFILE_ERROR,
                                    "%s %s %s %s",
                                    log_err,
                                    logstr,
                                    eno == 0 ? " " : "Error :",
-                                   eno == 0 ? " " : strerror(eno))));
+                                   eno == 0 ? " " : strerror(eno));
         }
         if (do_stderr) {
                 fprintf(stderr,
