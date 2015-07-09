@@ -41,9 +41,9 @@
  * 30/10/14	Massimiliano Pinto	Added disable_master_failback parameter
  * 07/11/14	Massimiliano Pinto	Addition of monitor timeouts for connect/read/write
  * 20/02/15	Markus Mäkelä		Added connection_timeout parameter for services
- * 05/03/15	Massimiliano	Pinto	Added notification_feedback support
+ * 05/03/15	Massimiliano Pinto	Added notification_feedback support
  * 20/04/15	Guillaume Lefranc	Added available_when_donor parameter
- * 22/04/15     Martin Brampton         Added disable_master_role_setting parameter
+ * 22/04/15 Martin Brampton     Added disable_master_role_setting parameter
  *
  * @endverbatim
  */
@@ -85,6 +85,7 @@ static	int	process_config_context(CONFIG_CONTEXT	*);
 static	int	process_config_update(CONFIG_CONTEXT *);
 static	void	free_config_context(CONFIG_CONTEXT	*);
 static	char 	*config_get_value(CONFIG_PARAMETER *, const char *);
+static	const char 	*config_get_value_string(CONFIG_PARAMETER *, const char *);
 static	int	handle_global_item(const char *, const char *);
 static	int	handle_feedback_item(const char *, const char *);
 static	void	global_defaults();
@@ -310,7 +311,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
     return 0;
 }
 
-hashtable_memory_fns(monitorhash,strdup,NULL,free,NULL);
+hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
 	/**
 	 * Process the data and create the services and servers defined
 	 * in the data.
@@ -763,6 +764,9 @@ hashtable_memory_fns(monitorhash,strdup,NULL,free,NULL);
 			}
 			if (obj->element)
 			{
+                                SERVER *server = obj->element;
+                                server->persistpoolmax = strtol(config_get_value_string(obj->parameters, "persistpoolmax"), NULL, 0);
+                                server->persistmaxtime = strtol(config_get_value_string(obj->parameters, "persistmaxtime"), NULL, 0);
 				CONFIG_PARAMETER *params = obj->parameters;
 				while (params)
 				{
@@ -776,6 +780,10 @@ hashtable_memory_fns(monitorhash,strdup,NULL,free,NULL);
 								"monitorpw")
 						&& strcmp(params->name,
 								"type")
+						&& strcmp(params->name,
+								"persistpoolmax")
+						&& strcmp(params->name,
+								"persistmaxtime")
 						)
 					{
 						serverAddParameter(obj->element,
@@ -1164,6 +1172,25 @@ config_get_value(CONFIG_PARAMETER *params, const char *name)
 		params = params->next;
 	}
 	return NULL;
+}
+
+/**
+ * Get the value of a config parameter as a string
+ *
+ * @param params	The linked list of config parameters
+ * @param name		The parameter to return
+ * @return the parameter value or null string if not found
+ */
+static const char *
+config_get_value_string(CONFIG_PARAMETER *params, const char *name)
+{
+	while (params)
+	{
+		if (!strcmp(params->name, name))
+			return (const char *)params->value;
+		params = params->next;
+	}
+	return "";
 }
 
 

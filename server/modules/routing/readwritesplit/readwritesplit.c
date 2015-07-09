@@ -1022,7 +1022,6 @@ static void closeSession(
                                  */
                                 dcb_close(dcb);
                                 /** decrease server current connection counters */
-                                atomic_add(&bref->bref_backend->backend_server->stats.n_current, -1);
                                 atomic_add(&bref->bref_backend->backend_conn_count, -1);
                         }
                 }
@@ -3554,7 +3553,6 @@ static rses_property_t* rses_property_init(
 	prop->rses_prop_chk_tail = CHK_NUM_ROUTER_PROPERTY;
 #endif
 	
-return_prop:
 	CHK_RSES_PROP(prop);
 	return prop;
 }

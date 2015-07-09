@@ -38,6 +38,7 @@
  * 13/10/2014	Massimiliano Pinto	Added: dbname authentication check
  * 10/11/2014	Massimiliano Pinto	Added: client charset added to protocol struct
  * 29/05/2015   Markus Makela           Added SSL support
+ * 11/06/2015   Martin Brampton		COM_QUIT suppressed for persistent connections
  */
 #include <skygw_utils.h>
 #include <log_manager.h>
@@ -1114,11 +1115,11 @@ int gw_read_client_event(
 		    if (MYSQL_IS_COM_QUIT(payload))
 		    {
                         /** 
-			 * Sends COM_QUIT packets since buffer is already
-			 * created. A BREF_CLOSED flag is set so dcb_close won't
-			 * send redundant COM_QUIT.
-			 */
-                        SESSION_ROUTE_QUERY(session, read_buffer);
+                         * Sends COM_QUIT packets since buffer is already
+                         * created. A BREF_CLOSED flag is set so dcb_close won't
+                         * send redundant COM_QUIT.
+                         */
+                        /* Temporarily suppressed: SESSION_ROUTE_QUERY(session, read_buffer); */
                         /** 
 			 * Close router session which causes closing of backends.
 			 */
@@ -1465,8 +1466,8 @@ int gw_MySQLListener(
         // add listening socket to poll structure
         if (poll_add_dcb(listen_dcb) == -1) {
             fprintf(stderr,
-                    "\n* Failed to start polling the socket due error "
-                    "%i, %s.\n\n",
+                    "\n* MaxScale encountered system limit while "
+                    "attempting to register on an epoll instance.\n\n",
                     errno,
                     strerror(errno));
 		return 0;
@@ -1701,7 +1702,8 @@ int gw_MySQLAccept(DCB *listener)
                                 client_dcb,
                                 1,
                                 0,
-                                "MaxScale internal error.");
+                                "MaxScale encountered system limit while "
+                                "attempting to register on an epoll instance.");
                         
                         /** close client_dcb */
                         dcb_close(client_dcb);
