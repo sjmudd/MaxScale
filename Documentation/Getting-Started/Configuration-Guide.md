@@ -101,6 +101,14 @@ log_debug=1
 
 To disable the log use the value 0 and to enable it use the value 1.
 
+#### `logdir`
+
+Set the directory where the logfiles are stored. The folder needs to be both readable and writable by the user running MaxScale.
+
+```
+logdir=/tmp/
+```
+
 #### `datadir`
 
 Set the directory where the data files used by MaxScale are stored. Modules can write to this directory and for example the binlogrouter uses this folder as the default location for storing binary logs.

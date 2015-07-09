@@ -407,12 +407,12 @@ static int signal_set (int sig, void (*handler)(int)) {
         {
                 int eno = errno;
                 errno = 0;
-		LOGIF(LE, (skygw_log_write_flush(
+		skygw_log_write_flush(
                         LOGFILE_ERROR,
                         "Error : Failed call sigaction() in %s due to %d, %s.",
                         program_invocation_short_name,
                         eno,
-                        strerror(eno))));
+                        strerror(eno));
                 rc = 1;
 	}
         return rc;
@@ -749,14 +749,14 @@ static bool file_is_readable(
                                 absolute_pathname,
                                 strerror(eno));
                 }
-                LOGIF(LE, (skygw_log_write_flush(
+                skygw_log_write_flush(
                         LOGFILE_ERROR,
                         "Error : Failed to read the configuration file %s due "
                         "to %d, %s.",
                         absolute_pathname,
                         eno,
-                        strerror(eno))));
-		LOGIF(LE,(skygw_log_sync_all()));
+                        strerror(eno));
+		skygw_log_sync_all();
                 succp = false;
         }
         return succp;
@@ -781,13 +781,13 @@ static bool file_is_writable(
                                 eno,
                                 strerror(eno));
                 }
-                LOGIF(LE, (skygw_log_write_flush(
+                skygw_log_write_flush(
                         LOGFILE_ERROR,
                         "Error : unable to open file %s for write due "
                         "to %d, %s.",
                         absolute_pathname,
                         eno,
-                        strerror(eno))));
+                        strerror(eno));
                 succp = false;
         }
         return succp;
@@ -841,14 +841,14 @@ static char* get_expanded_pathname(
                         relative_path,
                         strerror(eno));
                 
-                LOGIF(LE, (skygw_log_write_flush(
+                skygw_log_write_flush(
                         LOGFILE_ERROR,
                         "Warning : Failed to read the "
                         "directory %s, due "
                         "to %d, %s.",
                         relative_path,
                         eno,
-                        strerror(eno))));
+                        strerror(eno));
                 free(expanded_path);
                 *output_path = NULL;
                 goto return_cnf_file_buf;
@@ -870,10 +870,10 @@ static char* get_expanded_pathname(
                 {
 			ss_dassert(cnf_file_buf != NULL);
 			
-			LOGIF(LE, (skygw_log_write_flush(
+			skygw_log_write_flush(
 				LOGFILE_ERROR,
 				"Error : Memory allocation failed due to %s.", 
-				strerror(errno))));		
+				strerror(errno));
 			
                         free(expanded_path);
                         expanded_path = NULL;
@@ -1471,6 +1471,24 @@ int main(int argc, char **argv)
 
 
         /**
+         * Resolve the full pathname for configuration file and check for
+         * read accessibility.
+         */
+	char pathbuf[PATH_MAX+1];
+	snprintf(pathbuf,PATH_MAX,"%s",configdir ? configdir:default_configdir);
+	if(pathbuf[strlen(pathbuf)-1] != '/')
+	    strcat(pathbuf,"/");
+
+        if (!resolve_maxscale_conf_fname(&cnf_file_path, pathbuf, cnf_file_arg))
+        {
+                rc = MAXSCALE_BADCONFIG;
+                goto return_main;
+        }
+
+	/** Pre-parse the configuration file for custom folder location */
+	ini_parse(cnf_file_path,cnf_preparser,NULL);
+
+        /**
          * Init Log Manager for MaxScale.
          * The skygw_logmanager_init expects to take arguments as passed to main
          * and proesses them with getopt, therefore we need to give it a dummy
@@ -1535,24 +1553,6 @@ int main(int argc, char **argv)
 			goto return_main;
 		}
         }
-
-
-        /**
-         * Resolve the full pathname for configuration file and check for
-         * read accessibility.
-         */
-	char pathbuf[PATH_MAX+1];
-	snprintf(pathbuf,PATH_MAX,"%s",configdir ? configdir:default_configdir);
-	if(pathbuf[strlen(pathbuf)-1] != '/')
-	    strcat(pathbuf,"/");
-
-        if (!resolve_maxscale_conf_fname(&cnf_file_path, pathbuf, cnf_file_arg))
-        {
-                rc = MAXSCALE_BADCONFIG;
-                goto return_main;
-        }
-
-	ini_parse(cnf_file_path,cnf_preparser,NULL);
 
 	if(!datadir_defined)
 	    sprintf(datadir,"%s",default_datadir);
@@ -2019,7 +2019,12 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
      * command line parameters but will override default values. */
     if(strcasecmp(section,"maxscale") == 0)
     {
-	if(strcmp(name, "libdir") == 0)
+	if(strcmp(name, "logdir") == 0)
+	{
+	    if(logdir == NULL)
+		handle_path_arg(&logdir,(char*)value,NULL,true,true);
+	}
+	else if(strcmp(name, "libdir") == 0)
 	{
 	    if(libdir == NULL)
 		handle_path_arg(&libdir,(char*)value,NULL,true,false);
