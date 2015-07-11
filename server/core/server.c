@@ -75,6 +75,10 @@ SERVER 	*server;
 
 	if ((server = (SERVER *)calloc(1, sizeof(SERVER))) == NULL)
 		return NULL;
+#if defined(SS_DEBUG)
+        server->server_chk_top = CHK_NUM_SERVER;
+        server->server_chk_tail = CHK_NUM_SERVER;
+#endif
 
 	if((server->name = strdup(servname)) == NULL)
 	{
@@ -162,12 +166,10 @@ DCB *
 server_get_persistent(SERVER *server, char *user, const char *protocol)
 {
     DCB *dcb, *previous = NULL;
-    int poolsize;
     
-    if (server->persistent && (poolsize = dcb_persistent_clean_count(server->persistent, false)) && server->persistent)
+    if (server->persistent && dcb_persistent_clean_count(server->persistent, false) && server->persistent)
     {
         spinlock_acquire(&server->persistlock);
-        server->persistmax = MAX(server->persistmax, poolsize);
         dcb = server->persistent;
         while (dcb) {
             if (dcb->user 

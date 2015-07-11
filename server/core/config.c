@@ -43,6 +43,7 @@
  * 20/02/15	Markus Mäkelä		Added connection_timeout parameter for services
  * 05/03/15	Massimiliano Pinto	Added notification_feedback support
  * 20/04/15	Guillaume Lefranc	Added available_when_donor parameter
+ * 22/04/15 Martin Brampton     Added disable_master_role_setting parameter
  * 22/04/15     Martin Brampton         Added disable_master_role_setting parameter
  * 19/05/15     Massimiliano Pinto	Code cleanup for process_config_update()
  * 20/05/15     Massimiliano Pinto	Addition of monitor update routines
