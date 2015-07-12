@@ -452,6 +452,19 @@ if(service->ssl_mode != SSL_DISABLED)
 		return 0;
 	}
 
+	for(int i = 0;i<service->n_filters;i++)
+	{
+	    if(filterLoad(service->filters[i]) != 0)
+	    {
+		LOGIF(LE, (skygw_log_write_flush(
+				LOGFILE_ERROR,
+				"Error : Failed to load filter '%s' for service '%s'.\n",
+				service->filters[i]->name, service->name)));
+		service->state = SERVICE_STATE_FAILED;
+		return 0;
+	    }
+	}
+
 	port = service->ports;
 	while (!service->svc_do_shutdown && port)
 	{
@@ -1189,17 +1202,6 @@ int		n = 0;
 				"Warning : Unable to find filter '%s' for service '%s'\n",
 					trim(ptr), service->name)));
 			n--;
-		}
-		else
-		{
-		    if(filterLoad(flist[n-1]) != 0)
-		    {
-			LOGIF(LE, (skygw_log_write_flush(
-				LOGFILE_ERROR,
-				"Error : Failed to load filter '%s' for service '%s'. This filter will not be used.\n",
-				trim(ptr), service->name)));
-			n--;
-		    }
 		}
 		flist[n] = NULL;
 		ptr = strtok_r(NULL, "|", &brkt);
