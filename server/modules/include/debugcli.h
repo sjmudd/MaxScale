@@ -35,7 +35,7 @@
 struct cli_session;
 
 /**
- * The CLI_INSTANCE structure. There is one instane of the CLI "router" for
+ * The CLI_INSTANCE structure. There is one instance of the CLI "router" for
  * each service that uses the CLI.
  */
 typedef struct cli_instance {
