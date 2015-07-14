@@ -62,7 +62,7 @@ sescmdlist_execute(SCMDCURSOR* cursor)
 
 			skygw_log_write(
 					LOGFILE_DEBUG,
-					"%lu [execute_sescmd_in_backend] Just before write, fd "
+					"%lu [sescmdlist_execute] Just before write, fd "
 					"%d : cmd %s.",
 					pthread_self(),
 					cursor->backend_dcb->fd,
@@ -100,15 +100,20 @@ sescmdlist_execute(SCMDCURSOR* cursor)
 			/** Fallthrough */
 		case MYSQL_COM_QUERY:
 		default:
+		{
 			/** 
 			 * Mark session command buffer, it triggers writing 
 			 * MySQL command to protocol
 			 */
+		    GWBUF* tmp = gwbuf_clone_all(buffer);
 			gwbuf_set_type(buffer, GWBUF_TYPE_SESCMD);
-			rc = dcb->func.write(
-					     dcb,
-					     gwbuf_clone(buffer));
+			rc = dcb->func.write(dcb,tmp);
+			if(rc == 0)
+			{
+			    while((tmp = GWBUF_CONSUME_ALL(tmp)));
+			}
 			break;
+		}
 		}
 
 		if(rc == 1)
@@ -236,11 +241,7 @@ bool sescmdlist_process_replies(
 			     dcb->server->port,
 			     command,
 			     cmd->reply_type);
-		    if(replybuf)
-		    {
-			free(replybuf);
-			replybuf = NULL;
-		    }
+		    while(replybuf && (replybuf = GWBUF_CONSUME_ALL(replybuf)));
 		    *rbuf = NULL;
 		    rval = false;
 		}

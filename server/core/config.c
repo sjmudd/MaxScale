@@ -428,7 +428,7 @@ hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NU
 
 				    /** Add the 5.5.5- string to the start of the version string if
 				     * the version string starts with "10.".
-				     * This mimics MariaDB 10.0 behavior which adds 5.5.5- for backwards compatibility. */
+				     * This mimics MariaDB 10.0 replication which adds 5.5.5- for backwards compatibility. */
 				    if(strncmp(version_string,"10.",3) == 0)
 				    {
 					((SERVICE *)(obj->element))->version_string = malloc((strlen(version_string) +
@@ -932,7 +932,7 @@ hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NU
 			/* if id is not set, do it now */
 			if (gateway.id == 0) {
 				setipaddress(&serv_addr.sin_addr, (address == NULL) ? "0.0.0.0" : address);
-				gateway.id = (unsigned long) (serv_addr.sin_addr.s_addr + port != NULL ? atoi(port) : 0 + getpid());
+				gateway.id = (unsigned long) (serv_addr.sin_addr.s_addr + (port != NULL ? atoi(port) : 0 + getpid()));
 			}
                 
 			if (service && socket && protocol) {        
