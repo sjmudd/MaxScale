@@ -760,134 +760,138 @@ dcb_connect(SERVER *server, SESSION *session, const char *protocol)
  *                  the last iteration of while loop. 0 is returned if no data available.
  */
 int dcb_read(
-        DCB   *dcb, 
-        GWBUF **head,
-	int	maxbytes)
+    DCB   *dcb, 
+    GWBUF **head,
+    int	maxbytes)
 {
-        GWBUF   *buffer = NULL;
-        int     bytesavailable;
-        int     nsingleread = 0;
-        int     nreadtotal = 0;
+    GWBUF   *buffer = NULL;
+    int     bytesavailable;
+    int     nsingleread = 0;
+    int     nreadtotal = 0;
         
-        CHK_DCB(dcb);
+    CHK_DCB(dcb);
 
-	if (dcb->fd <= 0)
-	{
-		LOGIF(LE, (skygw_log_write_flush(
-			LOGFILE_ERROR,
-			"%lu [dcb_read] Error : Read failed, dcb is %s.",
-                        pthread_self(),
-			dcb->fd == DCBFD_CLOSED ? "closed" : "cloned, not readable")));
-		return 0;
-	}
+    if (dcb->fd <= 0)
+    {
+        /* <editor-fold defaultstate="collapsed" desc=" Error Logging "> */
+        LOGIF(LE, (skygw_log_write_flush(
+                LOGFILE_ERROR,
+                "%lu [dcb_read] Error : Read failed, dcb is %s.",
+                pthread_self(),
+                dcb->fd == DCBFD_CLOSED ? "closed" : "cloned, not readable")));
+        /* </editor-fold> */
+        return 0;
+    }
 
-	while (0 == maxbytes || nreadtotal < maxbytes)
+    while (0 == maxbytes || nreadtotal < maxbytes)
+    {
+        int bufsize;
+                
+        if (-1 == ioctl(dcb->fd, FIONREAD, &bytesavailable)) 
         {
-                int bufsize;
-                
-                if (-1 == ioctl(dcb->fd, FIONREAD, &bytesavailable)) 
-                {
-                        LOGIF(LE, (skygw_log_write_flush(
-                                LOGFILE_ERROR,
-                                "%lu [dcb_read] Error : ioctl FIONREAD for dcb %p in "
-                                "state %s fd %d failed due error %d, %s.",
-                                pthread_self(),
-                                dcb,
-                                STRDCBSTATE(dcb->state),
-                                dcb->fd,
-                                errno,
-                                strerror(errno))));
-                        return -1;
-                }
+            /* <editor-fold defaultstate="collapsed" desc=" Error Logging "> */
+            LOGIF(LE, (skygw_log_write_flush(
+                    LOGFILE_ERROR,
+                    "%lu [dcb_read] Error : ioctl FIONREAD for dcb %p in "
+                    "state %s fd %d failed due error %d, %s.",
+                    pthread_self(),
+                    dcb,
+                    STRDCBSTATE(dcb->state),
+                    dcb->fd,
+                    errno,
+                    strerror(errno))));
+            /* </editor-fold> */
+            return -1;
+        }
 
-                if (bytesavailable == 0 && nreadtotal == 0)
-                {                        
-                        /** Handle closed client socket */
-                        if (dcb_isclient(dcb)) 
-                        {
-                                char c;
-                                int l_errno = 0;
-                                int r = -1;
+        if (bytesavailable == 0)
+        {                        
+            /** Handle closed client socket */
+            if (nreadtotal == 0 && dcb_isclient(dcb)) 
+            {
+                char c;
+                int l_errno = 0;
+                int r = -1;
                                 
-                                /* try to read 1 byte, without consuming the socket buffer */
-                                r = recv(dcb->fd, &c, sizeof(char), MSG_PEEK);
-                                l_errno = errno;
+                /* try to read 1 byte, without consuming the socket buffer */
+                r = recv(dcb->fd, &c, sizeof(char), MSG_PEEK);
+                l_errno = errno;
                                 
-                                if (r <= 0 && 
-                                        l_errno != EAGAIN && 
-                                        l_errno != EWOULDBLOCK &&
-					l_errno != 0) 
-                                {
-                                        return -1;
-                                }
-                        }
-                        return 0;
-                }
-                else if (bytesavailable == 0)
+                if (r <= 0 && 
+                    l_errno != EAGAIN && 
+                    l_errno != EWOULDBLOCK &&
+                    l_errno != 0) 
                 {
-                        return 0;
+                    return -1;
                 }
+            }
+            return 0;
+        }
 
-		dcb->last_read = hkheartbeat;
+        dcb->last_read = hkheartbeat;
 
-                bufsize = MIN(bytesavailable, MAX_BUFFER_SIZE);
-		if (maxbytes) bufsize = MIN(bufsize, maxbytes);
+        bufsize = MIN(bytesavailable, MAX_BUFFER_SIZE);
+        if (maxbytes) bufsize = MIN(bufsize, maxbytes);
                 
-                if ((buffer = gwbuf_alloc(bufsize)) == NULL)
-                {
-                        /*<
-                        * This is a fatal error which should cause shutdown.
-                        * Todo shutdown if memory allocation fails.
-                        */
-                        LOGIF(LE, (skygw_log_write_flush(
-                                LOGFILE_ERROR,
-                                "%lu [dcb_read] Error : Failed to allocate read buffer "
-                                "for dcb %p fd %d, due %d, %s.",
-                                pthread_self(),
-                                dcb,
-                                dcb->fd, 
-                                errno,
-                                strerror(errno))));
-                        
-                        return -1;
-                }
-                GW_NOINTR_CALL(nsingleread = read(dcb->fd, GWBUF_DATA(buffer), bufsize);
-                dcb->stats.n_reads++);
+        if ((buffer = gwbuf_alloc(bufsize)) == NULL)
+        {
+            /*<
+             * This is a fatal error which should cause shutdown.
+             * Todo shutdown if memory allocation fails.
+             */
+            /* <editor-fold defaultstate="collapsed" desc=" Error Logging "> */
+            LOGIF(LE, (skygw_log_write_flush(
+                    LOGFILE_ERROR,
+                    "%lu [dcb_read] Error : Failed to allocate read buffer "
+                    "for dcb %p fd %d, due %d, %s.",
+                    pthread_self(),
+                    dcb,
+                    dcb->fd,
+                    errno,
+                    strerror(errno))));
+            /* </editor-fold> */                        
+            return -1;
+        }
+        GW_NOINTR_CALL(nsingleread = read(dcb->fd, GWBUF_DATA(buffer), bufsize);
+        dcb->stats.n_reads++);
                 
-                if (nsingleread <= 0)
-                {                        
-                        if (errno != 0 && errno != EAGAIN && errno != EWOULDBLOCK) 
-                        {
-                                LOGIF(LE, (skygw_log_write_flush(
-                                        LOGFILE_ERROR,
-                                        "%lu [dcb_read] Error : Read failed, dcb %p in state "
-                                        "%s fd %d, due %d, %s.",
-                                        pthread_self(),
-                                        dcb,
-                                        STRDCBSTATE(dcb->state),
-                                        dcb->fd, 
-                                        errno,
-                                        strerror(errno))));
-                        }
-			gwbuf_free(buffer);
-                        return nsingleread;
-                }
-                nreadtotal += nsingleread;
-                
-                LOGIF(LD, (skygw_log_write(
-                        LOGFILE_DEBUG,
-                        "%lu [dcb_read] Read %d bytes from dcb %p in state %s "
-                        "fd %d.", 
+        if (nsingleread <= 0)
+        {                        
+            if (errno != 0 && errno != EAGAIN && errno != EWOULDBLOCK) 
+            {
+                /* <editor-fold defaultstate="collapsed" desc=" Error Logging "> */
+                LOGIF(LE, (skygw_log_write_flush(
+                        LOGFILE_ERROR,
+                        "%lu [dcb_read] Error : Read failed, dcb %p in state "
+                        "%s fd %d, due %d, %s.",
                         pthread_self(),
-                        nsingleread,
                         dcb,
                         STRDCBSTATE(dcb->state),
-                        dcb->fd)));
-                /*< Append read data to the gwbuf */
-                *head = gwbuf_append(*head, buffer);
-        } /*< while (0 == maxbytes || nreadtotal < maxbytes) */
+                        dcb->fd,
+                        errno,
+                        strerror(errno))));
+                /* </editor-fold> */
+            }
+            gwbuf_free(buffer);
+            return nsingleread;
+        }
+        nreadtotal += nsingleread;
+        /* <editor-fold defaultstate="collapsed" desc=" Debug Logging "> */
+        LOGIF(LD, (skygw_log_write(
+                LOGFILE_DEBUG,
+                "%lu [dcb_read] Read %d bytes from dcb %p in state %s "
+                "fd %d.",
+                pthread_self(),
+                nsingleread,
+                dcb,
+                STRDCBSTATE(dcb->state),
+                dcb->fd)));
+        /* </editor-fold> */
+        /*< Append read data to the gwbuf */
+        *head = gwbuf_append(*head, buffer);
+    } /*< while (0 == maxbytes || nreadtotal < maxbytes) */
 
-        return nsingleread;
+    return nsingleread;
 }
 
 /**
@@ -1019,7 +1023,7 @@ int dcb_read_SSL(
 			    int eno;
 			    while((eno = ERR_get_error()) != 0)
 			      {
-				ERR_error_string(eno,errbuf);
+				ERR_error_string_n(eno,errbuf,200);
 				skygw_log_write(LE,
 						"%s",
 						errbuf);
@@ -1049,7 +1053,7 @@ int dcb_read_SSL(
 			    {
 				while((ssl_errno = ERR_get_error()) != 0)
 				{
-				    ERR_error_string(ssl_errno,errbuf);
+				    ERR_error_string_n(ssl_errno,errbuf,200);
 				    skygw_log_write(LE,
 					     "%s",
 					     errbuf);
@@ -1066,7 +1070,7 @@ int dcb_read_SSL(
 			goto return_n;
 		    }
 
-		    gwbuf_rtrim(buffer,bufsize - n);
+		    buffer = gwbuf_rtrim(buffer,bufsize - n);
 		    if(buffer == NULL)
 		    {
 			goto return_n;
@@ -1101,6 +1105,7 @@ int dcb_read_SSL(
 return_n:
         return nread;
 }
+
 /**
  * General purpose routine to write to a DCB
  *
@@ -1488,7 +1493,7 @@ static int
 dcb_write_SSL_error_report (DCB *dcb, int ret)
 {
     int ssl_errno;
-    
+    char errbuf[256];
     ssl_errno = SSL_get_error(dcb->ssl,ret);
 
     if (LOG_IS_ENABLED(LOGFILE_DEBUG))
@@ -1533,7 +1538,7 @@ dcb_write_SSL_error_report (DCB *dcb, int ret)
 
     if (LOG_IS_ENABLED(LOGFILE_ERROR) && ssl_errno != SSL_ERROR_WANT_WRITE)
     {
-        if (ssl_errno == -1)
+        if (ret == -1)
         {
             LOGIF(LE, (skygw_log_write_flush(
                 LOGFILE_ERROR,
@@ -1548,12 +1553,14 @@ dcb_write_SSL_error_report (DCB *dcb, int ret)
             {
                 if(ssl_errno == SSL_ERROR_SYSCALL)
                 {
-                    skygw_log_write(LE,"%d:%s",errno,strerror(errno));
+		    strerror_r(errno,errbuf,255);
+		    errbuf[255] = '\0';
+                    skygw_log_write(LE,"%d:%s",errno,errbuf);
                 }
                 do
                 {
                     char errbuf[140];
-                    ERR_error_string(ssl_errno,errbuf);
+                    ERR_error_string_n(ssl_errno,errbuf,140);
                     skygw_log_write(LE,"%d:%s",ssl_errno,errbuf);
                 } while((ssl_errno = ERR_get_error()) != 0);
             }
@@ -1563,7 +1570,7 @@ dcb_write_SSL_error_report (DCB *dcb, int ret)
             do
             {
                 char errbuf[140];
-                ERR_error_string(ssl_errno,errbuf);
+                ERR_error_string_n(ssl_errno,errbuf,140);
                 skygw_log_write(LE,"%d:%s",ssl_errno,errbuf);
             } while((ssl_errno = ERR_get_error()) != 0);
         }
@@ -1719,7 +1726,7 @@ dcb_drain_writeq_SSL(DCB *dcb)
 		    while((ssl_errno = ERR_get_error()) != 0)
 		    {
 			char errbuf[140];
-			ERR_error_string(ssl_errno,errbuf);
+			ERR_error_string_n(ssl_errno,errbuf,140);
 			skygw_log_write(LE,"%s",errbuf);
 		    }
 		    if(errno != 0)
@@ -2972,7 +2979,7 @@ int dcb_accept_SSL(DCB* dcb)
 	    {
 		while((errnum = ERR_get_error()) != 0)
 		{
-		    ERR_error_string(errnum,errbuf);
+		    ERR_error_string_n(errnum,errbuf,140);
 		    skygw_log_write(LE,"%s",errbuf);
 		}
 	    }
@@ -3010,7 +3017,7 @@ int dcb_accept_SSL(DCB* dcb)
 		{
 		    while((errnum = ERR_get_error()) != 0)
 		    {
-			ERR_error_string(errnum,errbuf);
+			ERR_error_string_n(errnum,errbuf,140);
 			skygw_log_write(LE,
 				 "%s",
 				 errbuf);
@@ -3083,7 +3090,7 @@ int dcb_connect_SSL(DCB* dcb)
 	else
 	{
 	    rval = -1;
-	    ERR_error_string(errnum,errbuf);
+	    ERR_error_string_n(errnum,errbuf,140);
 	    skygw_log_write_flush(LE,
 			     "Error: Fatal error in SSL_accept for %s@%s: (SSL error code: %d) %s",
 			     dcb->user,
