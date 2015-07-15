@@ -4040,12 +4040,11 @@ static bool execute_sescmd_in_backend(
                 sescmd_cursor_set_active(scur, true);
         }
 
-	buf = sescmd_cursor_clone_querybuf(scur);
-
         switch (scur->scmd_cur_cmd->my_sescmd_packet_type) {
                 case MYSQL_COM_CHANGE_USER:
 			/** This makes it possible to handle replies correctly */
 			gwbuf_set_type(scur->scmd_cur_cmd->my_sescmd_buf, GWBUF_TYPE_SESCMD);
+			buf = sescmd_cursor_clone_querybuf(scur);
 			rc = dcb->func.auth(
                                 dcb, 
                                 NULL, 
@@ -4078,6 +4077,7 @@ static bool execute_sescmd_in_backend(
                          */
 
                         gwbuf_set_type(scur->scmd_cur_cmd->my_sescmd_buf, GWBUF_TYPE_SESCMD);
+			buf = sescmd_cursor_clone_querybuf(scur);
                         rc = dcb->func.write(
                                 dcb, 
                                 buf);
