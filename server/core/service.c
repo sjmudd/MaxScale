@@ -261,7 +261,7 @@ GWPROTOCOL	*funcs;
 					service->users->data = NULL;
 					free(service->users);
 					service->users = NULL;
-					dcb_free(port->listener);
+					dcb_close(port->listener);
 					port->listener = NULL;
 					goto retblock;
 				}
