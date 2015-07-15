@@ -231,6 +231,7 @@ extern	int	serviceEnableLocalhostMatchWildcardHost(SERVICE *, int);
 int serviceStripDbEsc(SERVICE* service, int action);
 int serviceAuthAllServers(SERVICE *service, int action);
 int serviceOptimizeWildcard(SERVICE *service, int action);
+void serviceRemoveObsolete(CONFIG_CONTEXT* ctx);
 extern	void	service_update(SERVICE *, char *, char *, char *);
 extern	int	service_refresh_users(SERVICE *);
 extern	void	printService(SERVICE *);

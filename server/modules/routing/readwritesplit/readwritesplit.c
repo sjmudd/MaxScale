@@ -643,7 +643,6 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     SERVER_REF* sref;
     BACKEND** bref;
     int i, nserv = 0, rval = 0;
-    ROUTER_CLIENT_SES* client;
     CONFIG_PARAMETER*   param;
 
     spinlock_acquire(&router->lock);
@@ -675,7 +674,6 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     }
 
     /** Close all current sessions to force the new configuration into use */
-    client = router->connections;
     router->connections = NULL;
     spinlock_release(&router->lock);
 

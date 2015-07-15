@@ -751,7 +751,6 @@ static ROUTER *
 createInstance(SERVICE *service, char **options)
 {
         ROUTER_INSTANCE*    router;
-        SERVER_REF*             server;
 		CONFIG_PARAMETER*  conf;
         int                 nservers;
         int                 i;
@@ -769,8 +768,6 @@ createInstance(SERVICE *service, char **options)
 	router->stats.ses_shortest = (double)((unsigned long)(~0));
         spinlock_init(&router->lock);
         
-        /** Calculate number of servers */
-        server = service->servers;
         nservers = 0;
 
 	conf = service->svc_config_param;
@@ -817,7 +814,6 @@ createInstance(SERVICE *service, char **options)
         spinlock_release(&instlock);
 	goto retblock;
 	
-clean_up:
 	/** clean up */
 	for (i = 0; i < nservers; i++) 
 	{

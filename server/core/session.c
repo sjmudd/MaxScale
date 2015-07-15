@@ -236,7 +236,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
 		spinlock_release(&session->ses_lock);		
 		spinlock_acquire(&session_spin);
 		/** Assign a session id and increase */
-		session->ses_id = atomic_add(&session_id,1);
+		session->ses_id = session_id++;
 		session->next = allSessions;
                 allSessions = session;
                 spinlock_release(&session_spin);

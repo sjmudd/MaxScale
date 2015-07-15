@@ -83,6 +83,7 @@ static FILTER_OBJECT dummyObject = {
     NULL,
     NULL,
     NULL,
+    NULL,
     dummySetUpstream,
     NULL,
     filterReply,
