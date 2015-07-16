@@ -89,7 +89,7 @@ typedef struct filter_object {
  * is changed these values must be updated in line with the rules in the
  * file modinfo.h.
  */
-#define FILTER_VERSION	{1, 2, 0}
+#define FILTER_VERSION	{2, 0, 0}
 /**
  * The definition of a filter from the configuration file.
  * This is basically the link between a plugin to load and the

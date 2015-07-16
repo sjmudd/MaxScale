@@ -53,11 +53,11 @@
  * startMonitor is called to start the monitoring process, it is called on the main
  * thread of the gateway and is responsible for creating a thread for the monitor
  * itself to run on. This should use the entry points defined in the thread.h 
- * header file rather than make direct calls to the operating system thrading libraries.
+ * header file rather than make direct calls to the operating system threading libraries.
  * The return from startMonitor is a void * handle that will be passed to all other monitor
  * API calls.
  *
- * stopMonitor is responsible for shuting down and destroying a monitor, it is called 
+ * stopMonitor is responsible for shutting down and destroying a monitor, it is called
  * with the void * handle that was returned by startMonitor.
  *
  * registerServer is called to register a server that must be monitored with a running
@@ -76,7 +76,7 @@ typedef struct {
 
 /**
  * The monitor API version number. Any change to the monitor module API
- * must change these versions usign the rules defined in modinfo.h
+ * must change these versions using the rules defined in modinfo.h
  */
 #define	MONITOR_VERSION	{3, 0, 0}
 

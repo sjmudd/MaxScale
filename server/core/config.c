@@ -109,6 +109,7 @@ void	config_listener_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
 void	config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
 void	config_monitor_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
 int	config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *running);
+int config_add_filter(CONFIG_CONTEXT* obj);
 static	char		*config_file = NULL;
 static	GATEWAY_CONF	gateway;
 static	FEEDBACK_CONF	feedback;
@@ -888,50 +889,10 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 		}
 		else if (!strcmp(type, "filter"))
 		{
-                        char *module = config_get_value(obj->parameters,
-						"module");
-                        char *options = config_get_value(obj->parameters,
-						"options");
-
-			if (module)
-			{
-				obj->element = filter_alloc(obj->object, module);
-			}
-			else
-			{
-				LOGIF(LE, (skygw_log_write_flush(
-	                                LOGFILE_ERROR,
-					"Error: Filter '%s' has no module "
-					"defined defined to load.",
-                                        obj->object)));
-				error_count++;
-			}
-			if (obj->element && options)
-			{
-				char *lasts;
-				char *s = strtok_r(options, ",", &lasts);
-				while (s)
-				{
-					filterAddOption(obj->element, s);
-					s = strtok_r(NULL, ",", &lasts);
-				}
-			}
-			if (obj->element)
-			{
-				CONFIG_PARAMETER *params = obj->parameters;
-				while (params)
-				{
-					if (strcmp(params->name, "module")
-						&& strcmp(params->name,
-							"options"))
-					{
-						filterAddParameter(obj->element,
-							params->name,
-							params->value);
-					}
-					params = params->next;
-				}
-			}
+		    if(config_add_filter(obj) != 0)
+		    {
+			skygw_log_write(LE,"Error: Failed to configure filter '%s'.",obj->object);
+		    }
 		}
 		obj = obj->next;
 	}
@@ -1011,7 +972,10 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 			}
 			if (filters && obj->element)
 			{
-				serviceSetFilters(obj->element, filters);
+				if(serviceSetFilters(obj->element, filters) != 0)
+				{
+				    error_count++;
+				}
 			}
 		}
 		else if (!strcmp(type, "listener"))
@@ -1594,6 +1558,14 @@ CONFIG_CONTEXT		*obj;
 		else if (!strcmp(type, "server"))
 		{
 			config_server_update(obj);
+		}
+		else if (!strcmp(type, "filter"))
+		{
+		    if(filter_find(obj->object) == NULL &&
+		     config_add_filter(obj) != 0)
+		    {
+			skygw_log_write(LE,"Error: Failed to configure filter '%s'.",obj->object);
+		    }
 		}
 
 		obj = obj->next;
@@ -2777,6 +2749,7 @@ int config_reload_service(void* data)
     CONFIG_CONTEXT *ptr,*sptr;
     CONFIG_PARAMETER *param;
     char* servers = NULL;
+    char* filters = NULL;
     char *saved,*tok;
     int rval = 0;
     config_read_config(&ctx);
@@ -2796,6 +2769,7 @@ int config_reload_service(void* data)
     }
     else
     {
+	/** Update the servers for this service */
 	param = ptr->parameters;
 	while(param)
 	{
@@ -2826,6 +2800,35 @@ int config_reload_service(void* data)
 	    free(servers);
 	}
 
+	/** Add new filters from the config that are used by this service */
+	param = ptr->parameters;
+	while(param)
+	{
+	    if(strcmp(param->name,"filters") == 0)
+	    {
+		filters = strdup(param->value);
+		break;
+	    }
+	    param = param->next;
+	}
+	if(filters)
+	{
+	    tok = strtok_r(filters,", ",&saved);
+	    while(tok)
+	    {
+		sptr = ctx.next;
+		while(sptr)
+		{
+		    if(strcmp(sptr->object,tok) == 0)
+			break;
+		    sptr = sptr->next;
+		}
+		if(sptr && filter_find(sptr->object) == NULL)
+		    config_add_filter(sptr);
+		tok = strtok_r(NULL,", ",&saved);
+	    }
+	    free(filters);
+	}
 	config_service_update(ptr);
 	config_service_update_objects(ptr,ctx.next);
 	if(service->state == SERVICE_STATE_FAILED)
@@ -2833,4 +2836,54 @@ int config_reload_service(void* data)
     }
     config_free_config(ctx.next);
     return rval;
+}
+
+int config_add_filter(CONFIG_CONTEXT* obj)
+{
+    int error_count = 0;
+    char *module = config_get_value(obj->parameters,
+				    "module");
+    char *options = config_get_value(obj->parameters,
+				     "options");
+
+    if (module)
+    {
+	obj->element = filter_alloc(obj->object, module);
+    }
+    else
+    {
+	LOGIF(LE, (skygw_log_write_flush(
+		LOGFILE_ERROR,
+					 "Error: Filter '%s' has no module "
+		"defined defined to load.",
+					 obj->object)));
+	error_count++;
+    }
+    if (obj->element && options)
+    {
+	char *lasts;
+	char *s = strtok_r(options, ",", &lasts);
+	while (s)
+	{
+	    filterAddOption(obj->element, s);
+	    s = strtok_r(NULL, ",", &lasts);
+	}
+    }
+    if (obj->element)
+    {
+	CONFIG_PARAMETER *params = obj->parameters;
+	while (params)
+	{
+	    if (strcmp(params->name, "module")
+		     && strcmp(params->name,
+			      "options"))
+	    {
+		filterAddParameter(obj->element,
+				 params->name,
+				 params->value);
+	    }
+	    params = params->next;
+	}
+    }
+    return error_count == 0 ? 0 : -1;
 }

@@ -1185,10 +1185,11 @@ char	*ptr;
  * @param service	The service itself
  * @param filters	ASCII string of filters to use
  */
-void
+int
 serviceSetFilters(SERVICE *service, char *filters)
 {
 FILTER_DEF	**flist;
+FILTER_DEF	**tmplist;
 char		*ptr, *brkt;
 int		n = 0;
 
@@ -1196,26 +1197,33 @@ int		n = 0;
 	{
 		LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
 			"Error : Out of memory adding filters to service.\n")));
-		return;
+		return -1;
 	}
 	ptr = strtok_r(filters, "|", &brkt);
 	while (ptr)
 	{
 		n++;
-		if ((flist = (FILTER_DEF **)realloc(flist,
+		if ((tmplist = (FILTER_DEF **)realloc(flist,
 				(n + 1) * sizeof(FILTER_DEF *))) == NULL)
 		{
 			LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
 				"Error : Out of memory adding filters to service.\n")));
-			return;
+			free(flist);
+			service->filters = NULL;
+			service->n_filters = 0;
+			return -1;
 		}
+		flist = tmplist;
 		if ((flist[n-1] = filter_find(trim(ptr))) == NULL)
 		{
 			LOGIF(LE, (skygw_log_write_flush(
                                 LOGFILE_ERROR,
-				"Warning : Unable to find filter '%s' for service '%s'\n",
+				"Error : Unable to find filter '%s' for service '%s'\n",
 					trim(ptr), service->name)));
-			n--;
+			free(flist);
+			service->filters = NULL;
+			service->n_filters = 0;
+			return -1;
 		}
 		flist[n] = NULL;
 		ptr = strtok_r(NULL, "|", &brkt);
@@ -1223,6 +1231,7 @@ int		n = 0;
 
 	service->filters = flist;
 	service->n_filters = n;
+	return 0;
 }
 
 /**
@@ -1384,7 +1393,7 @@ serviceUpdateNamedFilter(char* name, CONFIG_CONTEXT *context)
  *
  * @param service	The service itself
  */
-void
+int
 serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context, char *filters)
 {
     int i;
@@ -1393,7 +1402,14 @@ serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context, char *filters)
     free(service->filters);
     service->n_filters = 0;
     service->filters = NULL;
-    serviceSetFilters(service,filters);
+    if(serviceSetFilters(service,filters) != 0)
+    {
+	serviceStop(service);
+	service->state = SERVICE_STATE_FAILED;
+	spinlock_release(&service->spin);
+	skygw_log_write(LE,"Error: Filter setup failed for service [%s]. Service is disabled.",service->name);
+	return -1;
+    }
 
     for(i = 0;i<service->n_filters;i++)
     {
@@ -1405,11 +1421,14 @@ serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context, char *filters)
 		    "Error : Failed to update filter '%s' for service '%s'.\n",
 		    service->filters[i]->name, service->name);
 	    serviceStop(service);
-	    break;
+	    service->state = SERVICE_STATE_FAILED;
+	    spinlock_release(&service->spin);
+	    return -1;
 	}
     }
 
     spinlock_release(&service->spin);
+    return 0;
 }
 
 /**

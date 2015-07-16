@@ -40,14 +40,14 @@ typedef unsigned long long CYCLES;
 
 /**
  * Get the current time-stamp counter value from the processor. This is the
- * count of CPU cyceles as a 64 bit value.
+ * count of CPU cycles as a 64 bit value.
  *
- * The value returned is related to the clock speed, to obtian a value in
+ * The value returned is related to the clock speed, to obtain a value in
  * seconds divide the returned value by the clock frequency for the processor.
  *
- * Note, on multi-processsor systems care much be taken to avoid the thread
- * moving to a different processor when taken succsive value of RDTSC to
- * obtian accurate timing. This may be done by setting pocessor affinity for
+ * Note, on multi-processor systems care much be taken to avoid the thread
+ * moving to a different processor when taken successive value of RDTSC to
+ * obtain accurate timing. This may be done by setting processor affinity for
  * the thread. See sched_setaffinity/sched_getaffinity.
  *
  * @return CPU cycle count
