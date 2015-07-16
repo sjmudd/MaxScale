@@ -29,6 +29,7 @@ servers=server1,server2,server3,server4
 user=maxuser
 passwd=maxpwd
 max_slave_connections=100%
+localhost_match_wildcard_host=1
 
 [SchemaRouter Router]
 type=service
@@ -36,7 +37,7 @@ router=schemarouter
 servers=server1,server2,server3,server4
 user=maxuser
 passwd=maxpwd
-auth_all_servers=1
+localhost_match_wildcard_host=1
 
 [RW Split Hint Router]
 type=service
@@ -46,6 +47,7 @@ user=maxuser
 passwd=maxpwd
 max_slave_connections=100%
 filters=Hint
+localhost_match_wildcard_host=1
 
 [Read Connection Router]
 type=service
@@ -54,6 +56,7 @@ router_options=master
 servers=server1
 user=maxuser
 passwd=maxpwd
+localhost_match_wildcard_host=1
 
 [Hint]
 type=filter

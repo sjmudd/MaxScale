@@ -169,9 +169,11 @@ HASHTABLE	*oldresources;
 	spinlock_release(&service->spin);
 
 	/* free the old table */
-	users_free(oldusers);
+	if(oldusers)
+	    users_free(oldusers);
 	/* free old resources */
-	resource_free(oldresources);
+	if(oldresources)
+	    resource_free(oldresources);
 
 	return i;
 }
@@ -585,7 +587,8 @@ getAllUsers(SERVICE *service, USERS *users)
 						MYSQL_DATABASE_MAXLEN;
 	int		dbnames = 0;
 	int		db_grants = 0;
-	
+	int n_connected = 0;
+
 	if (serviceGetUser(service, &service_user, &service_passwd) == 0)
 	{
 		ss_dassert(service_passwd == NULL || service_user == NULL);
@@ -607,11 +610,18 @@ getAllUsers(SERVICE *service, USERS *users)
 	 * to try
 	 */
 	server = service->servers;
-	
-        if(server == NULL)
-        {
-            goto cleanup;
-        }
+
+	if(server == NULL)
+            {
+		LOGIF(LE, (skygw_log_write_flush(
+			LOGFILE_ERROR,
+                        "Error : Unable to get user data from backend database "
+			"for service [%s]. Missing server information. Make sure the service"
+			"is not missing the 'servers' parameter and that the server names are valid.",
+                                                 service->name)));
+		goto cleanup;
+            }
+
 
 	service->resources = resource_alloc();
 
@@ -624,7 +634,7 @@ getAllUsers(SERVICE *service, USERS *users)
             {
 		LOGIF(LE, (skygw_log_write_flush(
                         LOGFILE_ERROR,
-                                                 "Error : mysql_init: %s",
+                                                 "Error : mysql_init failed: %s",
                                                  mysql_error(con))));
 		goto cleanup;
             }
@@ -637,8 +647,8 @@ getAllUsers(SERVICE *service, USERS *users)
             {
 		LOGIF(LE, (skygw_log_write_flush(
 			LOGFILE_ERROR,
-                                                 "Error : failed to set timeout values for backend "
-			"connection.")));
+                        "Error : failed to set timeout values for backend "
+			"connection. %s",mysql_error(con))));
 		mysql_close(con);
 		goto cleanup;
             }
@@ -647,8 +657,9 @@ getAllUsers(SERVICE *service, USERS *users)
             {
 		LOGIF(LE, (skygw_log_write_flush(
                         LOGFILE_ERROR,
-                                                 "Error : failed to set external connection. "
-                        "It is needed for backend server connections.")));
+                        "Error : failed to set external connection. "
+                        "It is needed for backend server connections. %s",
+			mysql_error(con))));
 		mysql_close(con);
 		goto cleanup;
             }
@@ -668,24 +679,27 @@ getAllUsers(SERVICE *service, USERS *users)
                 server = server->next;
             }
 
-
-            if (server == NULL)
-            {
+	    if(server == NULL && n_connected == 0)
+	    {
 		LOGIF(LE, (skygw_log_write_flush(
-			LOGFILE_ERROR,
-                                                 "Error : Unable to get user data from backend database "
-			"for service [%s]. Missing server information.",
-                                                 service->name)));
+                        LOGFILE_ERROR,
+                        "Error : Failed to connect to any of the backend servers for service [%s]. Cannot"
+		    " retrieve authentication data.",service->name)));
 		mysql_close(con);
 		goto cleanup;
-            }
+	    }
 
-	    addDatabases(service, con);
+	    if(server != NULL)
+	    {
+		n_connected++;
+		addDatabases(service, con);
+		server = server->next;
+	    }
 	    mysql_close(con);
-	    server = server->next;
 	 }
 
 	server = service->servers;
+	n_connected = 0;
 
         while(server != NULL)
         {
@@ -739,19 +753,17 @@ getAllUsers(SERVICE *service, USERS *users)
             {
                 server = server->next;
             }
-            
-            
-            if (server == NULL)
-            {
+
+            if(server == NULL)
+	    {
 		LOGIF(LE, (skygw_log_write_flush(
-			LOGFILE_ERROR,
-                                                 "Error : Unable to get user data from backend database "
-			"for service [%s]. Missing server information.",
-                                                 service->name)));
+                        LOGFILE_ERROR,
+                        "Error : Failed to connect to any of the backend servers for service [%s]. Cannot"
+		    " retrieve authentication data.",service->name)));
 		mysql_close(con);
 		goto cleanup;
-            }
-            
+	    }
+
             /** Count users. Start with users and db grants for users */
             if (mysql_query(con, MYSQL_USERS_WITH_DB_COUNT)) {
 		if (mysql_errno(con) != ER_TABLEACCESS_DENIED_ERROR) {
@@ -1237,15 +1249,14 @@ getUsers(SERVICE *service, USERS *users)
 
 	free(dpwd);
 
-	if (server == NULL)
+	if(server == NULL)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
-			LOGFILE_ERROR,
-			"Error : Unable to get user data from backend database "
-			"for service [%s]. Missing server information.",
-			service->name)));
-		mysql_close(con);
-		return -1;
+	    LOGIF(LE, (skygw_log_write_flush(
+		    LOGFILE_ERROR,
+		    "Error : Failed to connect to any of the backend servers for service [%s]. Cannot"
+		    " retrieve authentication data.",service->name)));
+	    mysql_close(con);
+	    return -1;
 	}
 
 	/** Count users. Start with users and db grants for users */

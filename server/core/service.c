@@ -435,7 +435,7 @@ int
 serviceStart(SERVICE *service)
 {
 SERV_PROTOCOL	*port;
-int		listeners = 0;
+int		i,listeners = 0;
 
 if(service->ssl_mode != SSL_DISABLED)
 {
@@ -458,7 +458,7 @@ if(service->ssl_mode != SSL_DISABLED)
 		return 0;
 	}
 
-	for(int i = 0;i<service->n_filters;i++)
+	for(i = 0;i<service->n_filters;i++)
 	{
 	    if(filterLoad(service->filters[i]) != 0)
 	    {
@@ -655,6 +655,14 @@ int		listeners = 0;
 		    skygw_log_write(LE,"[%s] Error: Listener session is in invalid state: %s",
 			     service->name,STRSESSIONSTATE(port->listener->session->state));
 		    break;
+		}
+	    }
+	    else
+	    {
+		if(serviceStartPort(service,port) < 1)
+		{
+		    skygw_log_write(LE,"Error: Failed to start port %u for service [%s]",
+			     port->port,service->name);
 		}
 	    }
 	    port = port->next;
