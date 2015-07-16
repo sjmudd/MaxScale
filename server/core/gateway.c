@@ -733,13 +733,13 @@ static void print_log_n_stderr(
         char* fpr_end   = "\n*\n";
         
         if (do_log) {
-                LOGIF(LE, (skygw_log_write_flush(
+                skygw_log_write_flush(
                                    LOGFILE_ERROR,
                                    "%s %s %s %s",
                                    log_err,
                                    logstr,
                                    eno == 0 ? " " : "Error :",
-                                   eno == 0 ? " " : strerror(eno))));
+                                   eno == 0 ? " " : strerror(eno));
         }
         if (do_stderr) {
                 fprintf(stderr,
@@ -765,19 +765,18 @@ static bool file_is_readable(
                 if (!daemon_mode)
                 {
                         fprintf(stderr,
-                                "*\n* Warning : Failed to read the configuration "
+                                "*\n* Warning : Failed to read the "
                                 "file %s. %s.\n*\n",
                                 absolute_pathname,
                                 strerror(eno));
                 }
-                LOGIF(LE, (skygw_log_write_flush(
+                skygw_log_write_flush(
                         LOGFILE_ERROR,
-                        "Warning : Failed to read the configuration file %s due "
+                        "Warning : Failed to read the file %s due "
                         "to %d, %s.",
                         absolute_pathname,
                         eno,
-                        strerror(eno))));
-		LOGIF(LE,(skygw_log_sync_all()));
+                        strerror(eno));
                 succp = false;
         }
         return succp;
@@ -2002,7 +2001,7 @@ bool handle_path_arg(char** dest, char* path, char* arg, bool rd, bool wr)
 	    }
 	    else
 	    {
-		fprintf(stderr,"%s\n",errstr);
+		print_log_n_stderr(true,true,errstr,errstr,0);
 		free(errstr);
 		errstr = NULL;
 	    }
@@ -2031,27 +2030,33 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 	{
 	    if(strcmp(get_logdir(),default_logdir) == 0)
 	    {
-		handle_path_arg(&tmp,(char*)value,NULL,true,true);
-		set_logdir(tmp);
-		free(tmp);
+		if(handle_path_arg(&tmp,(char*)value,NULL,true,true))
+		{
+		    set_logdir(tmp);
+		    free(tmp);
+		}
 	    }
 	}
 	else if(strcmp(name, "libdir") == 0)
 	{
 	    if(strcmp(get_libdir(),default_libdir) == 0)
 	    {
-		handle_path_arg(&tmp,(char*)value,NULL,true,false);
-		set_libdir(tmp);
-		free(tmp);
+		if(handle_path_arg(&tmp,(char*)value,NULL,true,false))
+		{
+		    set_libdir(tmp);
+		    free(tmp);
+		}
 	    }
 	}
 	else if(strcmp(name, "piddir") == 0)
 	{
 	    if(strcmp(get_piddir(),default_piddir) == 0)
 	    {
-		handle_path_arg(&tmp,(char*)value,NULL,true,true);
-		set_piddir(tmp);
-		free(tmp);
+		if(handle_path_arg(&tmp,(char*)value,NULL,true,true))
+		{
+		    set_piddir(tmp);
+		    free(tmp);
+		}
 	    }
 	}
 	else if(strcmp(name, "datadir") == 0)
@@ -2071,18 +2076,22 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 	{
 	    if(strcmp(get_cachedir(),default_cachedir) == 0)
 	    {
-		handle_path_arg((char**)&tmp,(char*)value,NULL,true,false);
-		set_cachedir(tmp);
-		free(tmp);
+		if(handle_path_arg((char**)&tmp,(char*)value,NULL,true,false))
+		{
+		    set_cachedir(tmp);
+		    free(tmp);
+		}
 	    }
 	}
 	else if(strcmp(name, "language") == 0)
 	{
 	    if(strcmp(get_langdir(),default_langdir) == 0)
 	    {
-		handle_path_arg((char**)&tmp,(char*)value,NULL,true,false);
-		set_langdir(tmp);
-		free(tmp);
+		if(handle_path_arg((char**)&tmp,(char*)value,NULL,true,false))
+		{
+		    set_langdir(tmp);
+		    free(tmp);
+		}
 	    }
 	}
 	else if(strcmp(name, "syslog") == 0)
