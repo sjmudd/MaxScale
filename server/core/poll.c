@@ -692,8 +692,8 @@ int		   poll_spins = 0;
 		if (thread_data)
 			thread_data[thread_id].state = THREAD_ZPROCESSING;
 		dcb_process_closeall();
-		config_reload();
 		dcb_process_zombies(thread_id);
+		config_reload();
 		if (thread_data)
 			thread_data[thread_id].state = THREAD_IDLE;
 

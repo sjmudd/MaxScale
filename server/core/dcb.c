@@ -1823,17 +1823,6 @@ dcb_close(DCB *dcb)
      */
     if (dcb->state == DCB_STATE_POLLING  || dcb->state == DCB_STATE_LISTENING)
     {
-        if (dcb->state == DCB_STATE_LISTENING)
-        {
-            LOGIF(LE, (skygw_log_write(
-                LOGFILE_ERROR,
-                "%lu [dcb_close] Error : Removing DCB %p but was in state %s "
-                "which is not expected for a call to dcb_close, although it"
-                "should be processed correctly. ",
-                pthread_self(),
-                dcb,
-                STRDCBSTATE(dcb->state))));
-        }
 	if ((dcb->state == DCB_STATE_POLLING && !dcb_maybe_add_persistent(dcb))
             || (dcb->state == DCB_STATE_LISTENING))
 	{
@@ -3161,22 +3150,52 @@ dcb_process_closeall()
 {
     DCB *ptr = NULL,*tmp;
 
-    spinlock_acquire(&dcbspin);
-    if(dcb_close_flag)
+    if(spinlock_acquire_nowait(&dcbspin))
     {
-	dcb_close_flag = 0;
-	ptr = allDCBs;
-    }
-    spinlock_release(&dcbspin);
-
-    while(ptr)
-    {
-	tmp = ptr;
-	ptr = ptr->next;
-	if(tmp->dcb_role == DCB_ROLE_REQUEST_HANDLER &&
-	 tmp->state == DCB_STATE_POLLING)
+	if(dcb_close_flag)
 	{
-	    dcb_close(tmp);
+	    dcb_close_flag = 0;
+	    ptr = allDCBs;
+	}
+	spinlock_release(&dcbspin);
+
+	while(ptr)
+	{
+	    tmp = ptr;
+	    ptr = ptr->next;
+	    if(tmp->dcb_role == DCB_ROLE_REQUEST_HANDLER &&
+	     tmp->state == DCB_STATE_POLLING)
+	    {
+		dcb_close(tmp);
+	    }
 	}
     }
+}
+
+/*
+ * Close all connections to a service
+ *
+ * Close all DCB that are connected to the service. Only DCBs that are in the
+ * state DCB_STATE_POLLING are closed.
+ */
+void
+dcb_close_service(SERVICE* service)
+{
+    DCB *mydcb,*prevdcb;
+    spinlock_acquire(&dcbspin);
+    mydcb = allDCBs;
+
+    while(mydcb)
+    {
+	prevdcb = mydcb;
+	mydcb = mydcb->next;
+	if(prevdcb->service && prevdcb->dcb_role == DCB_ROLE_REQUEST_HANDLER &&
+	 strcmp(prevdcb->service->name,service->name) == 0 &&
+	 prevdcb->state == DCB_STATE_POLLING)
+	{
+	    dcb_close(prevdcb);
+	}
+    }
+
+    spinlock_release(&dcbspin);
 }

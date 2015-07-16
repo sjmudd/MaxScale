@@ -129,30 +129,32 @@ return_p:
 void mysql_protocol_done (
         DCB* dcb)
 {
-        MySQLProtocol* p;
-        server_command_t* scmd;
-        server_command_t* scmd2;
-        
-        p = (MySQLProtocol *)dcb->protocol;
-        
-        spinlock_acquire(&p->protocol_lock);
+    MySQLProtocol* p;
+    server_command_t* scmd;
+    server_command_t* scmd2;
 
-        if (p->protocol_state != MYSQL_PROTOCOL_ACTIVE)
-        {
-                goto retblock;
-        }
-        scmd = p->protocol_cmd_history;
+    p = (MySQLProtocol *)dcb->protocol;
 
-        while (scmd != NULL)
-        {
-                scmd2 = scmd->scom_next;
-                free(scmd);
-                scmd = scmd2;
-        }
-        p->protocol_state = MYSQL_PROTOCOL_DONE;
-        
-retblock:
-        spinlock_release(&p->protocol_lock);
+    if(p)
+    {
+	spinlock_acquire(&p->protocol_lock);
+
+	if (p->protocol_state != MYSQL_PROTOCOL_ACTIVE)
+	{
+	    spinlock_release(&p->protocol_lock);
+	    return;
+	}
+	scmd = p->protocol_cmd_history;
+
+	while (scmd != NULL)
+	{
+	    scmd2 = scmd->scom_next;
+	    free(scmd);
+	    scmd = scmd2;
+	}
+	p->protocol_state = MYSQL_PROTOCOL_DONE;
+	spinlock_release(&p->protocol_lock);
+    }
 }
         
         

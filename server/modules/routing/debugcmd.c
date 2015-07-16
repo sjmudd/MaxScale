@@ -375,7 +375,8 @@ struct subcommand reloadoptions[] = {
 	{ NULL,		0, NULL,		NULL,	NULL,
 				{0, 0, 0} }
 };
-
+static void disable_service_action(DCB*, SERVICE*);
+static void enable_service_action(DCB*, SERVICE*);
 static void enable_log_action(DCB *, char *);
 static void disable_log_action(DCB *, char *);
 static void enable_sess_log_action(DCB *dcb, char *arg1, char *arg2);
@@ -434,6 +435,14 @@ struct subcommand enableoptions[] = {
                 "Enable MaxScale modules list sending via http to notification service",
                 "Enable MaxScale modules list sending via http to notification service",
                 {0, 0, 0}
+        },
+	{
+                "service",
+                1,
+                enable_service_action,
+                "Enable a disabled service",
+                "Enable a disabled service",
+                {ARG_TYPE_SERVICE, 0, 0}
         },
         {
                 NULL,
@@ -494,6 +503,14 @@ struct subcommand disableoptions[] = {
                 "Disable MaxScale modules list sending via http to notification service",
                 "Disable MaxScale modules list sending via http to notification service",
                 {0, 0, 0}
+        },
+	{
+                "service",
+                1,
+                disable_service_action,
+                "Disable a service",
+                "Disable a service",
+                {ARG_TYPE_SERVICE, 0, 0}
         },
     	{
             NULL,
@@ -581,8 +598,8 @@ struct subcommand removeoptions[] = {
             "filter",
             1,
             remove_filter,
-            "Remove existing maxscale user. Example : remove user john johnpwd",
-            "Remove existing maxscale user. Example : remove user john johnpwd",
+            "Remove filter from MaxScale. Example : remove filter RegexFilter",
+            "Remove filter from MaxScale. Example : remove filter RegexFilter",
             {ARG_TYPE_STRING, 0, 0}
         },
 	{
@@ -1533,6 +1550,19 @@ disable_feedback_action(void)
         return;
 }
 
+static void
+disable_service_action(DCB* dcb, SERVICE* service)
+{
+    int rval = serviceDisable(service);
+    dcb_printf(dcb,"Disabled %d listeners for service %s\n",rval,service->name);
+}
+
+static void
+enable_service_action(DCB* dcb, SERVICE* service)
+{
+    int rval = serviceRestart(service);
+    dcb_printf(dcb,"Enabled %d listeners for service %s\n",rval,service->name);
+}
 #if defined(FAKE_CODE)
 static void fail_backendfd(void)
 { 

@@ -145,6 +145,7 @@ SERVICE 	*service;
 	service->ssl_ca_cert = NULL;
 	service->ssl_cert = NULL;
 	service->ssl_key = NULL;
+	service->ports = NULL;
 	service->ssl_cert_verify_depth = DEFAULT_SSL_CERT_VERIFY_DEPTH;
 	/** Support the highest possible SSL/TLS methods available as the default */
 	service->ssl_method_type = SERVICE_SSL_TLS_MAX;
@@ -589,7 +590,42 @@ int		listeners = 0;
 	return listeners;
 }
 
+/**
+ * Disable a service
+ *
+ * This function stops the listener for the service
+ *
+ * @param service	The Service that should be stopped
+ * @return	Returns the number of listeners restarted
+ */
+int
+serviceDisable(SERVICE *service)
+{
+SERV_PROTOCOL	*port;
+DCB* portdcb;
+int		listeners = 0;
 
+	dcb_close_service(service);
+	port = service->ports;
+
+	while (port)
+	{
+	    if(port->listener)
+	    {
+		portdcb = port->listener;
+		port->listener = NULL;
+		port = port->next;
+		dcb_close(portdcb);
+		listeners++;
+	    }
+	    else
+		port = port->next;
+
+	}
+	service->state = SERVICE_STATE_DISABLED;
+
+	return listeners;
+}
 
 /**
  * Stop all the services
@@ -659,7 +695,7 @@ int		listeners = 0;
 	    }
 	    else
 	    {
-		if(serviceStartPort(service,port) < 1)
+		if((listeners += serviceStartPort(service,port)) < 1)
 		{
 		    skygw_log_write(LE,"Error: Failed to start port %u for service [%s]",
 			     port->port,service->name);

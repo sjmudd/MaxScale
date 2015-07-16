@@ -300,6 +300,24 @@ A stopped service may be restarted by using the restart service command.
     MaxScale> restart service "Split Service"
     MaxScale> 
 
+## Disabling A Service
+
+It is possible to disable a service. This will close all existing connections to the service and all connections to the service will be rejected.
+
+```
+MaxScale> disable service "Split Service"
+Disabled 1 listeners for service RW Split Router
+```
+
+## Enabling A Disabled Service
+
+A disbled service may be enabled by using the enable service command.
+
+```
+MaxScale> enable service "Split Service"
+Enabled 1 listeners for service RW Split Router
+```
+
 <a name="servers"></a> 
 # Working With Servers
 

@@ -194,6 +194,7 @@ typedef enum count_spec_t {COUNT_NONE=0, COUNT_ATLEAST, COUNT_EXACT, COUNT_ATMOS
 #define	SERVICE_STATE_FAILED	3	/**< The service failed to start */
 #define	SERVICE_STATE_STOPPED	4	/**< The service has been stopped */
 #define	SERVICE_STATE_OBSOLETE	5	/**< The service has been removed from the confguration */
+#define	SERVICE_STATE_DISABLED	6	/**< The service has been disabled */
 extern	SERVICE *service_alloc(const char *, const char *);
 extern	int	service_free(SERVICE *);
 extern	SERVICE *service_find(char *);
@@ -210,6 +211,7 @@ extern	int	serviceStartAll();
 extern	void	serviceStartProtocol(SERVICE *, char *, int);
 extern	int	serviceStop(SERVICE *);
 extern	int	serviceStopAll();
+int             serviceDisable(SERVICE *service);
 extern	int	serviceRestart(SERVICE *);
 extern	int	serviceRestartAll();
 extern	int	serviceSetUser(SERVICE *, char *, char *);

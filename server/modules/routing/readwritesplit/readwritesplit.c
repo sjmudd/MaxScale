@@ -961,7 +961,7 @@ static void closeSession(
                         backend_ref_t* bref = &backend_ref[i];
                         DCB* dcb = bref->bref_dcb;
                         /** Close those which had been connected */
-                        if (BREF_IS_IN_USE(bref))
+                        if (BREF_IS_IN_USE(bref) && dcb != NULL)
                         {
                                 CHK_DCB(dcb);
 #if defined(SS_DEBUG)
@@ -3512,6 +3512,7 @@ static bool select_connect_backend_servers(
 
                                 /** disconnect opened connections */
                                 dcb_close(backend_ref[i].bref_dcb);
+				backend_ref[i].bref_dcb = NULL;
                                 bref_clear_state(&backend_ref[i], BREF_IN_USE);
                                 /** Decrease backend's connection counter. */
                                 atomic_add(&backend_ref[i].bref_backend->backend_conn_count, -1);
@@ -3773,7 +3774,10 @@ static GWBUF* sescmd_cursor_process_replies(
 			     bref_set_state(bref,BREF_CLOSED);
 			     bref_set_state(bref,BREF_SESCMD_FAILED);
 			     if(bref->bref_dcb)
+			     {
 				 dcb_close(bref->bref_dcb);
+				 bref->bref_dcb = NULL;
+			     }
 			     *reconnect = true;
 			     if(replybuf)
 				 while((replybuf = gwbuf_consume(replybuf,gwbuf_length(replybuf))));
@@ -3807,7 +3811,10 @@ static GWBUF* sescmd_cursor_process_replies(
 				    bref_set_state(&ses->rses_backend_ref[i],BREF_CLOSED);
 				    bref_set_state(bref,BREF_SESCMD_FAILED);
 				    if(ses->rses_backend_ref[i].bref_dcb)
+				    {
 					dcb_close(ses->rses_backend_ref[i].bref_dcb);
+					ses->rses_backend_ref[i].bref_dcb = NULL;
+				    }
 				    *reconnect = true;
 				}
 			    }
