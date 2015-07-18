@@ -191,7 +191,7 @@ CONFIG_PARAMETER	*param, *p1;
 			LOGIF(LE, (skygw_log_write_flush(
                                 LOGFILE_ERROR,
                                 "Error : Configuration object '%s' has multiple "
-				"parameters names '%s'.",
+				"parameters named '%s'.",
                                 ptr->object, name)));
 			return 0;
 		}
