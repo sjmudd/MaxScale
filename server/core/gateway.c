@@ -836,14 +836,14 @@ static char* get_expanded_pathname(
                 errno = 0;
                 
                 fprintf(stderr,
-                        "*\n* Warning : Failed to read the "
+                        "*\n* Error : Failed to read the "
                         "directory %s. %s.\n*\n",
                         relative_path,
                         strerror(eno));
                 
                 skygw_log_write_flush(
                         LOGFILE_ERROR,
-                        "Warning : Failed to read the "
+                        "Error : Failed to read the "
                         "directory %s, due "
                         "to %d, %s.",
                         relative_path,
