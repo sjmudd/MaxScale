@@ -366,26 +366,30 @@ poll_remove_dcb(DCB *dcb)
          * Set state to NOPOLLING and remove dcb from poll set.
          */
         dcb->state = DCB_STATE_NOPOLLING;
+	spinlock_release(&dcb->dcb_initlock);
+
         /**
          * Only positive fds can be removed from epoll set.
-         * But this test was removed by Martin as it is hard to
-         * see that there should ever be a situation where 
-         * fd isn't positive and the DCB is also in the poll list.
+         * Cloned DCBs can have a state of DCB_STATE_POLLING but are not in 
+         * the epoll set and do not have a valid file descriptor.  Hence the
+         * only action for them is already done - the change of state to 
+         * DCB_STATE_NOPOLLING.
          */		 
-        /* if (dcb->fd > 0) { */
         spinlock_release(&dcb->dcb_initlock);
-        rc = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, dcb->fd, &ev);
-        /**
-         * The poll_resolve_error function will always
-         * return 0 or crash.  So if it returns non-zero result, 
-         * things have gone wrong and we crash.
-         */
-        if (rc) rc = poll_resolve_error(dcb, errno, false);
-        if (rc) raise(SIGABRT);
-        /*< Set bit for each maxscale thread */
-        bitmask_copy(&dcb->memdata.bitmask, poll_bitmask());
+        if (dcb->fd > 0) 
+        {
+            rc = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, dcb->fd, &ev);
+            /**
+             * The poll_resolve_error function will always
+             * return 0 or crash.  So if it returns non-zero result, 
+             * things have gone wrong and we crash.
+             */
+            if (rc) rc = poll_resolve_error(dcb, errno, false);
+            if (rc) raise(SIGABRT);
+            /*< Set bit for each maxscale thread */
+            bitmask_copy(&dcb->memdata.bitmask, poll_bitmask());
+        }
         return rc;
-        /* } */
 }
 
 /**
@@ -517,7 +521,6 @@ poll_waitevents(void *arg)
 struct epoll_event events[MAX_EVENTS];
 int		   i, nfds, timeout_bias = 1;
 intptr_t	   thread_id = (intptr_t)arg;
-DCB                *zombies = NULL;
 int		   poll_spins = 0;
 
 	/** Add this thread to the bitmask of running polling threads */
@@ -688,7 +691,7 @@ int		   poll_spins = 0;
 
 		if (thread_data)
 			thread_data[thread_id].state = THREAD_ZPROCESSING;
-		zombies = dcb_process_zombies(thread_id);
+		dcb_process_zombies(thread_id);
 		if (thread_data)
 			thread_data[thread_id].state = THREAD_IDLE;
 
@@ -873,16 +876,6 @@ unsigned long	qtime;
 		eno = gw_getsockerrno(dcb->fd);
 
 		if (eno == 0)  {
-#if MUTEX_BLOCK
-			simple_mutex_lock(&dcb->dcb_write_lock, true);
-			ss_info_dassert(!dcb->dcb_write_active,
-					"Write already active");
-			dcb->dcb_write_active = TRUE;
-			atomic_add(&pollStats.n_write, 1);
-			dcb->func.write_ready(dcb);
-			dcb->dcb_write_active = FALSE;
-			simple_mutex_unlock(&dcb->dcb_write_lock);
-#else
 			atomic_add(&pollStats.n_write, 1);
 			/** Read session id to thread's local storage */
 			LOGIF_MAYBE(LT, (dcb_get_ses_log_info(
@@ -890,7 +883,6 @@ unsigned long	qtime;
 						&tls_log_info.li_sesid, 
 						&tls_log_info.li_enabled_logs)));
 			dcb->func.write_ready(dcb);
-#endif
 		} else {
 			LOGIF(LD, (skygw_log_write(
 				LOGFILE_DEBUG,
@@ -906,12 +898,6 @@ unsigned long	qtime;
 	}
 	if (ev & EPOLLIN)
 	{
-#if MUTEX_BLOCK
-		simple_mutex_lock(&dcb->dcb_read_lock, true);
-		ss_info_dassert(!dcb->dcb_read_active, "Read already active");
-		dcb->dcb_read_active = TRUE;
-#endif
-		
 		if (dcb->state == DCB_STATE_LISTENING)
 		{
 			LOGIF(LD, (skygw_log_write(
@@ -945,11 +931,6 @@ unsigned long	qtime;
 				&tls_log_info.li_enabled_logs)));
 			dcb->func.read(dcb);
 		}
-#if MUTEX_BLOCK
-		dcb->dcb_read_active = FALSE;
-		simple_mutex_unlock(
-			&dcb->dcb_read_lock);
-#endif
 	}
 	if (ev & EPOLLERR)
 	{

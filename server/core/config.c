@@ -301,18 +301,18 @@ int		rval;
 static	int
 process_config_context(CONFIG_CONTEXT *context)
 {
-CONFIG_CONTEXT		*obj;
-int			error_count = 0;
-HASHTABLE* monitorhash;
+    CONFIG_CONTEXT  *obj;
+    int             error_count = 0;
+    HASHTABLE*      monitorhash;
 
-if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
-{
-    skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate ,onitor configuration check hashtable.");
-    return 0;
-}
+    if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
+    {
+        skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate ,monitor configuration check hashtable.");
+        return 0;
+    }
+    hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
 
-hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
-	/**
+    /**
 	 * Process the data and create the services and servers defined
 	 * in the data.
 	 */
@@ -1757,9 +1757,6 @@ SERVER			*server;
 					char *enable_root_user;
 					char *connection_timeout;
 					char *allow_localhost_match_wildcard_host;
-					char *auth_all_servers;
-					char *optimize_wildcard;
-					char *strip_db_esc;
 
 					enable_root_user = 
                                                 config_get_value(obj->parameters, 
@@ -1767,16 +1764,6 @@ SERVER			*server;
 
 					connection_timeout = config_get_value(obj->parameters,
                                                           "connection_timeout");
-					
-					auth_all_servers = 
-                                                config_get_value(obj->parameters, 
-                                                                 "auth_all_servers");
-					optimize_wildcard =
-                                                config_get_value(obj->parameters,
-                                                                 "optimize_wildcard");
-					strip_db_esc = 
-                                                config_get_value(obj->parameters, 
-                                                                 "strip_db_esc");
 
 					allow_localhost_match_wildcard_host = 
 						config_get_value(obj->parameters, "localhost_match_wildcard_host");
@@ -2066,6 +2053,7 @@ static char *monitor_params[] =
                 "passwd",
 		"script",
 		"events",
+		"mysql51_replication",
 		"monitor_interval",
 		"detect_replication_lag",
 		"detect_stale_master",

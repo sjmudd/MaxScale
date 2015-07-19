@@ -143,13 +143,11 @@ SESSION		*session = dcb->session;
 MAXSCALED	*maxscaled = (MAXSCALED *)dcb->protocol;
 char		*password;
 
-	if ((n = dcb_read(dcb, &head)) != -1)
+	if ((n = dcb_read(dcb, &head, 0)) != -1)
 	{
 
 		if (head)
 		{
-			unsigned char *ptr = GWBUF_DATA(head);
-			ptr = GWBUF_DATA(head);
 			if (GWBUF_LENGTH(head))
 			{
 				switch (maxscaled->state)

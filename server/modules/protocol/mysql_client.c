@@ -515,7 +515,7 @@ static int gw_mysql_do_authentication(DCB *dcb, GWBUF **buf) {
 		 * is not requesting SSL and the rest of the auth packet is still
 		 * waiting in the socket. We need to read the data from the socket
 		 * to find out the username of the connecting client. */
-		int bytes = dcb_read(dcb,&queue);
+		int bytes = dcb_read(dcb,&queue, 0);
 		queue = gwbuf_make_contiguous(queue);
 		client_auth_packet = GWBUF_DATA(queue);
 		client_auth_packet_size = gwbuf_length(queue);
@@ -641,10 +641,12 @@ gw_MySQLWrite_client(DCB *dcb, GWBUF *queue)
 int
 gw_MySQLWrite_client_SSL(DCB *dcb, GWBUF *queue)
 {
-    MySQLProtocol  *protocol = NULL;
     CHK_DCB(dcb);
+#ifdef SS_DEBUG
+    MySQLProtocol  *protocol = NULL;
     protocol = DCB_PROTOCOL(dcb, MySQLProtocol);
     CHK_PROTOCOL(protocol);
+#endif
     return dcb_write_SSL(dcb, queue);
 }
 
@@ -723,12 +725,12 @@ int gw_read_client_event(
 	     * read only enough of the auth packet to know if the client is
 	     * requesting SSL. If the client is not requesting SSL the rest of
 	     the auth packet will be read later. */
-	    rc = dcb_read_n(dcb, &read_buffer,(4 + 4 + 4 + 1 + 23));
+	    rc = dcb_read(dcb, &read_buffer,(4 + 4 + 4 + 1 + 23));
 	}
 	else
 	{
 	    /** Normal non-SSL connection */
-	    rc = dcb_read(dcb, &read_buffer);
+	    rc = dcb_read(dcb, &read_buffer, 0);
 	}
 
         if (rc < 0)
@@ -1050,13 +1052,6 @@ int gw_read_client_event(
 			     (char*)((MYSQL_session *)dcb->data)->db);
 
 		    modutil_send_mysql_err_packet(dcb, 3, 0, 1049, "42000", fail_str);
-		}else if(auth_val == 3){
-		    /** Send error 1045 to client */
-		    fail_str = create_auth_fail_str((char *)((MYSQL_session *)dcb->data)->user,
-					     dcb->remote,
-					     (char*)((MYSQL_session *)dcb->data)->client_sha1,
-					     (char*)((MYSQL_session *)dcb->data)->db,auth_val);
-		    modutil_send_mysql_err_packet(dcb, 3, 0, 1045, "28000", fail_str);
 		}else {
 		    /** Send error 1045 to client */
 		    fail_str = create_auth_fail_str((char *)((MYSQL_session *)dcb->data)->user,
@@ -1467,9 +1462,7 @@ int gw_MySQLListener(
         if (poll_add_dcb(listen_dcb) == -1) {
             fprintf(stderr,
                     "\n* MaxScale encountered system limit while "
-                    "attempting to register on an epoll instance.\n\n",
-                    errno,
-                    strerror(errno));
+                    "attempting to register on an epoll instance.\n\n");
 		return 0;
         }
 #if defined(FAKE_CODE)

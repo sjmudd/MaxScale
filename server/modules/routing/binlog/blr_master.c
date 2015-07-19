@@ -81,7 +81,8 @@ inline uint32_t extract_field(uint8_t *src, int bits);
 static void blr_log_packet(logfile_id_t file, char *msg, uint8_t *ptr, int len);
 static void blr_master_close(ROUTER_INSTANCE *);
 static char *blr_extract_column(GWBUF *buf, int col);
-
+void blr_cache_response(ROUTER_INSTANCE *router, char *response, GWBUF *buf);
+void poll_fake_write_event(DCB *dcb);
 static int keepalive = 1;
 
 /**
@@ -92,8 +93,9 @@ static int keepalive = 1;
  * @param	router		The router instance
  */
 void
-blr_start_master(ROUTER_INSTANCE *router)
+blr_start_master(void* data)
 {
+    ROUTER_INSTANCE *router = (ROUTER_INSTANCE*)data;
 DCB	*client;
 GWBUF	*buf;
 
@@ -728,7 +730,6 @@ int			no_residual = 1;
 int			preslen = -1;
 int			prev_length = -1;
 int			n_bufs = -1, pn_bufs = -1;
-static REP_HEADER	phdr;
 
 	/*
 	 * Prepend any residual buffer to the buffer chain we have
@@ -914,9 +915,10 @@ static REP_HEADER	phdr;
 				}
 				break;
 			}
-			phdr = hdr;
+
 			if (hdr.ok == 0)
 			{
+				int event_limit;
 				/*
 				 * First check that the checksum we calculate matches the
 				 * checksum in the packet we received.
@@ -957,8 +959,11 @@ static REP_HEADER	phdr;
 #ifdef SHOW_EVENTS
 				printf("blr: event type 0x%02x, flags 0x%04x, event size %d", hdr.event_type, hdr.flags, hdr.event_size);
 #endif
-				if (hdr.event_type >= 0 && hdr.event_type < 0x24)
+				event_limit = router->mariadb10_compat ? MAX_EVENT_TYPE_MARIADB10 : MAX_EVENT_TYPE;
+
+				if (hdr.event_type >= 0 && hdr.event_type <= event_limit)
 					router->stats.events[hdr.event_type]++;
+
 				if (hdr.event_type == FORMAT_DESCRIPTION_EVENT && hdr.next_pos == 0)
 				{
 					// Fake format description message
@@ -1245,8 +1250,8 @@ MYSQL_session	*auth_info;
 
 	if ((auth_info = calloc(1, sizeof(MYSQL_session))) == NULL)
 		return NULL;
-	strncpy(auth_info->user, username,MYSQL_USER_MAXLEN+1);
-	strncpy(auth_info->db, database,MYSQL_DATABASE_MAXLEN+1);
+	strncpy(auth_info->user, username,MYSQL_USER_MAXLEN);
+	strncpy(auth_info->db, database,MYSQL_DATABASE_MAXLEN);
 	gw_sha1_str((const uint8_t *)password, strlen(password), auth_info->client_sha1);
 
 	return auth_info;
