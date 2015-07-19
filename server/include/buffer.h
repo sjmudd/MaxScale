@@ -137,6 +137,7 @@ typedef struct gwbuf {
         SPINLOCK        gwbuf_lock;
 	struct gwbuf	*next;	/*< Next buffer in a linked chain of buffers */
 	struct gwbuf	*tail;	/*< Last buffer in a linked chain of buffers */
+	struct gwbuf	*nextallbuff;	/*< Next buffer in a linked chain of all buffers */
 	void		*start;	/*< Start of the valid data */
 	void		*end;	/*< First byte after the valid data */
 	SHARED_BUF	*sbuf;  /*< The shared buffer with the real data */

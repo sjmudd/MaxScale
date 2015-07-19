@@ -1139,19 +1139,22 @@ int	below_water;
          */
         while (queue != NULL)
         {
-            int qlen;
 #if defined(FAKE_CODE)
             dcb_write_fake_code(dcb);
 #endif /* FAKE_CODE */
-            qlen = GWBUF_LENGTH(queue);
             GW_NOINTR_CALL(
-                w = gw_write(dcb, GWBUF_DATA(queue), qlen);
+                w = gw_write(dcb, GWBUF_DATA(queue), GWBUF_LENGTH(queue));
                 dcb->stats.n_writes++;
             );
 
             if (w < 0)
             {
                 dcb_log_write_failure(dcb, queue, errno);
+		        /*<
+		         * What wasn't successfully written is stored to write queue
+		         * for suspended write.
+		         */
+		        dcb->writeq = queue;
                 atomic_add(&dcb->writeqlen, gwbuf_length(queue));
 		dcb->writeq = queue;
                 dcb->stats.n_buffered++;
@@ -1173,11 +1176,6 @@ int	below_water;
                 STRDCBSTATE(dcb->state),
                 dcb->fd)));
         } /*< while (queue != NULL) */
-        /*<
-         * What wasn't successfully written is stored to write queue
-         * for suspended write.
-         */
-        dcb->writeq = queue;
 
     } /* if (dcb->writeq) */
 
@@ -1227,16 +1225,17 @@ dcb_write_fake_code(DCB *dcb)
 static inline bool
 dcb_write_parameter_check(DCB *dcb, GWBUF *queue)
 {
+    if (queue == NULL) return false;
+    
     if (dcb->fd <= 0)
     {
         LOGIF(LE, (skygw_log_write_flush(
             LOGFILE_ERROR,
             "Error : Write failed, dcb is %s.",
             dcb->fd == DCBFD_CLOSED ? "closed" : "cloned, not writable")));
-            return false;
+        gwbuf_free(queue);
+        return false;
     }
-    
-    if (queue == NULL) return false;
     
     if (dcb->session == NULL || dcb->session->state != SESSION_STATE_STOPPING)
     {
@@ -1266,6 +1265,7 @@ dcb_write_parameter_check(DCB *dcb, GWBUF *queue)
                 STRDCBSTATE(dcb->state),
                 dcb->fd)));
             //ss_dassert(false);
+			gwbuf_free(queue);
             return false;
         }
     }

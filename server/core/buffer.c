@@ -52,6 +52,9 @@ extern int            lm_enabled_logfiles_bitmask;
 extern size_t         log_ses_count[];
 extern __thread log_info_t tls_log_info;
 
+static GWBUF	allBuffers = NULL;
+static SPINLOCK	allbuffspin = SPINLOCK_INIT;
+
 static buffer_object_t* gwbuf_remove_buffer_object(
         GWBUF*           buf,
         buffer_object_t* bufobj);
@@ -97,6 +100,10 @@ SHARED_BUF	*sbuf;
 		rval = NULL;
 		goto retblock;
 	}
+	spinlock_acquire(&allbuffspin);
+	rval->nextallbuff = allBuffers;
+	allBuffers = rval;
+	spinlock_release(&allbuffspin);
 	spinlock_init(&rval->gwbuf_lock);
 	rval->start = sbuf->data;
 	rval->end = (void *)((char *)rval->start+size);
@@ -161,6 +168,21 @@ BUF_PROPERTY	*prop;
                 buf->hint = buf->hint->next;
                 hint_free(h);
         }
+	spinlock_acquire(&allbuffspin);
+	GWBUF previous = NULL;
+	GWBUF trybuff = allBuffers;
+	while (trybuff && trybuff != buf) trybuff = trybuff->nextallbuff;
+	if (trybuff && trybuff == buf)
+	{
+		if (previous) {
+			previous->nextallbuff = buf->nextallbuff;
+		}
+		else {
+			allBuffers = buf->nextallbuff;
+		}
+	}
+	else raise(SIGABRT);
+	spinlock_release(&allbuffspin);
 	free(buf);
 }
 
