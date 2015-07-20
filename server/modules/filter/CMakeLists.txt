@@ -34,6 +34,10 @@ add_library(namedserverfilter SHARED namedserverfilter.c)
 target_link_libraries(namedserverfilter log_manager utils)
 install(TARGETS namedserverfilter DESTINATION ${MAXSCALE_LIBDIR})
 
+add_library(canonfilter SHARED canonfilter.c)
+target_link_libraries(canonfilter log_manager utils query_classifier)
+install(TARGETS canonfilter DESTINATION ${MAXSCALE_LIBDIR})
+
 if(BUILD_SLAVELAG)
   add_library(slavelag SHARED slavelag.c)
   target_link_libraries(slavelag log_manager utils query_classifier)
