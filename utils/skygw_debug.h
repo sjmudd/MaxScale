@@ -285,7 +285,15 @@ typedef enum skygw_chk_t {
 			(t == TARGET_NAMED_SERVER ? "TARGET_NAMED_SERVER" : 	\
 			(t == TARGET_UNDEFINED ? "TARGET_UNDEFINED" : 		\
 			"Unknown target value")))))
-                        
+
+#define STRSERVICESTATE(t)	(t == SERVICE_STATE_ALLOC ? "Allocated" : \
+			(t == SERVICE_STATE_DISABLED ? "Disabled" : \
+			(t == SERVICE_STATE_FAILED ? "Failed" : \
+			(t == SERVICE_STATE_OBSOLETE ? "Obsolete" : \
+			(t == SERVICE_STATE_STARTED ? "Started" : \
+                        (t == SERVICE_STATE_STOPPED ? "Stopped" : \
+			"Unknown state"))))))
+
 #define BREFSRV(b)	(b->bref_backend->backend_server)
                         
                         

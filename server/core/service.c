@@ -1660,6 +1660,8 @@ int		i;
 	dcb_printf(dcb, "Service %p\n", service);
 	dcb_printf(dcb, "\tService:				%s\n",
 						service->name);
+	dcb_printf(dcb, "\tStatus:				%s\n",
+						STRSERVICESTATE(service->state));
 	dcb_printf(dcb, "\tRouter: 				%s (%p)\n",
 			service->routerModule, service->router);
 	switch (service->state)
