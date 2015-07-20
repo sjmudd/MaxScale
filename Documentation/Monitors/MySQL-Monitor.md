@@ -98,6 +98,14 @@ A list of event names which cause the script to be executed. If this option is n
 events=master_down,slave_down
 ```
 
+### `mysql51_replication`
+
+Enable support for MySQL 5.1 replication monitoring. This is needed if a MySQL server older than 5.5 is used as a slave in replication.
+
+```
+mysql51_replication=true
+```
+
 ## Script events
 
 Here is a table of all possible event types and their descriptions.
@@ -124,9 +132,11 @@ Here is an example shell script which sends an email to an admin when a server g
 #!/usr/bin/env bash
 
 #This script assumes that the local mail server is configured properly
-
+#The second argument is the event type
+event=${$2/.*=/}
+server=${$3/.*=/}
 message="A server has gone down at `date`."
-echo $message|mail -s "A server has gone down" admin@my.org
+echo $message|mail -s "The event was $event for server $server." admin@my.org
 
 ```
 
