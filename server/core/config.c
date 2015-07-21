@@ -554,14 +554,6 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 				version_string = config_get_value(obj->parameters, 
 								  "version_string");
 
-				if(subservices)
-				{
-				    service_set_param_value(obj->element,
-						     obj->parameters,
-						     subservices,
-						     1,STRING_TYPE);
-				}
-
 				/** flag for rwsplit-specific parameters */
 				if (strncmp(router, "readwritesplit", strlen("readwritesplit")+1) == 0)
 				{
@@ -580,9 +572,17 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
                                                 "Router %s is not loaded.",
                                                 obj->object,
                                                 obj->object)));
-                                        obj = obj->next;
-                                        continue; /*< process next obj */
+                                        error_count++;
+                                        break; /*< process next obj */
                                 }
+
+				if(subservices)
+				{
+				    service_set_param_value(obj->element,
+						     obj->parameters,
+						     subservices,
+						     1,STRING_TYPE);
+				}
 
                                 if (version_string) {
 
@@ -591,8 +591,14 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 				     * This mimics MariaDB 10.0 replication which adds 5.5.5- for backwards compatibility. */
 				    if(strncmp(version_string,"10.",3) == 0)
 				    {
-					((SERVICE *)(obj->element))->version_string = malloc((strlen(version_string) +
-						strlen("5.5.5-") + 1) * sizeof(char));
+					if((((SERVICE *)(obj->element))->version_string = malloc((strlen(version_string) +
+						strlen("5.5.5-") + 1) * sizeof(char))) == NULL)
+					{
+					    skygw_log_write(LE,"Error: Memory allocation failed in [%s] %s:%d",
+						     __FUNCTION__,__FILE__,__LINE__);
+					    error_count++;
+					    break;
+					}
 					strcpy(((SERVICE *)(obj->element))->version_string,"5.5.5-");
 					strcat(((SERVICE *)(obj->element))->version_string,version_string);
 				    }
@@ -830,6 +836,13 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 				obj->element = server_alloc(address,
                                                             protocol,
                                                             atoi(port));
+				if(obj->element == NULL)
+				{
+				    skygw_log_write(LE,"Error: Server creation failed: %s:%d(%s)",
+					     address,port,protocol);
+				    error_count++;
+				    break;
+				}
 				server_set_unique_name(obj->element, obj->object);
 			}
 			else
