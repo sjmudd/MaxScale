@@ -1983,6 +1983,7 @@ static bool route_single_stmt(
 	skygw_query_type_t qtype          = QUERY_TYPE_UNKNOWN;
 	mysql_server_cmd_t packet_type;
 	uint8_t*           packet;
+	size_t		   packet_len;
 	int                ret            = 0;
 	DCB*               master_dcb     = NULL;
 	DCB*               target_dcb     = NULL;
@@ -1991,10 +1992,7 @@ static bool route_single_stmt(
 	int                rlag_max       = MAX_RLAG_UNDEFINED;
 	backend_type_t     btype; /*< target backend type */
 
-
 	ss_dassert(!GWBUF_IS_TYPE_UNDEFINED(querybuf));
-	packet = GWBUF_DATA(querybuf);
-	packet_type = packet[4];
 
 	/**
 	 * Read stored master DCB pointer. If master is not set, routing must
@@ -2022,6 +2020,18 @@ static bool route_single_stmt(
 	{
 		querybuf = gwbuf_make_contiguous(querybuf);
 	}
+
+	packet = GWBUF_DATA(querybuf);
+	packet_len = gw_mysql_get_byte3(packet);
+	
+	if(packet_len == 0)
+	{
+	    route_target = TARGET_MASTER;
+	    packet_type = MYSQL_COM_UNDEFINED;
+	}
+	else
+	{
+	    packet_type = packet[4];
 
 	switch(packet_type) {
 		case MYSQL_COM_QUIT:        /*< 1 QUIT will close all sessions */
@@ -2237,7 +2247,7 @@ static bool route_single_stmt(
 		}
 		goto retblock;
 	}
-
+	}
 	/** Lock router session */
 	if (!rses_begin_locked_router_action(rses))
 	{
@@ -2457,8 +2467,8 @@ static bool route_single_stmt(
 			rses_end_locked_router_action(rses);
 			goto retblock;
 		}
-
-		if ((ret = target_dcb->func.write(target_dcb, gwbuf_clone(querybuf))) == 1)
+		GWBUF* wbuf = gwbuf_clone(querybuf);
+		if ((ret = target_dcb->func.write(target_dcb, wbuf)) == 1)
 		{
 			backend_ref_t* bref;
 
@@ -2472,7 +2482,8 @@ static bool route_single_stmt(
 		}
 		else
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+		    gwbuf_free(wbuf);
+			LOGIF((LE|LT), (skygw_log_write_flush(
 				LOGFILE_ERROR,
 				"Error : Routing query failed.")));
 			succp = false;
@@ -3793,7 +3804,7 @@ static GWBUF* sescmd_cursor_process_replies(
                         /** Mark the rest session commands as replied */
                         scmd->my_sescmd_is_replied = true;
                         scmd->reply_cmd = *((unsigned char*)replybuf->start + 4);
-			skygw_log_write(LOGFILE_DEBUG,"Master '%s' responded to a session command.",
+			skygw_log_write(LT,"Master '%s' responded to a session command.",
 			     bref->bref_backend->backend_server->unique_name);
 			int i;
 
@@ -3816,6 +3827,11 @@ static GWBUF* sescmd_cursor_process_replies(
 					ses->rses_backend_ref[i].bref_dcb = NULL;
 				    }
 				    *reconnect = true;
+				    skygw_log_write(LT,"Disabling slave %s:%d, result differs from master's result. Master: %d Slave: %d",
+					    ses->rses_backend_ref[i].bref_backend->backend_server->name,
+					     ses->rses_backend_ref[i].bref_backend->backend_server->port,
+					     bref->reply_cmd,
+					     ses->rses_backend_ref[i].reply_cmd);
 				}
 			    }
 			}
@@ -3823,11 +3839,17 @@ static GWBUF* sescmd_cursor_process_replies(
                 }
 		else
 		{
-		    skygw_log_write(LOGFILE_DEBUG,"Slave '%s' responded faster to a session command.",
-			     bref->bref_backend->backend_server->unique_name);
+		    skygw_log_write(LT,"Slave '%s' responded before master to a session command. Result: %d",
+			     bref->bref_backend->backend_server->unique_name,
+			     (int)bref->reply_cmd);
+		    if(bref->reply_cmd == 0xff)
+		    {
+			SERVER* serv = bref->bref_backend->backend_server;
+			skygw_log_write(LE,"Error: Slave '%s' (%s:%u) failed to execute session command.",
+				 serv->unique_name,serv->name,serv->port);
+		    }
 		    if(replybuf)
 			while((replybuf = gwbuf_consume(replybuf,gwbuf_length(replybuf))));
-		    return NULL;
 		}
 
 
