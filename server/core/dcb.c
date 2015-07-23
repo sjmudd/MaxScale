@@ -558,8 +558,6 @@ dcb_process_victim_queue(DCB *listofdcb)
             }  
             else 
             {
-		if(dcb->server)
-		    atomic_add(&dcb->server->stats.n_current,-1);
                 dcb->fd = DCBFD_CLOSED;
 				
                 LOGIF(LD, (skygw_log_write_flush(
