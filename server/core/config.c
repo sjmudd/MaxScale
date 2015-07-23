@@ -1546,6 +1546,10 @@ CONFIG_CONTEXT		*obj;
 
 	/** Disable obsolete services */
 	serviceRemoveObsolete(context);
+
+	/** Disable obsolete monitors */
+	monitor_disable_obsolete(context);
+
 	/**
 	 * Process the data and create the services and servers defined
 	 * in the data.
@@ -2579,7 +2583,6 @@ void config_monitor_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context) {
 
 	if (running) {
 		monitorStop(running);
-		running->state = MONITOR_STATE_DISABLED;
 		config_add_monitor(obj, context, running);
 	} else {
 		config_add_monitor(obj, context, NULL);
@@ -2641,8 +2644,6 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 			if (gateway.id == 0) {
 				gateway.id = getpid();
 			}
-
-			monitorStart(obj->element,obj->parameters);
 
 			/* set monitor interval */
 			if (interval > 0)
@@ -2719,6 +2720,8 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 				obj->object)));
 			error_count++;
 		}
+
+		monitorStart(obj->element,obj->parameters);
 	}
 	else
 	{

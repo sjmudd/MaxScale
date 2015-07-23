@@ -152,7 +152,7 @@ void
 monitorStop(MONITOR *monitor)
 {
     MONITOR_SERVERS* ptr;
-    if(monitor->state != MONITOR_STATE_STOPPED)
+    if(monitor->state != MONITOR_STATE_STOPPED && monitor->state != MONITOR_STATE_DISABLED)
     {
 	ptr = monitor->databases;
 	monitor->state = MONITOR_STATE_STOPPING;
@@ -324,6 +324,7 @@ MONITOR	*ptr;
 		if(ptr->state != MONITOR_STATE_DISABLED)
 		{
 		dcb_printf(dcb, "\tName:		%s\n", ptr->name);
+		dcb_printf(dcb, "\tModule:		%s\n", ptr->module_name);
 		if (ptr->module->diagnostics)
 			ptr->module->diagnostics(dcb, ptr);
 		}
@@ -343,6 +344,7 @@ monitorShow(DCB *dcb, MONITOR *monitor)
 
 	dcb_printf(dcb, "Monitor: %p\n", monitor);
 	dcb_printf(dcb, "\tName:		%s\n", monitor->name);
+	dcb_printf(dcb, "\tModule:		%s\n", monitor->module_name);
 	if (monitor->module->diagnostics)
 		monitor->module->diagnostics(dcb, monitor);
 }
@@ -553,4 +555,34 @@ MONITOR_SERVERS *ptr;
 	spinlock_release(&monitor->lock);
 
 	return ptr != NULL;
+}
+
+void monitor_disable_obsolete(CONFIG_CONTEXT* ctx)
+{
+    MONITOR* mymonitor;
+    CONFIG_CONTEXT* ptr;
+    CONFIG_PARAMETER* module;
+
+    spinlock_acquire(&monLock);
+    mymonitor = allMonitors;
+    spinlock_release(&monLock);
+
+    while(mymonitor)
+    {
+	ptr = ctx;
+	while(ptr)
+	{
+	    if(strcmp(ptr->object,mymonitor->name) == 0)
+	    {
+		module = config_get_param(ptr->parameters,"module");
+		if(module && strcmp(module->value,mymonitor->module_name) != 0)
+		    mymonitor->state = MONITOR_STATE_DISABLED;
+		else
+		    mymonitor->state = MONITOR_STATE_STOPPED;
+		break;
+	    }
+	    ptr = ptr->next;
+	}
+	mymonitor = mymonitor->next;
+    }
 }

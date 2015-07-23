@@ -175,4 +175,5 @@ extern void     monitorSetInterval (MONITOR *, unsigned long);
 extern void     monitorSetNetworkTimeout(MONITOR *, int, int);
 extern RESULTSET *monitorGetList();
 extern int	monitorHasBackend(MONITOR *, SERVER *);
+void monitor_disable_obsolete(CONFIG_CONTEXT* ctx);
 #endif
