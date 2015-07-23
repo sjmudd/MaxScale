@@ -2285,6 +2285,10 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 				{
 				    config_handle_ssl(service,ssl,ssl_cert,ssl_key,ssl_ca_cert,ssl_version,ssl_cert_verify_depth);
 				}
+				else
+				{
+				    serviceSetSSL(service,"disabled");
+				}
 			}
 
 			obj->element = service;

@@ -210,6 +210,8 @@ int		listeners = 0;
 char		config_bind[40];
 GWPROTOCOL	*funcs;
 
+	ss_dassert(port->listener == NULL);
+
         port->listener = dcb_alloc(DCB_ROLE_SERVICE_LISTENER);
 
         if (port->listener == NULL)
