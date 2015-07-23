@@ -2850,6 +2850,8 @@ int config_reload_service(void* data)
 	config_service_update_objects(ptr,ctx.next);
 	if(service->state == SERVICE_STATE_FAILED)
 	    rval = -1;
+	else
+	    serviceRestart(service);
     }
     config_free_config(ctx.next);
     return rval;

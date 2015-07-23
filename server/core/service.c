@@ -422,6 +422,27 @@ retblock:
 }
 
 /**
+ * Stop listening to a port.
+ * @param service Service
+ * @param port Port to stop
+ */
+void serviceStopPort(SERVICE *service, SERV_PROTOCOL *port)
+{
+    DCB* dcb;
+
+    if(port->listener == NULL)
+	return;
+
+    dcb = port->listener;
+    port->listener = NULL;
+
+    spinlock_acquire(&dcb->authlock);
+     /** We must close the socket early to  allow other services to bind on the same port */
+    close(dcb->fd);
+    dcb->fd = DCBFD_CLOSED;
+    spinlock_release(&dcb->authlock);
+}
+/**
  * Start a service
  *
  * This function loads the protocol modules for each port on which the
@@ -552,13 +573,16 @@ int	n = 0,i;
  * This function stops the listener for the service
  *
  * @param service	The Service that should be stopped
- * @return	Returns the number of listeners restarted
+ * @return	Returns the number of listeners stopped
  */
 int
 serviceStop(SERVICE *service)
 {
 SERV_PROTOCOL	*port;
 int		listeners = 0;
+
+if(service->state == SERVICE_STATE_OBSOLETE)
+    return 1;
 
 	port = service->ports;
 	while (port)
@@ -1551,8 +1575,12 @@ SERVICE 	*service;
 
 	spinlock_acquire(&service_spin);
 	service = allServices;
-	while (service && strcmp(service->name, servname) != 0)
-		service = service->next;
+	while (service)
+	{
+	    if(service->state != SERVICE_STATE_OBSOLETE && strcmp(servname,service->name) == 0)
+		break;
+	    service = service->next;
+	}
 	spinlock_release(&service_spin);
 
 	return service;
@@ -2524,6 +2552,7 @@ int serviceInitSSL(SERVICE* service)
 void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
 {
     CONFIG_CONTEXT* ptr;
+    CONFIG_PARAMETER* param;
     SERVICE* service;
     SERV_PROTOCOL* ports;
     spinlock_acquire(&service_spin);
@@ -2537,7 +2566,9 @@ void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
 	{
 	    if(strcmp(ptr->object,service->name) == 0)
 	    {
-		obsolete = false;
+		param = config_get_param(ptr->parameters,"router");
+		if(param && strcmp(param->value,service->routerModule) == 0)
+		    obsolete = false;
 		break;
 	    }
 	    ptr = ptr->next;
@@ -2548,10 +2579,24 @@ void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
 	    ports = service->ports;
 	    while(ports)
 	    {
-		dcb_close(ports->listener);
-		ports->listener = NULL;
+		serviceStopPort(service,ports);
 		ports = ports->next;
 	    }
+
+	    if(service->resources)
+	    {
+		hashtable_free(service->resources);
+		service->resources = NULL;
+	    }
+
+	    if(service->users)
+	    {
+		if(service->users->data)
+		    hashtable_free(service->users->data);
+		free(service->users);
+		service->users = NULL;
+	    }
+
 	    service->state = SERVICE_STATE_OBSOLETE;
 	}
 	service = service->next;

@@ -1171,7 +1171,10 @@ reload_filter(DCB *dcb, FILTER_DEF *filter)
 static void
 reload_service(DCB *dcb, SERVICE* service)
 {
-    int rval = config_reload_service(service);
+    int rval;
+
+    serviceStop(service);
+    rval = config_reload_service(service);
 
     if(rval == 0)
     {
