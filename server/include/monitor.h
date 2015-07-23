@@ -92,7 +92,8 @@ typedef enum
 	MONITOR_STATE_RUNNING	= 0x01,
 	MONITOR_STATE_STOPPING	= 0x02,
 	MONITOR_STATE_STOPPED	= 0x04,
-	MONITOR_STATE_FREED	= 0x08
+	MONITOR_STATE_FREED	= 0x08,
+        MONITOR_STATE_DISABLED =  0x10
 } monitor_state_t;
 
 /**
@@ -140,6 +141,7 @@ typedef struct monitor {
 	char		*name;		/**< The name of the monitor module */
         char* user; /*< Monitor username */
         char* password; /*< Monitor password */
+        char* module_name; /*< Monitor module name */
         SPINLOCK lock;
         MONITOR_SERVERS* databases; /*< List of databases the monitor monitors */
 	monitor_state_t state;		/**< The state of the monitor */

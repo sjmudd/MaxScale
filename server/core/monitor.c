@@ -79,6 +79,7 @@ MONITOR	*mon;
 	}
 	mon->state = MONITOR_STATE_ALLOC;
 	mon->name = strdup(name);
+	mon->module_name = strdup(module);
 	mon->handle = NULL;
 	mon->databases = NULL;
 	mon->password = NULL;
@@ -123,6 +124,7 @@ MONITOR	*ptr;
 	}
 	spinlock_release(&monLock);
 	free(mon->name);
+	free(mon->module_name);
 	free(mon);
 }
 
@@ -319,9 +321,12 @@ MONITOR	*ptr;
 	while (ptr)
 	{
 		dcb_printf(dcb, "Monitor: %p\n", ptr);
+		if(ptr->state != MONITOR_STATE_DISABLED)
+		{
 		dcb_printf(dcb, "\tName:		%s\n", ptr->name);
 		if (ptr->module->diagnostics)
 			ptr->module->diagnostics(dcb, ptr);
+		}
 		ptr = ptr->next;
 	}
 	spinlock_release(&monLock);
@@ -359,9 +364,12 @@ MONITOR	*ptr;
 	dcb_printf(dcb, "---------------------+---------------------\n");
 	while (ptr)
 	{
+	    if(ptr->state != MONITOR_STATE_DISABLED)
+	    {
 		dcb_printf(dcb, "%-20s | %s\n", ptr->name,
 			ptr->state & MONITOR_STATE_RUNNING
 					? "Running" : "Stopped");
+	    }
 		ptr = ptr->next;
 	}
 	dcb_printf(dcb, "---------------------+---------------------\n");
@@ -383,7 +391,7 @@ MONITOR	*ptr;
 	ptr = allMonitors;
 	while (ptr)
 	{
-		if (!strcmp(ptr->name, name))
+		if (!strcmp(ptr->name, name) && ptr->state != MONITOR_STATE_DISABLED)
 			break;
 		ptr = ptr->next;
 	}

@@ -2579,6 +2579,7 @@ void config_monitor_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context) {
 
 	if (running) {
 		monitorStop(running);
+		running->state = MONITOR_STATE_DISABLED;
 		config_add_monitor(obj, context, running);
 	} else {
 		config_add_monitor(obj, context, NULL);
@@ -2627,7 +2628,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 		
 	if (module) {
 		/* get running monitor pointer or allocate a new one */
-		if (running) {
+		if (running && strcmp(running->module_name,module) == 0) {
 			obj->element = running;
 		} else {
 			obj->element = monitor_alloc(obj->object, module);
