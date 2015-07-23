@@ -830,6 +830,7 @@ SERV_PROTOCOL	*proto;
 	{
 		return 0;
 	}
+	proto->listener = NULL;
 	proto->protocol = strdup(protocol);
 	if (address)
 		proto->address = strdup(address);
@@ -1513,21 +1514,8 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 	    spinlock_release(&service->spin);
 	    return;
 	}
-	serviceStop(service);
-	service->state = SERVICE_STATE_FAILED;
+	service->state = SERVICE_STATE_STARTED;
 	spinlock_release(&service->spin);
-	return;
-    }
-
-    /** Start new ports */
-    SERV_PROTOCOL* ptr = service->ports;
-    while(ptr)
-    {
-	if(ptr->listener == NULL)
-	{
-	    serviceStartPort(service,ptr);
-	}
-	ptr = ptr->next;
     }
 
     if(service->ssl_mode != SSL_DISABLED)

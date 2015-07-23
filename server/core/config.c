@@ -1603,10 +1603,6 @@ CONFIG_CONTEXT		*obj;
 		{
 			config_service_update_objects(obj, context);
 		}
-		else if (!strcmp(type, "listener"))
-		{
-			config_listener_update(obj, context);
-		}
 		else if (!strcmp(type, "monitor"))
 		{
 			config_monitor_update(obj, context);
@@ -1622,6 +1618,17 @@ CONFIG_CONTEXT		*obj;
                                 obj->object)));
 		}
 		obj = obj->next;
+	}
+
+	obj = context;
+	while(obj)
+	{
+	    char *type = config_get_value(obj->parameters, "type");
+	    if (type && strcmp(type, "listener") == 0)
+	    {
+		config_listener_update(obj, context);
+	    }
+	    obj = obj->next;
 	}
 
 #ifdef SS_DEBUG
