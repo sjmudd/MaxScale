@@ -201,6 +201,7 @@ extern char	*server_status(SERVER *);
 extern void	server_set_status(SERVER *, int);
 extern void	server_clear_status(SERVER *, int);
 extern void	serverAddMonUser(SERVER *, char *, char *);
+void            serverClearParameters(SERVER* server);
 extern void	serverAddParameter(SERVER *, char *, char *);
 extern char	*serverGetParameter(SERVER *, char *);
 extern void	server_update(SERVER *, char *, char *, char *, char*, unsigned short);

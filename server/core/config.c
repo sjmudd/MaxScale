@@ -1609,7 +1609,8 @@ CONFIG_CONTEXT		*obj;
 		}
 		else if (strcmp(type, "server") != 0 &&
                          strcmp(type, "monitor") != 0 &&
-			 strcmp(type, "filter") != 0)
+			 strcmp(type, "filter") != 0 &&
+			 strcmp(type, "listener") != 0)
 		{
 			LOGIF(LE, (skygw_log_write_flush(
                                 LOGFILE_ERROR,
@@ -2144,6 +2145,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			char *allow_localhost_match_wildcard_host;
 			char *ssl,*ssl_cert,*ssl_key,*ssl_ca_cert,*ssl_version;
 			char* ssl_cert_verify_depth;
+			char* weightby;
 
 			ssl = config_get_value(obj->parameters, "ssl");
 			ssl_cert = config_get_value(obj->parameters, "ssl_cert");
@@ -2151,7 +2153,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			ssl_ca_cert = config_get_value(obj->parameters, "ssl_ca_cert");
 			ssl_version = config_get_value(obj->parameters, "ssl_version");
 			ssl_cert_verify_depth = config_get_value(obj->parameters, "ssl_cert_verify_depth");
-
+			weightby = config_get_value(obj->parameters, "weightby");
 			enable_root_user = config_get_value(obj->parameters, "enable_root_user");
 
 			connection_timeout = config_get_value(obj->parameters, "connection_timeout");
@@ -2194,7 +2196,8 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 					serviceEnableLocalhostMatchWildcardHost(
 						service,
 						config_truth_value(allow_localhost_match_wildcard_host));
-                                               
+
+				serviceWeightBy(service,weightby);
 				/** Read, validate and set max_slave_connections */        
 				max_slave_conn_str = config_get_value(
 							obj->parameters, 
@@ -2305,6 +2308,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			char *strip_db_esc;
 			char *ssl,*ssl_cert,*ssl_key,*ssl_ca_cert,*ssl_version;
 			char* ssl_cert_verify_depth;
+			char* weightby;
 
 			ssl = config_get_value(obj->parameters, "ssl");
 			ssl_cert = config_get_value(obj->parameters, "ssl_cert");
@@ -2313,7 +2317,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			ssl_version = config_get_value(obj->parameters, "ssl_version");
 			ssl_cert_verify_depth = config_get_value(obj->parameters, "ssl_cert_verify_depth");
 			enable_root_user = config_get_value(obj->parameters, "enable_root_user");
-
+			weightby = config_get_value(obj->parameters, "weightby");
 			connection_timeout = config_get_value(obj->parameters, "connection_timeout");
 					
 			auth_all_servers = config_get_value(obj->parameters, "auth_all_servers");
@@ -2334,7 +2338,8 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			    serviceOptimizeWildcard(obj->element,config_truth_value(optimize_wildcard));
 			if(strip_db_esc)
 			    serviceStripDbEsc(obj->element,config_truth_value(strip_db_esc));
-			
+
+			serviceWeightBy(service,weightby);
 			if (obj->element && user && auth)
 			{
 				serviceSetUser(obj->element, user, auth);
@@ -2380,6 +2385,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 
 void config_server_update(CONFIG_CONTEXT *obj) {
 	SERVER *server;
+	CONFIG_PARAMETER* params;
 	char *address;
 	char *port;
 	char *protocol;
@@ -2404,7 +2410,9 @@ void config_server_update(CONFIG_CONTEXT *obj) {
 				monpw,
 				 address,
 				 atoi(port));
+			serverClearParameters(server);
 			obj->element = server;
+
 		}
 		else
 		{
@@ -2420,6 +2428,25 @@ void config_server_update(CONFIG_CONTEXT *obj) {
 					monuser,
 					monpw);
 			}
+		}
+
+		params = obj->parameters;
+		while (params)
+		{
+		    if (strcmp(params->name, "address") &&
+		     strcmp(params->name, "port") &&
+		     strcmp(params->name,"protocol") &&
+		     strcmp(params->name,"monitoruser") &&
+		     strcmp(params->name,"monitorpw") &&
+		     strcmp(params->name,"type") &&
+		     strcmp(params->name,"persistpoolmax") &&
+		     strcmp(params->name,"persistmaxtime"))
+		    {
+			serverAddParameter(obj->element,
+					 params->name,
+					 params->value);
+		    }
+		    params = params->next;
 		}
 	}
 	else

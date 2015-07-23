@@ -2173,8 +2173,13 @@ void
 serviceWeightBy(SERVICE *service, char *weightby)
 {
 	if (service->weightby)
+	{
 		free(service->weightby);
-	service->weightby = strdup(weightby);
+		service->weightby = NULL;
+	}
+
+	if(weightby != NULL)
+	    service->weightby = strdup(weightby);
 }
 
 /**

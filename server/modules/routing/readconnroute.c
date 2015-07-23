@@ -393,7 +393,7 @@ updateInstance(ROUTER *instance, SERVICE *service, char **options)
 {
     ROUTER_INSTANCE * inst = (ROUTER_INSTANCE*)instance;
     int n,i;
-    char* weightby;
+    char *weightby,*value;
     SERVER_REF* sref;
     BACKEND* backend;
 
@@ -434,14 +434,28 @@ updateInstance(ROUTER *instance, SERVICE *service, char **options)
     }
     inst->servers[n] = NULL;
 
+    inst->bitmask = 0;
+    inst->bitvalue = 0;
+    if (options)
+    {
+	process_options(inst,options);
+
+    }
+    if(inst->bitmask == 0 && inst->bitvalue == 0)
+    {
+	/** No parameters given, use RUNNING as a valid server */
+	inst->bitmask |= (SERVER_RUNNING);
+	inst->bitvalue |= SERVER_RUNNING;
+    }
+
     if ((weightby = serviceGetWeightingParameter(service)) != NULL)
     {
 	int total = 0;
 	for (n = 0; inst->servers[n]; n++)
 	{
 	    backend = inst->servers[n];
-	    total += atoi(serverGetParameter(backend->server,
-					     weightby));
+	    if((value = serverGetParameter(backend->server,weightby)) != NULL)
+		total += atoi(value);
 	}
 	if (total == 0)
 	{
@@ -478,19 +492,6 @@ updateInstance(ROUTER *instance, SERVICE *service, char **options)
 	}
     }
 
-    inst->bitmask = 0;
-    inst->bitvalue = 0;
-    if (options)
-    {
-	process_options(inst,options);
-
-    }
-    if(inst->bitmask == 0 && inst->bitvalue == 0)
-    {
-	/** No parameters given, use RUNNING as a valid server */
-	inst->bitmask |= (SERVER_RUNNING);
-	inst->bitvalue |= SERVER_RUNNING;
-    }
     return 0;
 }
 

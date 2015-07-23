@@ -766,7 +766,25 @@ server_update(SERVER *server, char *protocol, char *user, char *passwd, char* ad
     server->has_changed = changed;
 }
 
+/**
+ * Clear all server parameters.
+ * @param server Server to clear
+ */
+void serverClearParameters(SERVER* server)
+{
+    SERVER_PARAM* param = server->parameters;
+    SERVER_PARAM* tmp;
 
+    while(param)
+    {
+	tmp = param;
+	param = param->next;
+	free(tmp->name);
+	free(tmp->value);
+	free(tmp);
+    }
+    server->parameters = NULL;
+}
 /**
  * Add a server parameter to a server.
  *
