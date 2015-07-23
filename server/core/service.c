@@ -437,6 +437,7 @@ void serviceStopPort(SERVICE *service, SERV_PROTOCOL *port)
 
     dcb = port->listener;
     port->listener = NULL;
+    dcb_close(dcb);
 
     spinlock_acquire(&dcb->authlock);
      /** We must close the socket early to  allow other services to bind on the same port */
@@ -583,7 +584,8 @@ serviceStop(SERVICE *service)
 SERV_PROTOCOL	*port;
 int		listeners = 0;
 
-if(service->state == SERVICE_STATE_OBSOLETE)
+if(service->state == SERVICE_STATE_OBSOLETE ||
+   service->state  == SERVICE_STATE_DISABLED)
     return 1;
 
 	port = service->ports;
@@ -636,23 +638,24 @@ int		listeners = 0;
 
 	while (port)
 	{
-	    if(port->listener)
-	    {
-		portdcb = port->listener;
-		port->listener = NULL;
-		port = port->next;
-		dcb_close(portdcb);
-		listeners++;
-	    }
-	    else
-		port = port->next;
+	    serviceStopPort(service,port);
+	    port = port->next;
 
 	}
 	service->state = SERVICE_STATE_DISABLED;
-
 	return listeners;
 }
 
+/**
+ * Set the service into obsolete state.
+ * This closes all listeners for the service.
+ * @param service Service to obsolete
+ */
+void serviceObsolete(SERVICE* service)
+{
+    serviceDisable(service);
+    service->state = SERVICE_STATE_OBSOLETE;
+}
 /**
  * Stop all the services
  *
@@ -1467,7 +1470,7 @@ serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context, char *filters)
     service->filters = NULL;
     if(serviceSetFilters(service,filters) != 0)
     {
-	serviceStop(service);
+	serviceDisable(service);
 	service->state = SERVICE_STATE_FAILED;
 	spinlock_release(&service->spin);
 	skygw_log_write(LE,"Error: Filter setup failed for service [%s]. Service is disabled.",service->name);
@@ -1483,7 +1486,7 @@ serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context, char *filters)
 		    LOGFILE_ERROR,
 		    "Error : Failed to update filter '%s' for service '%s'.\n",
 		    service->filters[i]->name, service->name);
-	    serviceStop(service);
+	    serviceDisable(service);
 	    service->state = SERVICE_STATE_FAILED;
 	    spinlock_release(&service->spin);
 	    return -1;
@@ -1513,6 +1516,7 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 	{
 	    skygw_log_write(LE,"[%s] Error: Router instance creation failed on configuration reload.",
 		    service->name);
+	    service->state = SERVICE_STATE_FAILED;
 	    spinlock_release(&service->spin);
 	    return;
 	}
@@ -1526,7 +1530,7 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 	if(serviceInitSSL(service) != 0){
 	    skygw_log_write(LE,"[%s] Error: SSL initialization failed on config reload.",
 		     service->name);
-	    serviceStop(service);
+	    serviceDisable(service);
 	    service->state = SERVICE_STATE_FAILED;
 	    spinlock_release(&service->spin);
 	    return;
@@ -1545,7 +1549,7 @@ void serviceUpdateRouter(SERVICE *service, CONFIG_CONTEXT *context)
 	    skygw_log_write(LOGFILE_ERROR,
 		     "Error: Router configuration update failed for service '%s'. The service will be disabled.",
 		     service->name);
-	    serviceStop(service);
+	    serviceDisable(service);
 	    service->state = SERVICE_STATE_FAILED;
 	}
 	spinlock_release(&service->spin);
@@ -1678,7 +1682,7 @@ int		i;
 	dcb_printf(dcb, "Service %p\n", service);
 	dcb_printf(dcb, "\tService:				%s\n",
 						service->name);
-	dcb_printf(dcb, "\tStatus:				%s\n",
+	dcb_printf(dcb, "\tStatus:				\t%s\n",
 						STRSERVICESTATE(service->state));
 	dcb_printf(dcb, "\tRouter: 				%s (%p)\n",
 			service->routerModule, service->router);
@@ -2570,14 +2574,7 @@ void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
 	}
 	if(obsolete)
 	{
-	    serviceStop(service);
-	    ports = service->ports;
-	    while(ports)
-	    {
-		serviceStopPort(service,ports);
-		ports = ports->next;
-	    }
-
+	    serviceObsolete(service);
 	    if(service->resources)
 	    {
 		hashtable_free(service->resources);
@@ -2591,8 +2588,6 @@ void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
 		free(service->users);
 		service->users = NULL;
 	    }
-
-	    service->state = SERVICE_STATE_OBSOLETE;
 	}
 	service = service->next;
     }

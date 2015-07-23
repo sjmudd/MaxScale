@@ -212,6 +212,7 @@ extern	void	serviceStartProtocol(SERVICE *, char *, int);
 extern	int	serviceStop(SERVICE *);
 extern	int	serviceStopAll();
 int             serviceDisable(SERVICE *service);
+void            serviceObsolete(SERVICE* service);
 extern	int	serviceRestart(SERVICE *);
 extern	int	serviceRestartAll();
 extern	int	serviceSetUser(SERVICE *, char *, char *);

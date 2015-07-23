@@ -210,7 +210,7 @@ CONFIG_PARAMETER	*param, *p1;
 }
 
 /**
- *
+ * Handle SSL parameters.
  * @param obj
  * @param mode
  * @param ssl_cert
@@ -229,6 +229,17 @@ int config_handle_ssl(SERVICE* service,
 		      char* verify_depth)
 {
     int error_count = 0;
+    if(mode && strcmp(mode,"disabled") == 0)
+    {
+	if(serviceSetSSL(service,mode) != 0)
+	{
+	    skygw_log_write(LE,"Error: Unknown parameter for service '%s': %s",service->name,mode);
+	    error_count++;
+	}
+	return error_count;
+    }
+
+
     if(ssl_cert == NULL)
     {
 	error_count++;
@@ -236,6 +247,14 @@ int config_handle_ssl(SERVICE* service,
 		"Please provide the path to the server certificate by adding the ssl_cert=<path> parameter",
 		 service->name);
     }
+    else if(access(ssl_cert,F_OK) != 0)
+    {
+	skygw_log_write(LE,"Error: Server certificate file for service '%s' not found: %s",
+		 service->name,
+		 ssl_cert);
+	error_count++;
+    }
+
     if(ssl_ca_cert == NULL)
     {
 	error_count++;
@@ -243,6 +262,14 @@ int config_handle_ssl(SERVICE* service,
 		"Please provide the path to the certificate authority certificate by adding the ssl_ca_cert=<path> parameter",
 		 service->name);
     }
+    else if(access(ssl_ca_cert,F_OK) != 0)
+    {
+	skygw_log_write(LE,"Error: Certificate authority file for service '%s' not found: %s",
+		 service->name,
+		 ssl_ca_cert);
+	error_count++;
+    }
+
     if(ssl_key == NULL)
     {
 	error_count++;
@@ -250,28 +277,16 @@ int config_handle_ssl(SERVICE* service,
 		"Please provide the path to the server certificate key by adding the ssl_key=<path> parameter"
 		,service->name);
     }
-
-    if(access(ssl_ca_cert,F_OK) != 0)
-    {
-	skygw_log_write(LE,"Error: Certificate authority file for service '%s' not found: %s",
-		 service->name,
-		 ssl_ca_cert);
-	error_count++;
-    }
-    if(access(ssl_cert,F_OK) != 0)
-    {
-	skygw_log_write(LE,"Error: Server certificate file for service '%s' not found: %s",
-		 service->name,
-		 ssl_cert);
-	error_count++;
-    }
-    if(access(ssl_key,F_OK) != 0)
+    else if(access(ssl_key,F_OK) != 0)
     {
 	skygw_log_write(LE,"Error: Server private key file for service '%s' not found: %s",
 		 service->name,
 		 ssl_key);
 	error_count++;
     }
+    
+    
+    
 
     if(error_count == 0)
     {
@@ -2286,7 +2301,11 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 				}
 				if(ssl)
 				{
-				    config_handle_ssl(service,ssl,ssl_cert,ssl_key,ssl_ca_cert,ssl_version,ssl_cert_verify_depth);
+				    if(config_handle_ssl(service,ssl,ssl_cert,ssl_key,ssl_ca_cert,ssl_version,ssl_cert_verify_depth))
+				    {
+					serviceDisable(service);
+					service->state = SERVICE_STATE_FAILED;
+				    }
 				}
 				else
 				{
@@ -2339,7 +2358,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			if(strip_db_esc)
 			    serviceStripDbEsc(obj->element,config_truth_value(strip_db_esc));
 
-			serviceWeightBy(service,weightby);
+			serviceWeightBy(obj->element,weightby);
 			if (obj->element && user && auth)
 			{
 				serviceSetUser(obj->element, user, auth);
@@ -2357,7 +2376,16 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 
 				if(ssl)
 				{
-				    config_handle_ssl(obj->element,ssl,ssl_cert,ssl_key,ssl_ca_cert,ssl_version,ssl_cert_verify_depth);
+				    if(config_handle_ssl(obj->element,ssl,ssl_cert,ssl_key,ssl_ca_cert,ssl_version,ssl_cert_verify_depth))
+				    {
+					serviceDisable(obj->element);
+					service = obj->element;
+					service->state = SERVICE_STATE_FAILED;
+				    }
+				}
+				else
+				{
+				    serviceSetSSL(service,"disabled");
 				}
 			}
 			
