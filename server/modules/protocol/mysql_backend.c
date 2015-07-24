@@ -975,7 +975,7 @@ static int gw_create_backend_connection(
 	}
 	
         /*< if succeed, fd > 0, -1 otherwise */
-        rv = gw_do_connect_to_backend(server->name, server->port, &fd);
+        rv = gw_do_connect_to_backend(server->name, server->port,server->socket, &fd);
         /*< Assign protocol with backend_dcb */
         backend_dcb->protocol = protocol;
 

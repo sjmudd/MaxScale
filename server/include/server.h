@@ -84,6 +84,7 @@ typedef struct server {
 	char		*unique_name;	/**< Unique name for the server */
 	char		*name;		/**< Server name/IP address*/
 	unsigned short	port;		/**< Port to listen on */
+        char            *socket;
 	char		*protocol;	/**< Protocol module to use */
 	unsigned int	status;		/**< Status flag bitmap for the server */
 	char		*monuser;	/**< User name to use to monitor the db */
@@ -185,7 +186,7 @@ typedef struct server {
 #define SERVER_IS_RELAY_SERVER(server) \
         (((server)->status & (SERVER_RUNNING|SERVER_MASTER|SERVER_SLAVE|SERVER_MAINT)) == (SERVER_RUNNING|SERVER_MASTER|SERVER_SLAVE))
 
-extern SERVER	*server_alloc(char *, char *, unsigned short);
+extern SERVER	*server_alloc(char *, char *, unsigned short,char*);
 extern int	server_free(SERVER *);
 extern SERVER	*server_find_by_unique_name(char *);
 extern SERVER	*server_find(char *, unsigned short);

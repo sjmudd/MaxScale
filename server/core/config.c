@@ -724,6 +724,7 @@ process_config_context(CONFIG_CONTEXT *context)
 			char *protocol;
 			char *monuser;
 			char *monpw;
+			char *socket;
 
                         address = config_get_value(obj->parameters, "address");
 			port = config_get_value(obj->parameters, "port");
@@ -731,12 +732,13 @@ process_config_context(CONFIG_CONTEXT *context)
 			monuser = config_get_value(obj->parameters,
                                                    "monitoruser");
 			monpw = config_get_value(obj->parameters, "monitorpw");
-
-			if (address && port && protocol)
+			socket = config_get_value(obj->parameters, "socket");
+			if (protocol && ((port  && address) || socket))
 			{
 				obj->element = server_alloc(address,
                                                             protocol,
-                                                            atoi(port));
+                                                            port?atoi(port):0,
+							    socket);
 				server_set_unique_name(obj->element, obj->object);
 			}
 			else
@@ -1817,6 +1819,7 @@ SERVER			*server;
 			char *protocol;
 			char *monuser;
 			char *monpw;
+			char *socket;
                         
 			address = config_get_value(obj->parameters, "address");
 			port = config_get_value(obj->parameters, "port");
@@ -1824,8 +1827,9 @@ SERVER			*server;
 			monuser = config_get_value(obj->parameters,
                                                    "monitoruser");
 			monpw = config_get_value(obj->parameters, "monitorpw");
+			socket = config_get_value(obj->parameters, "socket");
 
-                        if (address && port && protocol)
+                        if (protocol && ((port && address) || socket))
 			{
 				if ((server =
                                      server_find(address, atoi(port))) != NULL)
@@ -1840,7 +1844,8 @@ SERVER			*server;
 				{
 					obj->element = server_alloc(address,
                                                                     protocol,
-                                                                    atoi(port));
+                                                                    port?atoi(port):0,
+								    socket);
 
 					server_set_unique_name(obj->element, obj->object);
 

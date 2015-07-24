@@ -755,33 +755,57 @@ int gw_send_authentication_to_backend(
 int gw_do_connect_to_backend(
         char	*host,
         int     port,
+	char *sock,
         int	*fd)
 {
-	struct sockaddr_in serv_addr;
+	struct sockaddr *serv_addr;
+	struct sockaddr_in inet_addr;
+	struct sockaddr_un sock_addr;
 	int	rv;
 	int	so = 0;
 	int	bufsize;
-        
-	memset(&serv_addr, 0, sizeof serv_addr);
-	serv_addr.sin_family = AF_INET;
-	so = socket(AF_INET,SOCK_STREAM,0);
-        
-	if (so < 0) {
+
+	if(sock)
+	{
+	    if ((so = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+		fprintf(stderr,
+		 "\n* Error: can't create UNIX socket due "
+			"error %i, %s.\n\n\t",
+		 errno,
+		 strerror(errno));
+		rv = -1;
+                goto return_rv;
+	    }
+	    memset(&sock_addr, 0, sizeof(sock_addr));
+	    sock_addr.sun_family = AF_UNIX;
+	    strncpy(sock_addr.sun_path, sock, sizeof(sock_addr.sun_path) - 1);
+
+	    serv_addr = (struct sockaddr *) &sock_addr;
+	}
+	else
+	{
+	    memset(&inet_addr, 0, sizeof inet_addr);
+	    inet_addr.sin_family = AF_INET;
+	    so = socket(AF_INET,SOCK_STREAM,0);
+	    if (so < 0) {
                 LOGIF(LE, (skygw_log_write_flush(
                         LOGFILE_ERROR,
-                        "Error: Establishing connection to backend server "
+			"Error: Establishing connection to backend server "
                         "%s:%d failed.\n\t\t             Socket creation failed "
                         "due %d, %s.",
-                        host,
-                        port,
-                        errno,
-                        strerror(errno))));
+			host,
+			port,
+			errno,
+			strerror(errno))));
                 rv = -1;
                 goto return_rv;
+	    }
+	    /* prepare for connect */
+	    setipaddress(&inet_addr.sin_addr, host);
+	    inet_addr.sin_port = htons(port);
+	    serv_addr = (struct sockaddr *) &inet_addr;
 	}
-	/* prepare for connect */
-	setipaddress(&serv_addr.sin_addr, host);
-	serv_addr.sin_port = htons(port);
+
 	bufsize = GW_BACKEND_SO_SNDBUF;
 
 	if(setsockopt(so, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)) != 0)
@@ -818,6 +842,8 @@ int gw_do_connect_to_backend(
 	}
 
 	int one = 1;
+	if(host)
+	{
 	if(setsockopt(so, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one)) != 0)
 	{
                 LOGIF(LE, (skygw_log_write_flush(
@@ -833,10 +859,10 @@ int gw_do_connect_to_backend(
 		/** Close socket */
 		goto close_so;
 	}
-
+	}
 	/* set socket to as non-blocking here */
 	setnonblocking(so);
-        rv = connect(so, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+        rv = connect(so, serv_addr, sock?sizeof(sock_addr):sizeof(inet_addr));
 
         if (rv != 0) 
 	{                

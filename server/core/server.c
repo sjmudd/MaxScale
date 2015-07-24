@@ -66,7 +66,7 @@ static SERVER	*allServers = NULL;
  * @return		The newly created server or NULL if an error occured
  */
 SERVER *
-server_alloc(char *servname, char *protocol, unsigned short port)
+server_alloc(char *servname, char *protocol, unsigned short port, char* socket)
 {
 SERVER 	*server;
 
@@ -76,9 +76,10 @@ SERVER 	*server;
         server->server_chk_top = CHK_NUM_SERVER;
         server->server_chk_tail = CHK_NUM_SERVER;
 #endif
-	server->name = strdup(servname);
+	server->name = servname ? strdup(servname):NULL;
 	server->protocol = strdup(protocol);
 	server->port = port;
+	server->socket = socket? strdup(socket):NULL;
 	server->status = SERVER_RUNNING;
 	server->node_id = -1;
 	server->rlag = -2;
