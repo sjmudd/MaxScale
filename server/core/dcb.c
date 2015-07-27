@@ -1123,8 +1123,9 @@ int	below_water;
     if (!dcb_write_parameter_check(dcb, queue)) return 0;
     
     spinlock_acquire(&dcb->writeqlock);
-    if (dcb->writeq) 
+    if (true || dcb->writeq) 
     {
+        /* Includes releasing the spinlock */
         dcb_write_when_already_queued(dcb, queue);
     }
     else
@@ -1178,6 +1179,8 @@ int	below_water;
                 STRDCBSTATE(dcb->state),
                 dcb->fd)));
         } /*< while (queue != NULL) */
+
+        spinlock_release(&dcb->writeqlock);
 
     } /* if (dcb->writeq) */
 
@@ -1293,6 +1296,8 @@ dcb_write_when_already_queued(DCB *dcb, GWBUF *queue)
     atomic_add(&dcb->writeqlen, gwbuf_length(queue));
     dcb->writeq = gwbuf_append(dcb->writeq, queue);
     dcb->stats.n_buffered++;
+    spinlock_release(&dcb->writeqlock);
+
     LOGIF(LD, (skygw_log_write(
         LOGFILE_DEBUG,
         "%lu [dcb_write] Append to writequeue. %d writes "
@@ -1398,8 +1403,6 @@ dcb_log_write_failure(DCB *dcb, GWBUF *queue, int eno)
 static inline void
 dcb_write_tidy_up (DCB *dcb, bool below_water)
 {
-    spinlock_release(&dcb->writeqlock);
-
     if (dcb->high_water && dcb->writeqlen > dcb->high_water && below_water)
     {
         atomic_add(&dcb->stats.n_high_water, 1);
@@ -1599,6 +1602,7 @@ int	n = 0;
 int	w;
 int	saved_errno = 0;
 int	above_water;
+GWBUF   *writebuf;
 
 	above_water = (dcb->low_water && dcb->writeqlen > dcb->low_water) ? 1 : 0;
 
@@ -1607,15 +1611,19 @@ int	above_water;
         if (dcb->writeq)
 	{
 		int	len;
+                
+                writebuf = dcb->writeq;
+                dcb->writeq = NULL;
+                spinlock_release(&dcb->writeqlock);
 		/*
 		 * Loop over the buffer chain in the pending writeq
 		 * Send as much of the data in that chain as possible and
 		 * leave any balance on the write queue.
 		 */
-		while (dcb->writeq != NULL)
+		while (writebuf != NULL)
 		{
-			len = GWBUF_LENGTH(dcb->writeq);
-			GW_NOINTR_CALL(w = gw_write(dcb, GWBUF_DATA(dcb->writeq), len););
+			len = GWBUF_LENGTH(writebuf);
+			GW_NOINTR_CALL(w = gw_write(dcb, GWBUF_DATA(writebuf), len););
 			saved_errno = errno;
                         errno = 0;
                         
@@ -1647,7 +1655,7 @@ int	above_water;
 			 * Pull the number of bytes we have written from
 			 * queue with have.
 			 */
-			dcb->writeq = gwbuf_consume(dcb->writeq, w);
+			writebuf = gwbuf_consume(writebuf, w);
                         LOGIF(LD, (skygw_log_write(
                                 LOGFILE_DEBUG,
                                 "%lu [dcb_drain_writeq] Wrote %d Bytes to dcb %p "
@@ -1659,8 +1667,17 @@ int	above_water;
                                 dcb->fd)));
 			n += w;
 		}
+                if (writebuf)
+                {
+                    spinlock_acquire(&dcb->writeqlock);
+                    dcb->writeq = gwbuf_prepend(dcb->writeq, writebuf);
+                    spinlock_release(&dcb->writeqlock);
+                }
 	}
-	spinlock_release(&dcb->writeqlock);
+        else
+        {
+            spinlock_release(&dcb->writeqlock);
+        }
 	atomic_add(&dcb->writeqlen, -n);
 	
         /* The write queue has drained, potentially need to call a callback function */

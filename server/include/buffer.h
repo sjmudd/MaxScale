@@ -181,6 +181,7 @@ extern GWBUF		*gwbuf_alloc(unsigned int size);
 extern void		gwbuf_free(GWBUF *buf);
 extern GWBUF		*gwbuf_clone(GWBUF *buf);
 extern GWBUF		*gwbuf_append(GWBUF *head, GWBUF *tail);
+extern GWBUF		*gwbuf_prepend(GWBUF *head, GWBUF *newbuf);
 extern GWBUF		*gwbuf_consume(GWBUF *head, unsigned int length);
 extern GWBUF		*gwbuf_trim(GWBUF *head, unsigned int length);
 extern GWBUF		*gwbuf_rtrim(GWBUF *head, unsigned int length);

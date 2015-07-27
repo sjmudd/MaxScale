@@ -347,6 +347,30 @@ gwbuf_append(GWBUF *head, GWBUF *tail)
 }
 
 /**
+ * Prepend a buffer onto a linked list of buffer structures.
+ *
+ * This call should be made with the caller holding the lock for the linked
+ * list.
+ *
+ * @param head	The current head of the linked list
+ * @param tail	The new buffer to make the head of the linked list
+ * @return	The new head of the linked list
+ */
+GWBUF	*
+gwbuf_prepend(GWBUF *head, GWBUF *newbuf)
+{
+    if(!newbuf)
+        return head;
+    if (head)
+    {
+        CHK_GWBUF(head);
+        newbuf->tail = head->tail;
+	newbuf->tail->next = head;
+    }    
+    return newbuf;
+}
+
+/**
  * Consume data from a buffer in the linked list. The assumption is to consume
  * n bytes from the buffer chain.
  *
@@ -367,21 +391,21 @@ gwbuf_consume(GWBUF *head, unsigned int length)
 {
 GWBUF *rval = head;
 
-        CHK_GWBUF(head);
-	GWBUF_CONSUME(head, length);
+    CHK_GWBUF(head);
+    GWBUF_CONSUME(head, length);
     CHK_GWBUF(head);
         
-	if (GWBUF_EMPTY(head))
-	{
-		rval = head->next;
-		if (head->next)
-			head->next->tail = head->tail;
+    if (GWBUF_EMPTY(head))
+    {
+        rval = head->next;
+        if (head->next)
+            head->next->tail = head->tail;
 		
-		gwbuf_free(head);
-	}
+        gwbuf_free(head);
+    }
 
-	ss_dassert(rval == NULL || (rval->end > rval->start));
-	return rval;
+    ss_dassert(rval == NULL || (rval->end > rval->start));
+    return rval;
 }
 
 /**
