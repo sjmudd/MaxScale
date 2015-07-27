@@ -1117,16 +1117,19 @@ dcb_write(DCB *dcb, GWBUF *queue)
 {
 int	written;
 int	below_water;
+bool    emptyq;
 
     below_water = (dcb->high_water && dcb->writeqlen < dcb->high_water) ? 1 : 0;
     // The following guarantees that queue is not NULL
     if (!dcb_write_parameter_check(dcb, queue)) return 0;
     
     spinlock_acquire(&dcb->writeqlock);
+    emptyq = (NULL == dcb->writeq);
     if (true || dcb->writeq) 
     {
         /* Includes releasing the spinlock */
         dcb_write_when_already_queued(dcb, queue);
+        if (emptyq) dcb_drain_writeq(dcb);
     }
     else
     {
