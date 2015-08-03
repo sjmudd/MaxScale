@@ -2350,6 +2350,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			auth = config_get_value(obj->parameters, "passwd");
 
 			obj->element = service_alloc(obj->object, router);
+			service = obj->element;
 
 			if(auth_all_servers)
 			    serviceAuthAllServers(obj->element,config_truth_value(auth_all_servers));

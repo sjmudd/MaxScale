@@ -1175,6 +1175,12 @@ serviceSetSSL(SERVICE *service, char* action)
 {
     int rval = 0;
 
+    if(action == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: NULL parameter passed.",__FUNCTION__);
+	return -1;
+    }
+
     if(strcasecmp(action,"required") == 0)
 	service->ssl_mode = SSL_REQUIRED;
     else if(strcasecmp(action,"enabled") == 0)
