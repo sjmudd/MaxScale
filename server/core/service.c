@@ -335,7 +335,7 @@ GWPROTOCOL	*funcs;
 				"Loaded %d MySQL Users for service [%s].",
 				loaded, service->name)));
 		}
-	} 
+	}
 	else 
 	{
 		if (service->users == NULL) {
@@ -347,14 +347,8 @@ GWPROTOCOL	*funcs;
 	if ((funcs=(GWPROTOCOL *)load_module(port->protocol, MODULE_PROTOCOL)) 
 		== NULL)
 	{
-		if (service->users->data)
-		{
-			hashtable_free(service->users->data);
-			service->users->data = NULL;
-		}
-		free(service->users);
-		service->users = NULL;
-		dcb_free(port->listener);
+		users_free(service->users);
+		dcb_close(port->listener);
 		port->listener = NULL;
 		LOGIF(LE, (skygw_log_write_flush(
                         LOGFILE_ERROR,
@@ -388,13 +382,7 @@ GWPROTOCOL	*funcs;
 				"Error : Failed to create session to service %s.",
 				service->name)));
 			
-			if (service->users->data)
-			{
-				hashtable_free(service->users->data);
-				service->users->data = NULL;
-			}
-			free(service->users);
-			service->users = NULL;
+			users_free(service->users);
                         dcb_close(port->listener);
 			port->listener = NULL;
 			goto retblock;
@@ -408,13 +396,7 @@ GWPROTOCOL	*funcs;
 			port->port,
                         port->protocol,
                         service->name)));
-		if (service->users->data)
-		{
-			hashtable_free(service->users->data);
-			service->users->data = NULL;
-		}
-		free(service->users);
-		service->users = NULL;
+		users_free(service->users);
 		dcb_close(port->listener);
 		port->listener = NULL;
         }
@@ -2600,3 +2582,4 @@ void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
 
     spinlock_release(&service_spin);
 }
+
