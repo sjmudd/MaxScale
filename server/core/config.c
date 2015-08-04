@@ -2797,7 +2797,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 				obj->object)));
 			error_count++;
 		}
-
+		((MONITOR*)obj->element)->params = config_clone_param(obj->parameters);
 		((MONITOR*)obj->element)->state = MONITOR_STATE_STOPPED;
 	}
 	else

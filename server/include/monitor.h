@@ -144,6 +144,7 @@ typedef struct monitor {
         char* module_name; /*< Monitor module name */
         SPINLOCK lock;
         MONITOR_SERVERS* databases; /*< List of databases the monitor monitors */
+        CONFIG_PARAMETER* params;
 	monitor_state_t state;		/**< The state of the monitor */
         int	connect_timeout;	/**< Connect timeout in seconds for mysql_real_connect */
 	int	read_timeout;		/**< Timeout in seconds to read from the server.

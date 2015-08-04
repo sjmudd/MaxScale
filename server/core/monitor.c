@@ -206,7 +206,7 @@ monitorStartAll()
     while (ptr)
     {
 	if(ptr->state == MONITOR_STATE_STOPPED)
-	    monitorStart(ptr,ptr->handle);
+	    monitorStart(ptr,ptr->params);
 	ptr = ptr->next;
     }
     spinlock_release(&monLock);
