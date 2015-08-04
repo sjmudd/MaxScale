@@ -1421,7 +1421,7 @@ int gw_MySQLListener(
 
 			if (bind(l_so, (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0) {
 				skygw_log_write(LE,
-					"Bind failed: %i %s",
+					"Error: Bind failed: %i %s",
 					errno,
 					strerror(errno));
 				close(l_so);
@@ -1442,7 +1442,8 @@ int gw_MySQLListener(
 		case AF_INET:
 			if (bind(l_so, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
 				skygw_log_write(LE,
-					"Bind failed due error %i, %s.",
+					"Error: Bind failed for %s: %i, %s.",
+					config_bind,
 					errno,
 					strerror(errno));
 				close(l_so);
