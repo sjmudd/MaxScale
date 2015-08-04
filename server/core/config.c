@@ -404,10 +404,12 @@ config_reload()
 	{
 	    /** Stop accepting new connections for the duration of the reload */
 	    serviceStopAll();
-	    /** Stop all monitors */
-	    monitorStopAll();
+
 	    /** Close all connections to MaxScale */
 	    dcb_close_all();
+
+	    /** Stop all monitors */
+	    monitorStopAll();
 
 	    if (gateway.version_string)
 		free(gateway.version_string);
@@ -1569,6 +1571,7 @@ CONFIG_CONTEXT		*obj;
 	/** Disable obsolete services */
 	serviceRemoveObsolete(context);
 
+	serviceRemoveAllProtocols();
 	/** Disable obsolete monitors */
 	monitor_disable_obsolete(context);
 

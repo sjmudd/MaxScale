@@ -201,6 +201,7 @@ extern	SERVICE *service_find(char *);
 extern	int	service_isvalid(SERVICE *);
 extern	int	serviceAddProtocol(SERVICE *, char *, char *, unsigned short);
 extern	int	serviceHasProtocol(SERVICE *, char *, unsigned short);
+void serviceRemoveAllProtocols();
 extern	void	serviceAddBackend(SERVICE *, SERVER *);
 extern	int	serviceHasBackend(SERVICE *, SERVER *);
 extern  void    serviceClearBackends(SERVICE *service);

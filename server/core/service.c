@@ -870,6 +870,53 @@ SERV_PROTOCOL	*proto;
 }
 
 /**
+ * Remove all protocols from the service
+ * @param service
+ */
+void serviceRemoveProtocols(SERVICE* service)
+{
+    SERV_PROTOCOL *proto;
+    DCB* dcb;
+    while(service->ports)
+    {
+	proto = service->ports;
+	service->ports = service->ports->next;
+	if(proto->listener)
+	{
+	    dcb = proto->listener;
+	    proto->listener = NULL;
+	    dcb_close(dcb);
+	    spinlock_acquire(&dcb->authlock);
+	    /** We must close the socket early to  allow services to bind on the same port */
+	    close(dcb->fd);
+	    dcb->fd = DCBFD_CLOSED;
+	    spinlock_release(&dcb->authlock);
+	}
+	free(proto->address);
+	free(proto->protocol);
+	free(proto);
+    }
+}
+/**
+ * Clear all loaded protocols from the services prior to reloading the configuration.
+ * The protocols should be reapplied during the configuration reload.
+ */
+void serviceRemoveAllProtocols()
+{
+    CONFIG_CONTEXT* ptr;
+    CONFIG_PARAMETER* param;
+    SERVICE* service;
+    SERV_PROTOCOL* ports;
+    spinlock_acquire(&service_spin);
+    service = allServices;
+    while(service)
+    {
+	serviceRemoveProtocols(service);
+	service = service->next;
+    }
+    spinlock_release(&service_spin);
+}
+/**
  * Remove all servers from a service. This should be called before each configuration
  * reload. The servers will be added with serviceAddBackend again
  * @param service Service to clear
