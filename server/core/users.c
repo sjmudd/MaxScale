@@ -92,7 +92,10 @@ users_free(USERS *users)
     }
 
     if(users->data)
+    {
 	hashtable_free(users->data);
+	users->data = NULL;
+    }
     free(users);
 }
 

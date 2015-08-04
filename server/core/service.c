@@ -347,7 +347,11 @@ GWPROTOCOL	*funcs;
 	if ((funcs=(GWPROTOCOL *)load_module(port->protocol, MODULE_PROTOCOL)) 
 		== NULL)
 	{
-		users_free(service->users);
+		if(service->users)
+		{
+		    users_free(service->users);
+		    service->users = NULL;
+		}
 		dcb_close(port->listener);
 		port->listener = NULL;
 		LOGIF(LE, (skygw_log_write_flush(
@@ -381,8 +385,11 @@ GWPROTOCOL	*funcs;
 				LOGFILE_ERROR,
 				"Error : Failed to create session to service %s.",
 				service->name)));
-			
-			users_free(service->users);
+			if(service->users)
+			{
+			    users_free(service->users);
+			    service->users = NULL;
+			}
                         dcb_close(port->listener);
 			port->listener = NULL;
 			goto retblock;
@@ -396,7 +403,11 @@ GWPROTOCOL	*funcs;
 			port->port,
                         port->protocol,
                         service->name)));
-		users_free(service->users);
+		if(service->users)
+		{
+		    users_free(service->users);
+		    service->users = NULL;
+		}
 		dcb_close(port->listener);
 		port->listener = NULL;
         }

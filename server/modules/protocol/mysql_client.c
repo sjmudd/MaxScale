@@ -1365,11 +1365,10 @@ int gw_MySQLListener(
 
 		// UNIX socket create
 		if ((l_so = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-			fprintf(stderr,
-				"\n* Error: can't create UNIX socket due "
-				"error %i, %s.\n\n\t",
-				errno,
-				strerror(errno));
+			skygw_log_write(LE,
+				 "Error: can't create UNIX Domain socket: %i %s",
+				 errno,
+				 strerror(errno));
 			return 0;
 		}
 		memset(&local_addr, 0, sizeof(local_addr));
@@ -1381,14 +1380,12 @@ int gw_MySQLListener(
 	} else {
 		/* MaxScale, as default, will bind on port 4406 */
 		if (!parse_bindconfig(config_bind, 4406, &serv_addr)) {
-			fprintf(stderr, "Error in parse_bindconfig for [%s]\n", config_bind);
+		    skygw_log_write(LE, "Error in parse_bindconfig for [%s]",config_bind);
 			return 0;
 		}
 		// TCP socket create
 		if ((l_so = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-			fprintf(stderr,
-				"\n* Error: can't create socket due "
-				"error %i, %s.\n\n\t",
+			skygw_log_write(LE,"Error: can't create socket: %i %s",
 				errno,
 				strerror(errno));
 			return 0;
@@ -1419,23 +1416,22 @@ int gw_MySQLListener(
 		case AF_UNIX:
 			rc = unlink(config_bind);
 			if ( (rc == -1) && (errno!=ENOENT) ) {
-				fprintf(stderr, "Error unlink Unix Socket %s\n", config_bind);
+			    skygw_log_write(LE, "Error unlink Unix Socket %s\n", config_bind);
 			}
 
 			if (bind(l_so, (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0) {
-				fprintf(stderr,
-					"\n* Bind failed due error %i, %s.\n",
+				skygw_log_write(LE,
+					"Bind failed: %i %s",
 					errno,
 					strerror(errno));
-				fprintf(stderr, "* Can't bind to %s\n\n", config_bind);
 				close(l_so);
 				return 0;
 			}
 
 			/* set permission for all users */
 			if (chmod(config_bind, 0777) < 0) {
-				fprintf(stderr,
-					"\n* chmod failed for %s due error %i, %s.\n\n",
+				skygw_log_write(LE,
+					"Error: Failed to set permissions on %s: %i %s",
 					config_bind,
 					errno,
 					strerror(errno));
@@ -1445,11 +1441,10 @@ int gw_MySQLListener(
 
 		case AF_INET:
 			if (bind(l_so, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-				fprintf(stderr,
-					"\n* Bind failed due error %i, %s.\n",
+				skygw_log_write(LE,
+					"Bind failed due error %i, %s.",
 					errno,
 					strerror(errno));
-				fprintf(stderr, "* Can't bind to %s\n\n", config_bind);
 				close(l_so);
 				return 0;
 			}
@@ -1457,6 +1452,7 @@ int gw_MySQLListener(
 
 		default:
 			fprintf(stderr, "* Socket Family %i not supported\n", current_addr->sa_family);
+			skygw_log_write(LE,"* Socket Family %i not supported\n", current_addr->sa_family);
 			close(l_so);
 			return 0;
 	}
@@ -1468,10 +1464,7 @@ int gw_MySQLListener(
         } else {
                 int eno = errno;
                 errno = 0;
-                fprintf(stderr,
-                        "\n* Failed to start listening MySQL due error %d, %s\n\n",
-                        eno,
-                        strerror(eno));
+		skygw_log_write(LE,"Erro: Failure to listen on socket: %d, %s",eno,strerror(eno));
 		close(l_so);
                 return 0;
         }
@@ -1480,9 +1473,7 @@ int gw_MySQLListener(
 
         // add listening socket to poll structure
         if (poll_add_dcb(listen_dcb) == -1) {
-            fprintf(stderr,
-                    "\n* MaxScale encountered system limit while "
-                    "attempting to register on an epoll instance.\n\n");
+	    skygw_log_write(LE,"Error: Failed to add listener to polling system.");
 		return 0;
         }
 #if defined(FAKE_CODE)
