@@ -186,6 +186,7 @@ MONITOR	*ptr;
 	while (ptr)
 	{
 		monitorStop(ptr);
+		ptr->state = MONITOR_STATE_DISABLED;
 		ptr = ptr->next;
 	}
 	spinlock_release(&monLock);

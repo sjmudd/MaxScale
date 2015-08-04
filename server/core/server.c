@@ -993,6 +993,7 @@ void server_remove_old_servers(CONFIG_CONTEXT* context)
     while(server)
     {
 	obsolete = true;
+	server->status = 0;
 	obj = context;
 	while(obj)
 	{
