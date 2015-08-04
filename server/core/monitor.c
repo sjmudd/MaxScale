@@ -192,6 +192,26 @@ MONITOR	*ptr;
 	spinlock_release(&monLock);
 }
 
+
+/**
+ * Shutdown all running monitors
+ */
+void
+monitorStartAll()
+{
+    MONITOR *ptr;
+
+    spinlock_acquire(&monLock);
+    ptr = allMonitors;
+    while (ptr)
+    {
+	if(ptr->state == MONITOR_STATE_STOPPED)
+	    monitorStart(ptr,ptr->handle);
+	ptr = ptr->next;
+    }
+    spinlock_release(&monLock);
+}
+
 /**
  * Add a server to a monitor. Simply register the server that needs to be
  * monitored to the running monitor module.

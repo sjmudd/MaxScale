@@ -441,7 +441,7 @@ config_reload()
 		config_enable_feedback_task();
 
 	    serviceRestartAll();
-
+	    monitorStartAll();
 	    reload_conf = false;
 	}
 	spinlock_release(&reload_lock);
@@ -2798,7 +2798,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 			error_count++;
 		}
 
-		monitorStart(obj->element,obj->parameters);
+		((MONITOR*)obj->element)->state = MONITOR_STATE_STOPPED;
 	}
 	else
 	{
