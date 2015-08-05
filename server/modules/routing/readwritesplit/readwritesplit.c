@@ -659,7 +659,9 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     }
     router->old_servers = router->servers;
     router->servers = NULL;
-
+    router->rwsplit_config.rw_max_slave_conn_count = CONFIG_MAX_SLAVE_CONN;
+    router->rwsplit_config.rw_max_slave_replication_lag = CONFIG_MAX_SLAVE_RLAG;
+    router->rwsplit_config.rw_use_sql_variables_in = CONFIG_SQL_VARIABLES_IN;
     if(options)
     {
 	rwsplit_process_router_options(router,options);
