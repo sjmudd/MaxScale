@@ -423,7 +423,7 @@ config_reload_active()
 	    if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 	    {
 		skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate monitor configuration check hashtable.");
-		return 0;
+		return;
 	    }
 
 	    hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
