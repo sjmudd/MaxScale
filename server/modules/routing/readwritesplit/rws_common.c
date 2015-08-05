@@ -60,11 +60,11 @@ int calculate_weights(ROUTER_INSTANCE* router, SERVICE* service)
 	    total += atoi(serverGetParameter(
 		    backend->backend_server, weightby));
 	}
-	if (total == 0)
+	if (total <= 0)
 	{
 	    LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
 				     "WARNING: Weighting Parameter for service '%s' "
-		    "will be ignored as no servers have values "
+		    "will be ignored as no servers have valid values "
 		    "for the parameter '%s'.\n",
 				     service->name, weightby)));
 	}
@@ -72,29 +72,29 @@ int calculate_weights(ROUTER_INSTANCE* router, SERVICE* service)
 	{
 	    for (n = 0; router->servers[n]; n++)
 	    {
-		int perc;
-		int wght;
+		long perc;
+		long wght;
 		backend = router->servers[n];
 		wght = atoi(serverGetParameter(backend->backend_server,
 					 weightby));
 		perc = (wght*1000) / total;
 
-		if (perc == 0 && wght != 0)
+		if (perc <= 0 && wght != 0)
 		{
 		    perc = 1;
 		}
 		backend->weight = perc;
 
-		if (perc == 0)
+		if (perc <= 0)
 		{
-		    LOGIF(LE, (skygw_log_write(
+		    skygw_log_write(
 			    LOGFILE_ERROR,
-					     "Server '%s' has no value "
+			     "Server '%s' has no valid value "
 			    "for weighting parameter '%s', "
 			    "no queries will be routed to "
 			    "this server.\n",
 					     router->servers[n]->backend_server->unique_name,
-					     weightby)));
+					     weightby);
 		}
 	    }
 	}
