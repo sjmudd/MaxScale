@@ -455,7 +455,8 @@ void config_reload()
 	    config_start_reload();
 	    break;
 	case RELOAD_PREPARED:
-	    config_reload_active();
+	    if(dcb_all_closed())
+		config_reload_active();
 	    break;
 	default:
 	    /** No reload is needed or reload is already active*/

@@ -90,6 +90,7 @@ static	DCB		*zombies = NULL;
 static	SPINLOCK	dcbspin = SPINLOCK_INIT;
 static	SPINLOCK	zombiespin = SPINLOCK_INIT;
 static  int		dcb_close_flag = 0;
+static int zombies_procesing = 0;
 static void dcb_final_free(DCB *dcb);
 static void dcb_call_callback(DCB *dcb, DCB_REASON reason);
 static DCB * dcb_get_next (DCB *dcb);
@@ -531,7 +532,7 @@ static inline void
 dcb_process_victim_queue(DCB *listofdcb)
 {
     DCB *dcb;
-
+    atomic_add(&zombies_procesing,1);
     dcb = listofdcb;
     while (dcb != NULL) 
     {
@@ -583,6 +584,7 @@ dcb_process_victim_queue(DCB *listofdcb)
     }
     /** Reset threads session data */
     LOGIF(LT, tls_log_info.li_sesid = 0);
+        atomic_add(&zombies_procesing,-1);
 }
 
 /**
@@ -3218,5 +3220,5 @@ bool dcb_all_closed()
 	return false;
     }
     spinlock_release(&zombiespin);
-    return true;
+    return zombies_procesing == 0;
 }
