@@ -2649,3 +2649,18 @@ void serviceRemoveObsolete(CONFIG_CONTEXT* ctx)
     spinlock_release(&service_spin);
 }
 
+void service_free_parameters(SERVICE* service)
+{
+    CONFIG_PARAMETER* tmp;
+
+    while(service->svc_config_param)
+    {
+	tmp = service->svc_config_param;
+	service->svc_config_param = service->svc_config_param->next;
+	free(tmp->name);
+	free(tmp->value);
+	if(tmp->qfd_param_type == STRING_TYPE)
+	    free(tmp->qfd.valstr);
+	free(tmp);
+    }
+}

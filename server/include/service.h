@@ -250,6 +250,7 @@ bool service_set_param_value (
         char*               valstr,
         count_spec_t        count_spec,
         config_param_type_t type);
+void service_free_parameters(SERVICE* service);
 
 extern	void	dprintService(DCB *, SERVICE *);
 extern	void	dListServices(DCB *);

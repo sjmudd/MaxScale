@@ -2189,6 +2189,8 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			char* ssl_cert_verify_depth;
 			char* weightby;
 
+			service_free_parameters(service);
+
 			ssl = config_get_value(obj->parameters, "ssl");
 			ssl_cert = config_get_value(obj->parameters, "ssl_cert");
 			ssl_key = config_get_value(obj->parameters, "ssl_key");
