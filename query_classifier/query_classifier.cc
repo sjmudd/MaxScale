@@ -1644,10 +1644,8 @@ skygw_query_op_t query_classifier_get_operation(GWBUF* querybuf)
 			operation = QUERY_OP_SELECT;
 			break;
 		case SQLCOM_CREATE_TABLE:
-			operation = QUERY_OP_CREATE_TABLE;
-			break;
 		case SQLCOM_CREATE_INDEX:
-			operation = QUERY_OP_CREATE_INDEX;
+                    operation = QUERY_OP_CREATE;
 			break;
 		case SQLCOM_ALTER_TABLE:
 			operation = QUERY_OP_ALTER_TABLE;
@@ -1668,13 +1666,15 @@ skygw_query_op_t query_classifier_get_operation(GWBUF* querybuf)
 			operation = QUERY_OP_TRUNCATE;
 			break; 
 		case SQLCOM_DROP_TABLE:
-			operation = QUERY_OP_DROP_TABLE;
-			break; 
 		case SQLCOM_DROP_INDEX:
-			operation = QUERY_OP_DROP_INDEX;
+			operation = QUERY_OP_DROP;
 			break;
                 case SQLCOM_CHANGE_DB:
                     operation = QUERY_OP_CHANGE_DB;
+                    break;
+                case SQLCOM_GRANT:
+                case SQLCOM_GRANT_ROLE:
+                    operation = QUERY_OP_GRANT;
                     break;
 
 		default:

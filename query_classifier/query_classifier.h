@@ -63,19 +63,18 @@ typedef enum {
 } skygw_query_type_t;
 
 typedef enum {
-	QUERY_OP_UNDEFINED			= 0,
-	QUERY_OP_SELECT				= 1,
-	QUERY_OP_UPDATE				= (1 << 1),
-	QUERY_OP_INSERT				= (1 << 2),
-	QUERY_OP_DELETE				= (1 << 3),
-	QUERY_OP_INSERT_SELECT		= (1 << 4),
-	QUERY_OP_TRUNCATE			= (1 << 5),
-	QUERY_OP_ALTER_TABLE		= (1 << 6),
-	QUERY_OP_CREATE_TABLE		= (1 << 7),
-	QUERY_OP_CREATE_INDEX		= (1 << 8),
-	QUERY_OP_DROP_TABLE			= (1 << 9),
-	QUERY_OP_DROP_INDEX			= (1 << 10),
-        QUERY_OP_CHANGE_DB              = (1 << 11)
+	QUERY_OP_UNDEFINED = 0,
+	QUERY_OP_SELECT = 1,
+	QUERY_OP_UPDATE = (1 << 1),
+	QUERY_OP_INSERT = (1 << 2),
+	QUERY_OP_DELETE = (1 << 3),
+	QUERY_OP_INSERT_SELECT = (1 << 4),
+	QUERY_OP_TRUNCATE = (1 << 5),
+	QUERY_OP_ALTER_TABLE = (1 << 6),
+	QUERY_OP_CREATE = (1 << 7),
+	QUERY_OP_DROP = (1 << 8),
+        QUERY_OP_CHANGE_DB = (1 << 9),
+        QUERY_OP_GRANT = (1 << 10)
 }skygw_query_op_t;
 
 typedef struct parsing_info_st {
