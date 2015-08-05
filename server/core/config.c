@@ -390,7 +390,7 @@ int		rval;
  */
 void config_start_reload()
 {
-    serviceDisableAll();
+    serviceCloseAll();
     dcb_close_all();
     monitorStopAll();
     reload_state = RELOAD_PREPARED;

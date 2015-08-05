@@ -606,6 +606,31 @@ if(service->state == SERVICE_STATE_OBSOLETE ||
 	return listeners;
 }
 
+void serviceClose(SERVICE *service)
+{
+    SERV_PROTOCOL *port;
+    port = service->ports;
+
+    while (port)
+    {
+	serviceStopPort(service,port);
+	port = port->next;
+
+    }
+    service->state = SERVICE_STATE_STOPPED;
+}
+
+void serviceCloseAll()
+{
+    SERVICE	*ptr;
+
+    ptr = allServices;
+    while (ptr && !ptr->svc_do_shutdown)
+    {
+	serviceClose(ptr);
+	ptr = ptr->next;
+    }
+}
 /**
  * Disable a service
  *
