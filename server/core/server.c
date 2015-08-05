@@ -147,6 +147,7 @@ SERVER *server;
 	/* Clean up session and free the memory */
 	free(tofreeserver->name);
 	free(tofreeserver->protocol);
+	free(tofreeserver->slaves);
 	if (tofreeserver->unique_name)
 		free(tofreeserver->unique_name);
 	if (tofreeserver->server_string)
@@ -980,44 +981,8 @@ bool server_has_changed(SERVER* server)
  * of servers.
  * @param context Configuration context
  */
-void server_remove_old_servers(CONFIG_CONTEXT* context)
+void server_remove_old_servers()
 {
-    CONFIG_CONTEXT* obj;
-    CONFIG_PARAMETER* param;
-    SERVER *server,*tmp;
-    bool obsolete;
-
-    spinlock_acquire(&server_spin);
-    server = allServers;
-    spinlock_release(&server_spin);
-    while(server)
-    {
-	obsolete = true;
-	server->status = 0;
-	obj = context;
-	while(obj)
-	{
-	    if(strcmp(obj->object,server->unique_name) == 0)
-	    {
-		obsolete = false;
-		break;
-	    }
-	    obj = obj->next;
-	}
-	if(obsolete)
-	{
-	    tmp = server;
-	    spinlock_acquire(&server_spin);
-	    server = server->next;
-	    spinlock_release(&server_spin);
-	    skygw_log_write(LD,"Removing server '%s'",tmp->unique_name);
-	    server_free(tmp);
-	}
-	else
-	{
-	    spinlock_acquire(&server_spin);
-	    server = server->next;
-	    spinlock_release(&server_spin);
-	}
-    }
+    while(allServers)
+	server_free(allServers);
 }

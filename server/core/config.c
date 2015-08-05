@@ -115,7 +115,7 @@ static	GATEWAY_CONF	gateway;
 static	FEEDBACK_CONF	feedback;
 char			*version_string = NULL;
 static HASHTABLE	*monitorhash;
-static bool		reload_conf = false;
+static int		reload_state = RELOAD_INACTIVE;
 static SPINLOCK         reload_lock = SPINLOCK_INIT;
 /**
  * Trim whitespace from the front and rear of a string
@@ -380,8 +380,20 @@ int		rval;
 	check_config_objects(config.next);
 	rval = process_config_context(config.next);
 	free_config_context(config.next);
-
+	monitorStartAll();
 	return rval;
+}
+/**
+ * Start the configuration reload process. This closes all current connections,
+ * prevents new connections from being made by closing the listeners and stops all
+ * monitors.
+ */
+void config_start_reload()
+{
+    serviceDisableAll();
+    dcb_close_all();
+    monitorStopAll();
+    reload_state = RELOAD_PREPARED;
 }
 
 /**
@@ -389,28 +401,15 @@ int		rval;
  *
  * @return A zero return indicates a fatal error reading the configuration
  */
-int
-config_reload()
+void
+config_reload_active()
 {
     CONFIG_CONTEXT	config;
-    int		rval = 1;
 
     if (!config_file)
-	return 0;
+	return;
 
-    if(spinlock_acquire_nowait(&reload_lock))
-    {
-	if(reload_conf)
-	{
-	    /** Stop accepting new connections for the duration of the reload */
-	    serviceStopAll();
-
-	    /** Close all connections to MaxScale */
-	    dcb_close_all();
-
-	    /** Stop all monitors */
-	    monitorStopAll();
-
+	    reload_state = RELOAD_ACTIVE;
 	    if (gateway.version_string)
 		free(gateway.version_string);
 
@@ -430,9 +429,9 @@ config_reload()
 	    hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
 
 	    if (ini_parse(config_file, handler, &config) < 0)
-		return 0;
+		return;
 
-	    rval = process_config_update(config.next);
+	    process_config_update(config.next);
 	    free_config_context(config.next);
 
 	    /** Enable/disable feedback task */
@@ -442,11 +441,28 @@ config_reload()
 
 	    serviceRestartAll();
 	    monitorStartAll();
-	    reload_conf = false;
+	    reload_state = RELOAD_INACTIVE;
+}
+
+
+void config_reload()
+{
+    if(spinlock_acquire_nowait(&reload_lock))
+    {
+	switch(reload_state)
+	{
+	case RELOAD_START:
+	    config_start_reload();
+	    break;
+	case RELOAD_PREPARED:
+	    config_reload_active();
+	    break;
+	default:
+	    /** No reload is needed or reload is already active*/
+	    break;
 	}
 	spinlock_release(&reload_lock);
     }
-    return rval;
 }
 
 int
@@ -1566,7 +1582,7 @@ process_config_update(CONFIG_CONTEXT *context)
 CONFIG_CONTEXT		*obj;
 
         /** Remove old servers before adding any new or renamed ones */
-	server_remove_old_servers(context);
+	server_remove_old_servers();
 
 	/** Disable obsolete services */
 	serviceRemoveObsolete(context);
@@ -2797,7 +2813,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 				obj->object)));
 			error_count++;
 		}
-		((MONITOR*)obj->element)->params = config_clone_param(obj->parameters);
+		monitor_add_parameters(obj->element,obj->parameters);
 		((MONITOR*)obj->element)->state = MONITOR_STATE_STOPPED;
 	}
 	else
@@ -2828,7 +2844,7 @@ GATEWAY_CONF* config_get_global_options()
  */
 void config_set_reload_flag()
 {
-    reload_conf = true;
+    reload_state = RELOAD_START;
 }
 
 /**

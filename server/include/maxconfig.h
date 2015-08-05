@@ -108,8 +108,14 @@ typedef struct {
         int maxlog; /*< Log to MaxScale's own logs */
 } GATEWAY_CONF;
 
+enum {
+  RELOAD_INACTIVE,
+  RELOAD_START,
+  RELOAD_PREPARED,
+  RELOAD_ACTIVE
+};
 extern int		config_load(char *);
-extern int		config_reload();
+extern void		config_reload();
 extern void             config_set_reload_flag();
 extern int              config_read_config(CONFIG_CONTEXT* context);
 extern void             config_free_config(CONFIG_CONTEXT* context);

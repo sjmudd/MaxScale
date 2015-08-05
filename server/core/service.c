@@ -421,22 +421,17 @@ retblock:
  * @param service Service
  * @param port Port to stop
  */
-void serviceStopPort(SERVICE *service, SERV_PROTOCOL *port)
+int serviceStopPort(SERVICE *service, SERV_PROTOCOL *port)
 {
     DCB* dcb;
 
     if(port->listener == NULL)
-	return;
+	return 0;
 
     dcb = port->listener;
     port->listener = NULL;
     dcb_close(dcb);
-
-    spinlock_acquire(&dcb->authlock);
-     /** We must close the socket early to  allow other services to bind on the same port */
-    close(dcb->fd);
-    dcb->fd = DCBFD_CLOSED;
-    spinlock_release(&dcb->authlock);
+    return 1;
 }
 /**
  * Start a service
@@ -631,7 +626,7 @@ int		listeners = 0;
 
 	while (port)
 	{
-	    serviceStopPort(service,port);
+	    listeners += serviceStopPort(service,port);
 	    port = port->next;
 
 	}
@@ -655,7 +650,7 @@ void serviceObsolete(SERVICE* service)
  * @return Return the number of services stopped
  */
 int
-serviceStopAll()
+serviceDisableAll()
 {
 SERVICE	*ptr;
 int	n = 0,i;
@@ -663,13 +658,13 @@ int	n = 0,i;
 	ptr = allServices;
 	while (ptr && !ptr->svc_do_shutdown)
 	{
-		n += (i = serviceStop(ptr));
+		n += (i = serviceDisable(ptr));
 
 		if(i == 0)
 		{
 			LOGIF(LE, (skygw_log_write(
 				LOGFILE_ERROR,
-				"Error : Failed to stop service '%s'.",
+				"Error : Failed to disable service '%s'.",
 				ptr->name)));
 		}
 
@@ -677,7 +672,6 @@ int	n = 0,i;
 	}
 	return n;
 }
-
 /**
  * Restart a service
  *
@@ -881,17 +875,6 @@ void serviceRemoveProtocols(SERVICE* service)
     {
 	proto = service->ports;
 	service->ports = service->ports->next;
-	if(proto->listener)
-	{
-	    dcb = proto->listener;
-	    proto->listener = NULL;
-	    dcb_close(dcb);
-	    spinlock_acquire(&dcb->authlock);
-	    /** We must close the socket early to  allow services to bind on the same port */
-	    close(dcb->fd);
-	    dcb->fd = DCBFD_CLOSED;
-	    spinlock_release(&dcb->authlock);
-	}
 	free(proto->address);
 	free(proto->protocol);
 	free(proto);

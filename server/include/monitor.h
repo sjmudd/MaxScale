@@ -177,4 +177,6 @@ extern void     monitorSetNetworkTimeout(MONITOR *, int, int);
 extern RESULTSET *monitorGetList();
 extern int	monitorHasBackend(MONITOR *, SERVER *);
 void monitor_disable_obsolete(CONFIG_CONTEXT* ctx);
+void monitorStartAll();
+void monitor_add_parameters(MONITOR* monitor, CONFIG_PARAMETER* params);
 #endif

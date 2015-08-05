@@ -3197,3 +3197,26 @@ dcb_close_service(SERVICE* service)
 
     spinlock_release(&dcbspin);
 }
+
+/**
+ * Check if all DCBs are closed and all zombies have been processed.
+ * @return False if there are open DCBs or DCBs still in the zombie queue, otherwise true.
+ */
+bool dcb_all_closed()
+{
+    spinlock_acquire(&dcbspin);
+    if(allDCBs != NULL)
+    {
+	spinlock_release(&dcbspin);
+	return false;
+    }
+    spinlock_release(&dcbspin);
+    spinlock_acquire(&zombiespin);
+    if(zombies != NULL)
+    {
+	spinlock_release(&zombiespin);
+	return false;
+    }
+    spinlock_release(&zombiespin);
+    return true;
+}

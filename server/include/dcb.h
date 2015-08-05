@@ -341,6 +341,7 @@ int             dcb_persistent_clean_count(DCB *, bool);      /* Clean persisten
 void             dcb_close_all();                        /*< Close all external dcbs */
 void             dcb_close_service(struct service* service);    /*< Close all connections to a service */
 void             dcb_process_closeall();                  /*< Check if all DCBs should be closed*/
+bool             dcb_all_closed(); /*< Check if all connections are closed and zombies are processed. */
 
 void   dcb_call_foreach (struct server* server, DCB_REASON reason);
 size_t dcb_get_session_id(DCB* dcb);

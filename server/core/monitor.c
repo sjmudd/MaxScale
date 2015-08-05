@@ -85,6 +85,7 @@ MONITOR	*mon;
 	mon->password = NULL;
 	mon->user = NULL;
 	mon->password = NULL;
+	mon->params = NULL;
 	mon->read_timeout = DEFAULT_READ_TIMEOUT;
 	mon->write_timeout = DEFAULT_WRITE_TIMEOUT;
 	mon->connect_timeout = DEFAULT_CONNECT_TIMEOUT;
@@ -194,7 +195,7 @@ MONITOR	*ptr;
 
 
 /**
- * Shutdown all running monitors
+ * Start all monitors
  */
 void
 monitorStartAll()
@@ -605,5 +606,28 @@ void monitor_disable_obsolete(CONFIG_CONTEXT* ctx)
 	    ptr = ptr->next;
 	}
 	mymonitor = mymonitor->next;
+    }
+}
+void monitor_add_parameters(MONITOR* monitor, CONFIG_PARAMETER* params)
+{
+    CONFIG_PARAMETER *t,*p;
+
+    while(monitor->params)
+    {
+	t = monitor->params;
+	monitor->params = monitor->params->next;
+	free(t->name);
+	free(t->value);
+	free(t);
+    }
+
+    p = params;
+
+    while(p)
+    {
+	t = config_clone_param(p);
+	t->next = monitor->params;
+	monitor->params = t;
+	p = p->next;
     }
 }

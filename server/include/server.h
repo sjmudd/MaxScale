@@ -211,5 +211,5 @@ extern DCB      *server_get_persistent(SERVER *, char *, const char *);
 extern void	server_update_address(SERVER *, char *);
 extern void	server_update_port(SERVER *,  unsigned short);
 extern RESULTSET	*serverGetList();
-extern void server_remove_old_servers(CONFIG_CONTEXT* context);
+extern void server_remove_old_servers();
 #endif
