@@ -361,8 +361,9 @@ char		*remote, *userName;
 			{
 				LOGIF(LE, (skygw_log_write(
 					LOGFILE_ERROR,
-					"Error : Opening output file for qla "
-					"fileter failed due to %d, %s",
+					"Error : Opening output file '%s' for qla "
+					"filter failed due to %d, %s",
+					my_session->filename,
 					errno,
 					strerror(errno))));
 				free(my_session->filename);
