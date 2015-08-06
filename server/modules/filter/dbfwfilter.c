@@ -117,6 +117,7 @@ static FILTER_OBJECT MyObject = {
 	diagnostic,
 };
 
+#define FW_BUFFER_MAX 2048
 
 /**
  * Rule types
@@ -226,6 +227,7 @@ typedef struct {
 	RULELIST* rules;/*< List of all the rules */
 	STRLINK* userstrings;/*< Temporary list of raw strings of users */
 	bool whitelist;/*< Default operation mode, defaults to deny */
+	bool log_matches; /*< Log matching queries into a file. */
 	SPINLOCK* lock;/*< Instance spinlock */
 	long idgen; /*< UID generator */
 	int regflags;
@@ -432,6 +434,8 @@ bool parse_querytypes(char* str,RULE* rule)
                 rule->on_queries |= QUERY_OP_DROP;
             }else if(strcmp(buffer,"grant") == 0){
                 rule->on_queries |= QUERY_OP_GRANT;
+            }else if(strcmp(buffer,"use") == 0){
+                rule->on_queries |= QUERY_OP_CHANGE_DB;
             }
 
             if(done){
@@ -871,7 +875,7 @@ bool parse_rule(char* rule, FW_INSTANCE* instance)
 
     char *rulecpy = strdup(rule);
     char *saveptr = NULL;
-    char buffer[2048];
+    char buffer[FW_BUFFER_MAX];
     char *tok = fw_get_token(rulecpy,&saveptr,buffer);
     bool allow,deny,mode;
     RULE* ruledef = NULL;
@@ -1301,7 +1305,8 @@ createInstance(char **options, FILTER_PARAMETER **params)
 	my_instance->whitelist = true;
 	my_instance->userstrings = NULL;
 	my_instance->regflags = 0;
-	
+	my_instance->whitelist = false;
+	my_instance->log_matches = false;
 	for(i = 0;params[i];i++){
 	    if(strcmp(params[i]->name, "rules") == 0){
 		if(filename)
@@ -1650,7 +1655,6 @@ bool rule_matches(FW_INSTANCE* my_instance, FW_SESSION* my_session, GWBUF *queue
 		}
 		optype =  query_classifier_get_operation(queue);
 		is_real = skygw_is_real_query(queue);
-
 	}
 
 	if(rulelist->rule->on_queries == QUERY_OP_UNDEFINED || rulelist->rule->on_queries & optype){
@@ -1711,7 +1715,6 @@ bool rule_matches(FW_INSTANCE* my_instance, FW_SESSION* my_session, GWBUF *queue
 
         case RT_WILDCARD:
 
-
             if(is_sql && is_real){
                 char * strptr;
                 where = skygw_get_affected_fields(queue);
@@ -1765,6 +1768,13 @@ bool rule_matches(FW_INSTANCE* my_instance, FW_SESSION* my_session, GWBUF *queue
 	
 	if(matches){
 		rulelist->rule->times_matched++;
+		if(my_instance->log_matches)
+		{
+		    skygw_log_write(LM,"Rule %s matched by %s@%s",
+			     rulelist->rule->name,
+			     my_session->session->client->user,
+			     my_session->session->client->remote);
+		}
 	}
 	
 	return matches;
@@ -2229,6 +2239,11 @@ char* fw_get_token(char* string, char** saved,char* buffer)
     char *ptr,*start = NULL,*end = NULL;
     char delim = 0;
 
+    if(string == NULL || saved == NULL || buffer == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: NULL parameters passed.",__FUNCTION__);
+	return NULL;
+    }
     if(string)
 	*saved = string;
     ptr = *saved;
@@ -2236,7 +2251,7 @@ char* fw_get_token(char* string, char** saved,char* buffer)
     if(ptr == NULL)
 	return NULL;
 
-    while(*ptr != '\0')
+    while(*ptr != '\0' && ptr - *saved < FW_BUFFER_MAX)
     {
 	if(*ptr == '\"' || *ptr == '\"')
 	{
@@ -2275,6 +2290,6 @@ char* fw_get_token(char* string, char** saved,char* buffer)
 	*saved = ptr + 1;
     }
     memcpy((void*)buffer,(void*)start,end - start);
-    memcpy((void*)(buffer + (end - start)),(void*)"\0",1);
+    *(buffer + (end - start)) = '\0';
     return buffer;
 }

@@ -35,14 +35,14 @@ The database firewall filter has one mandatory parameter that defines the locati
 The rules are defined by using the following syntax:
 
 ```
-rule NAME deny [wildcard | columns VALUE ... |
+rule NAME [deny|allow] [wildcard | columns VALUE ... |
      regex REGEX | limit_queries COUNT TIMEPERIOD HOLDOFF |
       no_where_clause] [at_times VALUE...] [on_queries [select|update|insert|delete]]
 ```
 
 Rules always define a blocking action so the basic mode for the database firewall filter is to allow all queries that do not match a given set of rules. Rules are identified by their name and have a mandatory part and optional parts. You can add comments to the rule files by adding the `#` character at the beginning of the line.
 
-The first step of defining a rule is to start with the keyword `rule` which identifies this line of text as a rule. The second token is identified as the name of the rule. After that the mandatory token `deny` is required to mark the start of the actual rule definition.
+The first step of defining a rule is to start with the keyword `rule` which identifies this line of text as a rule. The second token is identified as the name of the rule. After that the mandatory token describing the default action to take is required to mark the start of the actual rule definition. The possible values for this are `deny` which blocks the query if it matches this rule and `allow` which causes the query to only pass if it matches this rule.
 
 ### Mandatory rule parameters
 
