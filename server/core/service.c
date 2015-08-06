@@ -1391,7 +1391,7 @@ ReparseFilterConfig(CONFIG_CONTEXT *context,FILTER_DEF* filter)
 	return -1;
     }
 
-    optparam = config_get_param(context->parameters,"options");
+    optparam = config_get_param(ptr->parameters,"options");
 
     if(optparam)
     {
