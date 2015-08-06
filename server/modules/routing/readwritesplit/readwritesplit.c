@@ -659,9 +659,12 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     }
     router->old_servers = router->servers;
     router->servers = NULL;
+
     router->rwsplit_config.rw_max_slave_conn_count = CONFIG_MAX_SLAVE_CONN;
     router->rwsplit_config.rw_max_slave_replication_lag = CONFIG_MAX_SLAVE_RLAG;
     router->rwsplit_config.rw_use_sql_variables_in = CONFIG_SQL_VARIABLES_IN;
+    router->rwsplit_config.rw_slave_select_criteria = DEFAULT_CRITERIA;
+
     if(options)
     {
 	rwsplit_process_router_options(router,options);
@@ -680,48 +683,34 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     spinlock_release(&router->lock);
 
     /**
-         * Set default value for max_slave_connections and for slave selection
-         * criteria. If parameter is set in config file max_slave_connections
-         * will be overwritten.
-         */
-        router->rwsplit_config.rw_max_slave_conn_count = CONFIG_MAX_SLAVE_CONN;
+     * Copy all config parameters from service to router instance.
+     * Finally, copy version number to indicate that configs match.
+     */
+    param = config_get_param(service->svc_config_param, "max_slave_connections");
 
-        if (router->rwsplit_config.rw_slave_select_criteria == UNDEFINED_CRITERIA)
-        {
-                router->rwsplit_config.rw_slave_select_criteria = DEFAULT_CRITERIA;
-        }
+    if (param != NULL)
+    {
+	refreshInstance(router, param);
+    }
+    /**
+     * Read default value for slave replication lag upper limit and then
+     * configured value if it exists.
+     */
+    param = config_get_param(service->svc_config_param, "max_slave_replication_lag");
 
-        /**
-	 * Copy all config parameters from service to router instance.
-	 * Finally, copy version number to indicate that configs match.
-	 */
-        param = config_get_param(service->svc_config_param, "max_slave_connections");
+    if (param != NULL)
+    {
+	refreshInstance(router, param);
+    }
+    /** Set default values */
+    param = config_get_param(service->svc_config_param, "use_sql_variables_in");
 
-        if (param != NULL)
-        {
-	    refreshInstance(router, param);
-        }
-        /**
-	 * Read default value for slave replication lag upper limit and then
-	 * configured value if it exists.
-	 */
-        router->rwsplit_config.rw_max_slave_replication_lag = CONFIG_MAX_SLAVE_RLAG;
-        param = config_get_param(service->svc_config_param, "max_slave_replication_lag");
+    if (param != NULL)
+    {
+	refreshInstance(router, param);
+    }
+    router->rwsplit_version = service->svc_config_version;
 
-        if (param != NULL)
-        {
-	    refreshInstance(router, param);
-        }
-        router->rwsplit_version = service->svc_config_version;
-	/** Set default values */
-	router->rwsplit_config.rw_use_sql_variables_in = CONFIG_SQL_VARIABLES_IN;
-	param = config_get_param(service->svc_config_param, "use_sql_variables_in");
-
-	if (param != NULL)
-	{
-	    refreshInstance(router, param);
-	}
-	
     return rval;
 }
 

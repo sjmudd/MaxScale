@@ -17,7 +17,7 @@
  */
 
 /**
- * @file mm_mon.c - A Multi-Master Multi Muster cluster monitor
+ * @file mmmon.c - A Multi-Master cluster monitor
  *
  * @verbatim
  * Revision History
@@ -45,7 +45,7 @@ MODULE_INFO	info = {
 	MODULE_API_MONITOR,
 	MODULE_BETA_RELEASE,
 	MONITOR_VERSION,
-	"A Multi-Master Multi Master monitor"
+	"A Multi-Master cluster monitor"
 };
 
 static	void 	*startMonitor(void *,void*);
