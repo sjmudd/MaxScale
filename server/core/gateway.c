@@ -1641,7 +1641,7 @@ int main(int argc, char **argv)
 
 			if(errno != EEXIST){
 				fprintf(stderr,
-						"Error: Cannot create data directory: %s\n",datadir);
+						"Error: Cannot create data directory '%s': %d %s\n",datadir,errno,strerror(errno));
 				goto return_main;
 			}
 		}
@@ -1652,7 +1652,7 @@ int main(int argc, char **argv)
 
 			if(errno != EEXIST){
 				fprintf(stderr,
-						"Error: Cannot create data directory: %s\n",datadir);
+						"Error: Cannot create data directory '%s': %d %s\n",datadir,errno,strerror(errno));
 				goto return_main;
 			}
 		}
