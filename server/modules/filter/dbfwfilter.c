@@ -187,7 +187,7 @@ typedef struct rule_t{
     char*		name; /*< Name of the rule */
     ruletype_t	type;/*< Type of the rule */
     skygw_query_op_t on_queries;/*< Types of queries to inspect */
-    bool		allow;/*< Allow or deny the query if this rule matches */
+    bool		deny;/*< Allow or deny the query if this rule matches */
     int times_matched;/*< Number of times this rule has been matched */
     TIMERANGE* active;/*< List of times when this rule is active */
 }RULE;
@@ -228,6 +228,7 @@ typedef struct {
 	STRLINK* userstrings;/*< Temporary list of raw strings of users */
 	bool whitelist;/*< Default operation mode, defaults to deny */
 	bool log_matches; /*< Log matching queries into a file. */
+	bool dry_run; /*< Log matching queries into a file. */
 	SPINLOCK* lock;/*< Instance spinlock */
 	long idgen; /*< UID generator */
 	int regflags;
@@ -961,8 +962,8 @@ bool parse_rule(char* rule, FW_INSTANCE* instance)
        (deny = (strcmp(tok,"deny") == 0)))
     {
 
-	mode = allow ? true:false;
-	ruledef->allow = mode;
+	mode = deny ? true:false;
+	ruledef->deny = mode;
 	ruledef->type = RT_PERMISSION;
 	tok = fw_get_token(NULL,&saveptr,buffer);
 	if(allow)
@@ -1276,88 +1277,119 @@ bool is_comment(char* str)
 static	FILTER	*
 createInstance(char **options, FILTER_PARAMETER **params)
 {
-	FW_INSTANCE	*my_instance;
-  	int i;
-	HASHTABLE* ht;
-	STRLINK *ptr,*tmp;
-	char *filename = NULL, *nl;
-	char buffer[2048];
-	FILE* file;
-	bool err = false;
+    FW_INSTANCE	*my_instance;
+    int i;
+    HASHTABLE* ht;
+    STRLINK *ptr,*tmp;
+    char *filename = NULL, *nl;
+    char* rpath = NULL;
+    char buffer[2048];
+    FILE* file;
+    bool err = false;
 
-	if ((my_instance = calloc(1, sizeof(FW_INSTANCE))) == NULL ||
-		(my_instance->lock = (SPINLOCK*)malloc(sizeof(SPINLOCK))) == NULL){
-            skygw_log_write(LOGFILE_ERROR, "Memory allocation for firewall filter failed.");
-		return NULL;
+    if ((my_instance = calloc(1, sizeof(FW_INSTANCE))) == NULL ||
+	(my_instance->lock = (SPINLOCK*)malloc(sizeof(SPINLOCK))) == NULL){
+	skygw_log_write(LOGFILE_ERROR, "Memory allocation for firewall filter failed.");
+	return NULL;
+    }
+
+    spinlock_init(my_instance->lock);
+
+    if((ht = hashtable_alloc(100, hashkeyfun, hashcmpfun)) == NULL){
+	skygw_log_write(LOGFILE_ERROR, "Unable to allocate hashtable.");
+	free(my_instance);
+	return NULL;
+    }
+
+    hashtable_memory_fns(ht,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,huserfree);
+
+    my_instance->htable = ht;
+    my_instance->whitelist = true;
+    my_instance->userstrings = NULL;
+    my_instance->regflags = 0;
+    my_instance->whitelist = false;
+    my_instance->log_matches = false;
+    my_instance->dry_run = false;
+    for(i = 0;params[i];i++){
+	if(strcmp(params[i]->name, "rules") == 0){
+	    if(filename)
+		free(filename);
+	    filename = strdup(params[i]->value);
+	}else if(strcmp(params[i]->name, "log_matches") == 0){
+	    my_instance->log_matches = config_truth_value(params[i]->value);
+	}else if(strcmp(params[i]->name, "dry_run") == 0){
+	    my_instance->dry_run = config_truth_value(params[i]->value);
 	}
-	
-	spinlock_init(my_instance->lock);
+    }
 
-	if((ht = hashtable_alloc(100, hashkeyfun, hashcmpfun)) == NULL){
-		skygw_log_write(LOGFILE_ERROR, "Unable to allocate hashtable.");
-		free(my_instance);
-		return NULL;
-	}
-
-	hashtable_memory_fns(ht,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,huserfree);
-	
-	my_instance->htable = ht;
-	my_instance->whitelist = true;
-	my_instance->userstrings = NULL;
-	my_instance->regflags = 0;
-	my_instance->whitelist = false;
-	my_instance->log_matches = false;
-	for(i = 0;params[i];i++){
-	    if(strcmp(params[i]->name, "rules") == 0){
-		if(filename)
-		    free(filename);
-		filename = strdup(params[i]->value);
-	    }
-	}
-
-	if(options)
+    if(options)
+    {
+	for(i = 0;options[i];i++)
 	{
-	    for(i = 0;options[i];i++)
+	    if(strcmp(options[i],"ignorecase") == 0)
 	    {
-		if(strcmp(options[i],"ignorecase") == 0)
-		{
-		    my_instance->regflags |= REG_ICASE;
-		}
+		my_instance->regflags |= REG_ICASE;
 	    }
 	}
-        
-        if(filename == NULL)
-        {
-            skygw_log_write(LOGFILE_ERROR, "Unable to find rule file for firewall filter. Please provide the path with"
-                    " rules=<path to file>");
-            hashtable_free(my_instance->htable);
-            free(my_instance);
-            return NULL;
-        }
-        
-	if((file = fopen(filename,"rb")) == NULL ){
-            skygw_log_write(LOGFILE_ERROR, "Error while opening rule file for firewall filter.");
-            hashtable_free(my_instance->htable);
-            free(my_instance);
-            free(filename);
-            return NULL;
-	}
+    }
+
+    if(filename == NULL)
+    {
+	skygw_log_write(LOGFILE_ERROR, "Unable to find rule file for firewall filter. Please provide the path with"
+		" rules=<path to file>");
+	hashtable_free(my_instance->htable);
+	free(my_instance);
+	return NULL;
+    }
+
+    if((rpath = realpath(filename,NULL)) == NULL)
+    {
+	char* errmsg = strerror_r(errno,buffer,2048);
+	if(errmsg)
+	    sprintf(buffer,"%s",errmsg);
+	skygw_log_write(LOGFILE_ERROR, "Error while opening rule file at '%s' for firewall filter: %d %s",
+		 rpath,errno,buffer);
+	hashtable_free(my_instance->htable);
+	free(my_instance);
+	free(filename);
+	return NULL;
+    }
+
+    if((file = fopen(rpath,"rb")) == NULL ){
+
+	char* errmsg = strerror_r(errno,buffer,2048);
+	if(errmsg)
+	    sprintf(buffer,"%s",errmsg);
+	skygw_log_write(LOGFILE_ERROR, "Error while opening rule file at '%s' for firewall filter: %d %s",
+		 rpath,errno,buffer);
+	hashtable_free(my_instance->htable);
+	free(my_instance);
+	free(filename);
+	free(rpath);
+	return NULL;
+    }
 
 
-	bool file_empty = true;
+    bool file_empty = true;
 
-	while(!feof(file))
+    while(!feof(file))
     {
 
         if(fgets(buffer,2048,file) == NULL){
             if(ferror(file)){
-                skygw_log_write(LOGFILE_ERROR, "Error while reading rule file for firewall filter.");
+		char* errmsg = strerror_r(errno,buffer,2048);
+		if(errmsg)
+		    sprintf(buffer,"%s",errmsg);
+		skygw_log_write(LOGFILE_ERROR, "Error while reading rule file at '%s' for firewall filter: %d %s",
+			 rpath,errno,buffer);
                 fclose(file);
                 hashtable_free(my_instance->htable);
                 free(my_instance);
+		free(filename);
+		free(rpath);
                 return NULL;
             }
-				
+
             if(feof(file)){
                 break;
             }
@@ -1381,52 +1413,54 @@ createInstance(char **options, FILTER_PARAMETER **params)
 	    goto retblock;
 	}
     }
+    fclose(file);
 
-	if(file_empty)
+    if(file_empty)
+    {
+	skygw_log_write(LOGFILE_ERROR,"dbfwfilter: File is empty: %s");
+	err = true;
+	goto retblock;
+    }
+
+
+
+    /**Apply the rules to users*/
+    ptr = my_instance->userstrings;
+
+    if(ptr == NULL)
+    {
+	skygw_log_write(LOGFILE_ERROR,"dbfwfilter: No 'users' line found.");
+	err = true;
+	goto retblock;
+    }
+
+    while(ptr){
+
+	if(!link_rules(ptr->value,my_instance))
 	{
-	    skygw_log_write(LOGFILE_ERROR,"dbfwfilter: File is empty: %s");
-	    free(filename);
+	    skygw_log_write(LOGFILE_ERROR,"dbfwfilter: Failed to parse rule: %s",ptr->value);
 	    err = true;
-	    goto retblock;
 	}
+	tmp = ptr;
+	ptr = ptr->next;
+	free(tmp->value);
+	free(tmp);
+    }
 
-	fclose(file);
-	free(filename);
+    retblock:
 
-	/**Apply the rules to users*/
-	ptr = my_instance->userstrings;
+    free(filename);
+    free(rpath);
 
-	if(ptr == NULL)
-	{
-	    skygw_log_write(LOGFILE_ERROR,"dbfwfilter: No 'users' line found.");
-	    err = true;
-	    goto retblock;
-	}
+    if(err)
+    {
+	hrulefree(my_instance->rules);
+	hashtable_free(my_instance->htable);
+	free(my_instance);
+	my_instance = NULL;
+    }
 
-	while(ptr){
-
-	    if(!link_rules(ptr->value,my_instance))
-	    {
-		skygw_log_write(LOGFILE_ERROR,"dbfwfilter: Failed to parse rule: %s",ptr->value);
-		err = true;
-	    }
-	    tmp = ptr;
-	    ptr = ptr->next;
-	    free(tmp->value);
-	    free(tmp);
-	}
-
-	retblock:
-
-	if(err)
-	{
-	    hrulefree(my_instance->rules);
-	    hashtable_free(my_instance->htable);
-            free(my_instance);
-	    my_instance = NULL;
-	}
-
-	return (FILTER *)my_instance;
+    return (FILTER *)my_instance;
 }
 
 
@@ -1770,10 +1804,14 @@ bool rule_matches(FW_INSTANCE* my_instance, FW_SESSION* my_session, GWBUF *queue
 		rulelist->rule->times_matched++;
 		if(my_instance->log_matches)
 		{
-		    skygw_log_write(LM,"Rule %s matched by %s@%s",
+		    char *query = modutil_get_SQL(queue);
+		    skygw_log_write(LM,"[%s] Rule %s matched by %s@%s: %s",
+			     my_session->session->service->name,
 			     rulelist->rule->name,
 			     my_session->session->client->user,
-			     my_session->session->client->remote);
+			     my_session->session->client->remote,
+			     query);
+		    free(query);
 		}
 	}
 	
@@ -1821,7 +1859,7 @@ bool check_match_any(FW_INSTANCE* my_instance, FW_SESSION* my_session, GWBUF *qu
 			continue;
 		}
 		if((rval = rule_matches(my_instance,my_session,queue,user,rulelist,fullquery))){
-		    goto retblock;
+			goto retblock;
 		}
 		
 		rulelist = rulelist->next;
@@ -1988,7 +2026,7 @@ queryresolved:
 	free(ipaddr);
 	free(fullquery);
 
-	if(accept){
+	if(accept || my_instance->dry_run){
 
 		return my_session->down.routeQuery(my_session->down.instance,
 						   my_session->down.session, queue);
@@ -2239,7 +2277,7 @@ char* fw_get_token(char* string, char** saved,char* buffer)
     char *ptr,*start = NULL,*end = NULL;
     char delim = 0;
 
-    if(string == NULL || saved == NULL || buffer == NULL)
+    if(saved == NULL || buffer == NULL)
     {
 	skygw_log_write(LE,"[%s] Error: NULL parameters passed.",__FUNCTION__);
 	return NULL;
