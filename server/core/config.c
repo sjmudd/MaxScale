@@ -76,6 +76,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <sys/utsname.h>
+#include <gwdirs.h>
 
 #ifdef SS_DEBUG
 #include <gwdirs.h>
