@@ -2754,8 +2754,16 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 		} else {
 			obj->element = monitor_alloc(obj->object, module);
 		}
+		if(obj->element == NULL)
+		{
+		    skygw_log_write(LE,"[%s] Error: Failed to load monitor module."
+			    " Confirm that the module can be found in the module directory: %s",
+			     obj->object,get_libdir());
+		    error_count++;
+		    return error_count;
+		}
 
-		if (servers && obj->element) {
+		if (servers) {
 			char *s, *lasts;
 
 			/* if id is not set, compute it now with pid only */
@@ -2823,13 +2831,13 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 				s = strtok_r(NULL, ",", &lasts);
 			}
 		}
-		if (obj->element && user && passwd)
+		if (user && passwd)
 		{
 			monitorAddUser(obj->element,
 				user,
 				passwd);
 		}
-		else if (obj->element && user)
+		else if (user)
 		{
 			LOGIF(LE, (skygw_log_write_flush(
 				LOGFILE_ERROR, "Error: "

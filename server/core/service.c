@@ -1415,20 +1415,13 @@ ReparseFilterConfig(CONFIG_CONTEXT *context,FILTER_DEF* filter)
     }
     else
     {
-	if(filter->options == NULL)
-	{
-	    if((filter->options = (char **)malloc(sizeof(char *))) == NULL)
-	    {
-		skygw_log_write(LE,"Error: memory allocation failed");
-		return -1;
-	    }
-	}
-	else
+	if(filter->options)
 	{
 	    for(x = 0;filter->options[x];x++)
 		free(filter->options[x]);
 	}
-	filter->options[0] = NULL;
+	free(filter->options);
+	filter->options = NULL;
     }
     if(filter->parameters)
     {

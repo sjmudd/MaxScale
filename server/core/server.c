@@ -148,6 +148,8 @@ SERVER *server;
 	free(tofreeserver->name);
 	free(tofreeserver->protocol);
 	free(tofreeserver->slaves);
+	free(tofreeserver->monuser);
+	free(tofreeserver->monpw);
 	if (tofreeserver->unique_name)
 		free(tofreeserver->unique_name);
 	if (tofreeserver->server_string)

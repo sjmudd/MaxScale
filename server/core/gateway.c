@@ -1180,7 +1180,7 @@ int main(int argc, char **argv)
 		    break;
 		case 'D':
 		    sprintf(datadir,"%s",optarg);
-		    set_datadir(optarg);
+		    set_datadir(strdup(optarg));
 		    datadir_defined = true;
 		    break;
 		case 'C':
@@ -1194,14 +1194,12 @@ int main(int argc, char **argv)
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,false))
 		    {
 			set_libdir(tmp_path);
-			free(tmp_path);
 		    }
 		    break;
 		case 'A':
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,true))
 		    {
 			set_cachedir(tmp_path);
-			free(tmp_path);
 		    }
 		    break;
 		case 'S':
@@ -1557,9 +1555,6 @@ int main(int argc, char **argv)
 
 	ini_parse(cnf_file_path,cnf_preparser,NULL);
 
-	if(!datadir_defined)
-	    sprintf(datadir,"%s",default_datadir);
-
 
         /** Use the cache dir for the mysql folder of the embedded library */
 	sprintf(mysql_home, "%s/mysql", get_cachedir());
@@ -1627,35 +1622,34 @@ int main(int argc, char **argv)
 		}
         }
 
-	/**
+
+	/*
          * Set a data directory for the mysqld library, we use
          * a unique directory name to avoid clauses if multiple
          * instances of the gateway are being run on the same
          * machine.
          */
 
-	if(datadir[strlen(datadir)-1] != '/')
-	    strcat(datadir,"/");
-	strcat(datadir,"data");
-		if(mkdir(datadir, 0777) != 0){
+	sprintf(datadir,"%s/data",get_datadir());
+	if(mkdir(datadir, 0777) != 0){
 
-			if(errno != EEXIST){
-				fprintf(stderr,
-						"Error: Cannot create data directory '%s': %d %s\n",datadir,errno,strerror(errno));
-				goto return_main;
-			}
-		}
+	    if(errno != EEXIST){
+		fprintf(stderr,
+		 "Error: Cannot create data directory '%s': %d %s\n",datadir,errno,strerror(errno));
+		goto return_main;
+	    }
+	}
 
-        sprintf(datadir, "%s/data%d", datadir, getpid());
+        sprintf(datadir, "%s/data/data%d", get_datadir(), getpid());
 
-		if(mkdir(datadir, 0777) != 0){
+	if(mkdir(datadir, 0777) != 0){
 
-			if(errno != EEXIST){
-				fprintf(stderr,
-						"Error: Cannot create data directory '%s': %d %s\n",datadir,errno,strerror(errno));
-				goto return_main;
-			}
-		}
+	    if(errno != EEXIST){
+		fprintf(stderr,
+		 "Error: Cannot create data directory '%s': %d %s\n",datadir,errno,strerror(errno));
+		goto return_main;
+	    }
+	}
 
         if (!daemon_mode)
         {
@@ -2064,8 +2058,8 @@ bool handle_path_arg(char** dest, char* path, char* arg, bool rd, bool wr)
  */
 static int cnf_preparser(void* data, const char* section, const char* name, const char* value)
 {
-    char* tmp;
     GATEWAY_CONF* cnf = config_get_global_options();
+    char *tmp;
     /** These are read from the configuration file. These will not override
      * command line parameters but will override default values. */
     if(strcasecmp(section,"maxscale") == 0)
@@ -2083,13 +2077,10 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 	}
 	else if(strcmp(name, "libdir") == 0)
 	{
-	    if(strcmp(get_libdir(),default_libdir) == 0)
+	    if(get_libdir() == default_libdir )
 	    {
-		if(handle_path_arg(&tmp,(char*)value,NULL,true,false))
-		{
-		    set_libdir(tmp);
-		    free(tmp);
-		}
+		handle_path_arg(&tmp,(char*)value,NULL,true,false);
+		set_libdir(tmp);
 	    }
 	}
 	else if(strcmp(name, "piddir") == 0)
@@ -2112,19 +2103,15 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 		    sprintf(datadir,"%s",tmp);
 		    set_datadir(tmp);
 		    datadir_defined = true;
-		    free(tmp);
 		}
 	    }
 	}
 	else if(strcmp(name, "cachedir") == 0)
 	{
-	    if(strcmp(get_cachedir(),default_cachedir) == 0)
+	    if(get_cachedir() == default_cachedir)
 	    {
-		if(handle_path_arg((char**)&tmp,(char*)value,NULL,true,false))
-		{
-		    set_cachedir(tmp);
-		    free(tmp);
-		}
+		handle_path_arg((char**)&tmp,(char*)value,NULL,true,false);
+		set_cachedir(tmp);
 	    }
 	}
 	else if(strcmp(name, "language") == 0)

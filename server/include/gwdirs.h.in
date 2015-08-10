@@ -25,23 +25,31 @@
 #include <string.h>
 /** Default file locations, configured by CMake */
 static const char* default_cnf_fname = "maxscale.cnf";
-static const char* default_configdir = "/etc/";
-static const char* default_piddir = "@MAXSCALE_VARDIR@/run/maxscale/"; /*< This should be changed to just /run eventually, 
+static const char* default_configdir = "/etc";
+static const char* default_piddir = "@MAXSCALE_VARDIR@/run/maxscale"; /*< This should be changed to just /run eventually, 
                                                                         * the /var/run folder is an old standard and the newe FSH 3.0
                                                                         * uses /run for PID files.*/
-static const char* default_logdir = "@MAXSCALE_VARDIR@/log/maxscale/";
-static const char* default_datadir = "@MAXSCALE_VARDIR@/lib/maxscale/";
+static const char* default_logdir = "@MAXSCALE_VARDIR@/log/maxscale";
+static const char* default_datadir = "@MAXSCALE_VARDIR@/lib/maxscale";
 static const char* default_libdir = "@CMAKE_INSTALL_PREFIX@/@MAXSCALE_LIBDIR@";
-static const char* default_cachedir = "@MAXSCALE_VARDIR@/cache/maxscale/";
-static const char* default_langdir = "@MAXSCALE_VARDIR@/lib/maxscale/";
+static const char* default_cachedir = "@MAXSCALE_VARDIR@/cache/maxscale";
+static const char* default_langdir = "@MAXSCALE_VARDIR@/lib/maxscale";
 
-void set_configdir(char* str);
-void set_logdir(char* str);
-void set_libdir(char* str);
-void set_cachedir(char* str);
-void set_datadir(char* str);
-void set_langdir(char* str);
-void set_piddir(char* str);
+static char* configdir = NULL;
+static char* logdir = NULL;
+static char* libdir = NULL;
+static char* cachedir = NULL;
+static char* maxscaledatadir = NULL;
+static char* langdir = NULL;
+static char* piddir = NULL;
+
+void set_libdir(char* param);
+void set_datadir(char* param);
+void set_cachedir(char* param);
+void set_configdir(char* param);
+void set_logdir(char* param);
+void set_langdir(char* param);
+void set_piddir(char* param);
 char* get_libdir();
 char* get_datadir();
 char* get_cachedir();
