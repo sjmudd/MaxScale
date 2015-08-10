@@ -36,7 +36,7 @@
  *					Put example code behind SS_DEBUG macros.
  * 05/02/14	Mark Riddoch		Addition of version string
  * 29/06/14	Massimiliano Pinto	Addition of pidfile
- *
+ * 10/08/15     Markus Makela           Added configurable directory locations
  * @endverbatim
  */
 #define _XOPEN_SOURCE 700
@@ -977,7 +977,7 @@ return_cnf_file_buf:
 static void usage(void)
 {
         fprintf(stderr,
-                "\nUsage : %s [OPTION]...\n\n"
+		"\nUsage : %s [OPTION]...\n\n"
 		"  -d, --nodaemon             enable running in terminal process (default:disabled)\n"
                 "  -f, --config=FILE          relative|absolute pathname of MaxScale configuration file\n"
 		"                             (default:/etc/maxscale.cnf)\n"
@@ -992,6 +992,8 @@ static void usage(void)
 		"                             (default: /etc/)\n"
 		"  -D, --datadir=PATH         path to data directory, stored embedded mysql tables\n"
 		"                             (default: /var/cache/maxscale)\n"
+		"  -N, --language=PATH         apth to errmsg.sys file\n"
+		"                             (default: /var/lib/maxscale)\n"
 		"  -P, --piddir=PATH	      path to PID file directory\n"
 		"                             (default: /var/run/maxscale)\n"
 		"  -U, --user=USER	      run MaxScale as another user.\n"
@@ -1160,22 +1162,30 @@ int main(int argc, char **argv)
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,false))
 		    {
 			set_logdir(tmp_path);
-			free(tmp_path);
 		    }
-
+		    else
+		    {
+			succp = false;
+		    }
 		    break;
 		case 'N':
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,false))
 		    {
 			set_langdir(tmp_path);
-			free(tmp_path);
+		    }
+		    else
+		    {
+			succp = false;
 		    }
 		    break;
 		case 'P':
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,true))
 		    {
 			set_piddir(tmp_path);
-			free(tmp_path);
+		    }
+		    else
+		    {
+			succp = false;
 		    }
 		    break;
 		case 'D':
@@ -1187,7 +1197,10 @@ int main(int argc, char **argv)
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,false))
 		    {
 			set_configdir(tmp_path);
-			free(tmp_path);
+		    }
+		    else
+		    {
+			succp = false;
 		    }
 		    break;
 		case 'B':
@@ -1195,11 +1208,19 @@ int main(int argc, char **argv)
 		    {
 			set_libdir(tmp_path);
 		    }
+		    else
+		    {
+			succp = false;
+		    }
 		    break;
 		case 'A':
 		    if(handle_path_arg(&tmp_path,optarg,NULL,true,true))
 		    {
 			set_cachedir(tmp_path);
+		    }
+		    else
+		    {
+			succp = false;
 		    }
 		    break;
 		case 'S':
@@ -1977,7 +1998,7 @@ static int write_pid_file() {
 
 	int fd = -1;
 
-        snprintf(pidfile, PATH_MAX, "%smaxscale.pid",get_piddir());
+        snprintf(pidfile, PATH_MAX, "%s/maxscale.pid",get_piddir());
 
         fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
         if (fd == -1) {
@@ -2071,7 +2092,6 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 		if(handle_path_arg(&tmp,(char*)value,NULL,true,true))
 		{
 		    set_logdir(tmp);
-		    free(tmp);
 		}
 	    }
 	}
@@ -2090,7 +2110,6 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 		if(handle_path_arg(&tmp,(char*)value,NULL,true,true))
 		{
 		    set_piddir(tmp);
-		    free(tmp);
 		}
 	    }
 	}
@@ -2121,7 +2140,6 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 		if(handle_path_arg((char**)&tmp,(char*)value,NULL,true,false))
 		{
 		    set_langdir(tmp);
-		    free(tmp);
 		}
 	    }
 	}

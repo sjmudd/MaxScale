@@ -3,22 +3,22 @@
 void set_configdir(char* str)
 {
     free(configdir);
-    configdir = strdup(str);
+    configdir = str;
 }
 void set_logdir(char* str)
 {
     free(logdir);
-    logdir = strdup(str);
+    logdir = str;
 }
 void set_langdir(char* str)
 {
     free(langdir);
-    langdir = strdup(str);
+    langdir = str;
 }
 void set_piddir(char* str)
 {
     free(piddir);
-    piddir = strdup(str);
+    piddir = str;
 }
 
 /**
