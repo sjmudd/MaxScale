@@ -1638,6 +1638,11 @@ skygw_query_op_t query_classifier_get_operation(GWBUF* querybuf)
 {
 	LEX* lex = get_lex(querybuf);
 	skygw_query_op_t operation = QUERY_OP_UNDEFINED;
+
+        /** Detect COM_CHANGE_DB */
+        if(GWBUF_LENGTH(querybuf) > 5 && *((unsigned char*)querybuf->start+4) == 0x02 )
+            operation = QUERY_OP_CHANGE_DB;
+
 	if(lex){
 		switch(lex->sql_command){
 		case SQLCOM_SELECT:
@@ -1678,7 +1683,7 @@ skygw_query_op_t query_classifier_get_operation(GWBUF* querybuf)
                     break;
 
 		default:
-	    operation = QUERY_OP_UNDEFINED;
+                    break;
 	}
   }
 	return operation;
