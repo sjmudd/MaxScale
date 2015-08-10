@@ -429,6 +429,9 @@ config_reload_active()
 
 	    hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
 
+	    /** Clear housekeeper tasks */
+	    hktask_clear();
+
 	    if (ini_parse(config_file, handler, &config) < 0)
 		return;
 

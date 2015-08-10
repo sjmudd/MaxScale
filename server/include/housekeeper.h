@@ -56,6 +56,7 @@ extern void hkinit();
 extern int  hktask_add(char *name, void (*task)(void *), void *data, int frequency);
 extern int  hktask_oneshot(char *name, void (*task)(void *), void *data, int when);
 extern int  hktask_remove(char *name);
+extern void hktask_clear();
 extern void hkshutdown();
 extern void hkshow_tasks(DCB *pdcb);
 #endif

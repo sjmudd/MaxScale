@@ -226,6 +226,26 @@ HKTASK	*ptr, *lptr = NULL;
 	}
 }
 
+/**
+ * Remove all tasks from the task list
+ */
+void hktask_clear()
+{
+    HKTASK	*ptr, *lptr = NULL;
+
+    spinlock_acquire(&tasklock);
+    ptr = tasks;
+    tasks = NULL;
+    while (ptr)
+    {
+	lptr = ptr;
+	ptr = ptr->next;
+	free(lptr->name);
+	free(lptr);
+    }
+
+    spinlock_release(&tasklock);
+}
 
 /**
  * The housekeeper thread implementation.
