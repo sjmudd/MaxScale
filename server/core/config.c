@@ -1326,6 +1326,10 @@ CONFIG_PARAMETER* config_clone_param(
         switch (param->qfd_param_type)
         {
 	case STRING_TYPE:
+		if(param->qfd.valstr == NULL)
+		{
+		    param->qfd.valstr = strdup(param->value);
+		}
                 p2->qfd.valstr = strndup(param->qfd.valstr, MAX_PARAM_LEN);
 		break;
 	case PERCENT_TYPE:
@@ -2655,11 +2659,7 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 		}
 	    }
 
-	    if (filters)
-	    {
-		serviceUpdateFilters(obj->element,context, filters);
-	    }
-	    
+	    serviceUpdateFilters(obj->element,context, filters);
 	    serviceUpdateRouter(obj->element, context);
 	}
 }

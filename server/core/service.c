@@ -1509,9 +1509,12 @@ serviceUpdateNamedFilter(char* name, CONFIG_CONTEXT *context)
 }
 
 /**
- * Updates the filters used by the service
+ * Updates the filters used by the service.
+ * Removes old filters and applies new ones found in the configuration file. If
+ * the filters parameter is NULL, no new filters are applied.
  *
  * @param service	The service itself
+ * @return 0 on success, -1 on error
  */
 int
 serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context, char *filters)
@@ -1522,28 +1525,32 @@ serviceUpdateFilters(SERVICE *service, CONFIG_CONTEXT *context, char *filters)
     free(service->filters);
     service->n_filters = 0;
     service->filters = NULL;
-    if(serviceSetFilters(service,filters) != 0)
-    {
-	serviceDisable(service);
-	service->state = SERVICE_STATE_FAILED;
-	spinlock_release(&service->spin);
-	skygw_log_write(LE,"Error: Filter setup failed for service [%s]. Service is disabled.",service->name);
-	return -1;
-    }
 
-    for(i = 0;i<service->n_filters;i++)
+    if(filters)
     {
-	ReparseFilterConfig(context,service->filters[i]);
-	if(filterUpdate(service->filters[i]) != 0)
+	if(serviceSetFilters(service,filters) != 0)
 	{
-	    skygw_log_write_flush(
-		    LOGFILE_ERROR,
-		    "Error : Failed to update filter '%s' for service '%s'.\n",
-		    service->filters[i]->name, service->name);
 	    serviceDisable(service);
 	    service->state = SERVICE_STATE_FAILED;
 	    spinlock_release(&service->spin);
+	    skygw_log_write(LE,"Error: Filter setup failed for service [%s]. Service is disabled.",service->name);
 	    return -1;
+	}
+
+	for(i = 0;i<service->n_filters;i++)
+	{
+	    ReparseFilterConfig(context,service->filters[i]);
+	    if(filterUpdate(service->filters[i]) != 0)
+	    {
+		skygw_log_write_flush(
+			LOGFILE_ERROR,
+				 "Error : Failed to update filter '%s' for service '%s'.\n",
+				 service->filters[i]->name, service->name);
+		serviceDisable(service);
+		service->state = SERVICE_STATE_FAILED;
+		spinlock_release(&service->spin);
+		return -1;
+	    }
 	}
     }
 
