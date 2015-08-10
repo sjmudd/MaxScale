@@ -4446,16 +4446,6 @@ int alloc_backends(ROUTER_INSTANCE* router, SERVICE* service)
 	router->servers[nservers]->weight = 1;
 	router->servers[nservers]->be_valid = false;
 	router->servers[nservers]->stats.queries = 0;
-	if(server->server->monuser == NULL && service->credentials.name != NULL)
-	{
-	    router->servers[nservers]->backend_server->monuser =
-		    strdup(service->credentials.name);
-	}
-	if(server->server->monpw == NULL && service->credentials.authdata != NULL)
-	{
-	    router->servers[nservers]->backend_server->monpw =
-		    strdup(service->credentials.authdata);
-	}
 #if defined(SS_DEBUG)
 	router->servers[nservers]->be_chk_top = CHK_NUM_BACKEND;
 	router->servers[nservers]->be_chk_tail = CHK_NUM_BACKEND;

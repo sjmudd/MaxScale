@@ -204,6 +204,7 @@ CONFIG_PARAMETER	*param, *p1;
 	param->name = strdup(name);
 	param->value = strdup(value);
 	param->next = ptr->parameters;
+	param->qfd_param_type = UNDEFINED_TYPE;
 	ptr->parameters = param;
 
 	return 1;
@@ -2214,11 +2215,32 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			version_string = config_get_value(obj->parameters, "version_string");
 			allow_localhost_match_wildcard_host = config_get_value(obj->parameters, "localhost_match_wildcard_host");
 
+			if(service->version_string)
+			    free(service->version_string);
+
 			if (version_string) {
-				if (service->version_string) {
-					free(service->version_string);
+
+			    /** Add the 5.5.5- string to the start of the version string if
+			     * the version string starts with "10.".
+			     * This mimics MariaDB 10.0 replication which adds 5.5.5- for backwards compatibility. */
+			    if(strncmp(version_string,"10.",3) == 0)
+			    {
+				if((service->version_string = malloc((strlen(version_string) +
+											 strlen("5.5.5-") + 1) * sizeof(char))) == NULL)
+				{
+				    skygw_log_write(LE,"[%s] Error: Memory allocation failed.",
+					     __FUNCTION__);
 				}
+				strcpy(service->version_string,"5.5.5-");
+				strcat(service->version_string,version_string);
+			    }
+			    else
+			    {
 				service->version_string = strdup(version_string);
+			    }
+			} else {
+			    if (gateway.version_string)
+				service->version_string = strdup(gateway.version_string);
 			}
 
 			if (user && auth) {
