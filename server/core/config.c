@@ -111,6 +111,7 @@ void	config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 void	config_monitor_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
 int	config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *running);
 int config_add_filter(CONFIG_CONTEXT* obj);
+void service_debug_show(char* service_name);
 static	char		*config_file = NULL;
 static	GATEWAY_CONF	gateway;
 static	FEEDBACK_CONF	feedback;
@@ -1653,6 +1654,9 @@ CONFIG_CONTEXT		*obj;
 		else if (!strcmp(type, "service"))
 		{
 			config_service_update_objects(obj, context);
+#ifdef SS_DEBUG
+			service_debug_show(obj->object);
+#endif
 		}
 		else if (!strcmp(type, "monitor"))
 		{

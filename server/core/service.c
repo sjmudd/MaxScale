@@ -2664,3 +2664,66 @@ void service_free_parameters(SERVICE* service)
 	free(tmp);
     }
 }
+
+void service_debug_show(char* service_name)
+{
+  SERVICE* service = service_find(service_name);
+  if(service){
+    skygw_log_write(LT,"Service: %s >",service->name);
+    switch(service->state){
+    case SERVICE_STATE_ALLOC:
+      skygw_log_write(LT,"Status: Allocated",service->name);
+      break;
+    case SERVICE_STATE_STARTED:
+      skygw_log_write(LT,"Status: Started",service->name);
+      break;
+    case SERVICE_STATE_FAILED:
+      skygw_log_write(LT,"Status: Failed",service->name);
+      break;
+    case SERVICE_STATE_STOPPED:
+      skygw_log_write(LT,"Status: Stopped",service->name);
+      break;
+    case SERVICE_STATE_OBSOLETE:
+      skygw_log_write(LT,"Status: Obsolete",service->name);
+      break;
+    case SERVICE_STATE_DISABLED:
+      skygw_log_write(LT,"Status: Disabled",service->name);
+      break;
+    default:
+      break;
+    }
+    skygw_log_write(LT,"Router: %s",service->routerModule);
+    for(int i = 0;service->routerOptions && service->routerOptions[i];i++){
+      skygw_log_write(LT,"Router options: %s",service->routerOptions[i]);
+    }
+    SERVER_REF* servers = service->servers;
+    SERV_PROTOCOL *ports = service->ports;
+    while(ports){
+      skygw_log_write(LT,"Listening on %s:%d",ports->address,ports->port);
+      ports = ports->next;
+    }
+    while(servers){
+      skygw_log_write(LT,"Server '%s' %s:%d",
+		      servers->server->unique_name,
+		      servers->server->name,
+		      servers->server->port);
+      servers = servers->next;
+    }
+    for(int i = 0;i<service->n_filters;i++){
+      skygw_log_write(LT,"Filter: %s %s",
+		      service->filters[i]->name,
+		      service->filters[i]->module);
+      for(int j = 0;service->filters[i]->options && service->filters[i]->options[j];j++){
+	skygw_log_write(LT,"Filter options: %s",service->filters[i]->options[j]);
+      }
+    }
+    CONFIG_PARAMETER* param = service->svc_config_param;
+    while(param){
+      skygw_log_write(LT,"%s=%s",param->name,param->value);
+      param = param->next;
+    }
+    skygw_log_write(LT,"<",service_name);
+  }else{
+    skygw_log_write(LT,"Service %s not found",service_name);
+  }
+}
