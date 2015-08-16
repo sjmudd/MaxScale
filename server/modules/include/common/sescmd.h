@@ -105,7 +105,7 @@ typedef enum
 } mlen_err_t;
 
 /** List properties */
-typedef union list_prop_st{
+typedef struct list_prop_st{
     int max_len; /*< The maximum length of the list, */
     mlen_err_t on_mlen_err; /*< The action taken when maximum length is exceeded */
 }list_prop_t;

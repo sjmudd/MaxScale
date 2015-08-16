@@ -1,5 +1,5 @@
 add_library(schemarouter SHARED schemarouter.c sharding_common.c)
-target_link_libraries(schemarouter log_manager query_classifier)
+target_link_libraries(schemarouter log_manager query_classifier routing_common)
 install(TARGETS schemarouter DESTINATION ${MAXSCALE_LIBDIR})
 
 add_library(shardrouter SHARED shardrouter.c svcconn.c sharding_common.c)

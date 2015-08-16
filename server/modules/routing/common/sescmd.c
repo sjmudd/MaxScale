@@ -70,17 +70,23 @@ sescmdlist_execute(SCMDCURSOR* cursor)
 			gwbuf_free(tmpbuf);
 		}
 #endif /*< SS_DEBUG */
+	GWBUF* tmpbuf;
 
 		switch(packet_type)
 		{
 		case MYSQL_COM_CHANGE_USER:
 			/** This makes it possible to handle replies correctly */
 			gwbuf_set_type(buffer, GWBUF_TYPE_SESCMD);
+			tmpbuf = gwbuf_clone(buffer);
 			rc = dcb->func.auth(
 					    dcb,
 					    NULL,
 					    dcb->session,
-					    gwbuf_clone(buffer));
+					    tmpbuf);
+			if(rc != 1)
+			{
+			    gwbuf_free(tmpbuf);
+			}
 			break;
 
 		case MYSQL_COM_INIT_DB:
@@ -105,12 +111,13 @@ sescmdlist_execute(SCMDCURSOR* cursor)
 			 * Mark session command buffer, it triggers writing 
 			 * MySQL command to protocol
 			 */
-		    GWBUF* tmp = gwbuf_clone_all(buffer);
+
 			gwbuf_set_type(buffer, GWBUF_TYPE_SESCMD);
-			rc = dcb->func.write(dcb,tmp);
+			tmpbuf = gwbuf_clone(buffer);
+			rc = dcb->func.write(dcb,tmpbuf);
 			if(rc == 0)
 			{
-			    while((tmp = GWBUF_CONSUME_ALL(tmp)));
+			    gwbuf_free(tmpbuf);
 			}
 			break;
 		}

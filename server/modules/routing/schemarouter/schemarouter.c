@@ -1553,8 +1553,8 @@ static int routeQuery(
 		LOGIF(LT, (skygw_log_write(
 			LOGFILE_TRACE,
 			"Route query aborted! Routing session is closed <")));
-		ret = 0;
-		goto retblock;
+		gwbuf_free(querybuf);
+		return 0;
 	}
 
 	if(router_cli_ses->rses_failed)
@@ -1615,7 +1615,11 @@ static int routeQuery(
 		    /** Currently only unknown databases cause a failure */
 		    sprintf(emsg,"Unknown database '%s'",router_cli_ses->current_db);
 		    ebuf = modutil_create_mysql_err_msg(1,0,1049,"42000",emsg);
-		    client_dcb->func.write(client_dcb,ebuf);
+		    if(client_dcb->func.write(client_dcb,ebuf) == 0)
+		    {
+			skygw_log_write(LE,"Error: Failed to route error message to client after session has failed.");
+			gwbuf_free(ebuf);
+		    }
 		}
 		else if (packet_type != MYSQL_COM_QUIT)
                 {
@@ -1635,8 +1639,9 @@ static int routeQuery(
                                 (query_str == NULL ? "(empty)" : query_str))));
 			free(query_str);
                 }
-                ret = 0;
-                goto retblock;
+
+		gwbuf_free(querybuf);
+                return 0;
         }
         	
         /** If buffer is not contiguous, make it such */
@@ -1648,8 +1653,8 @@ static int routeQuery(
 	if(detect_show_shards(querybuf))
 	{
 	    process_show_shards(router_cli_ses);
-	    ret = 1;
-	    goto retblock;
+	    gwbuf_free(querybuf);
+	    return 1;
 	}
 
         switch(packet_type) {
@@ -1748,6 +1753,7 @@ static int routeQuery(
 		    {
 			skygw_log_write(LE,"Error: Hashtable allocation failed.");
 			rses_end_locked_router_action(router_cli_ses);
+			gwbuf_free(querybuf);
 			return 1;
 		    }
 		    hashtable_memory_fns(router_cli_ses->dbhash,(HASHMEMORYFN)strdup,
@@ -1756,9 +1762,11 @@ static int routeQuery(
 				     (HASHMEMORYFN)free);
 		    gen_databaselist(inst,router_cli_ses);
 		    rses_end_locked_router_action(router_cli_ses);
+		    gwbuf_free(querybuf);
 		    return 1;
 		}
 		extract_database(querybuf,db);
+		gwbuf_free(querybuf);
 		snprintf(errbuf,25+MYSQL_DATABASE_MAXLEN,"Unknown database: %s",db);
 		if(router_cli_ses->rses_config.debug)
 		{
@@ -1774,13 +1782,16 @@ static int routeQuery(
 		    return 0;
 		}
 		/** Set flags that help router to identify session commands reply */
-		router_cli_ses->rses_client_dcb->func.write(router_cli_ses->rses_client_dcb,error);
+		if(router_cli_ses->rses_client_dcb->func.write(router_cli_ses->rses_client_dcb,error) == 0)
+		{
+		    skygw_log_write(LE,"Error: Failed to write error message to client after database change failed.");
+		    return 0;
+		}
 
 		LOGIF(LE, (skygw_log_write_flush(
 			LOGFILE_ERROR,
 						 "Error : Changing database failed.")));
-		ret = 1;
-		goto retblock;
+		return 1;
 	    }
 	}
 
@@ -1792,9 +1803,8 @@ static int routeQuery(
                 
                 GWBUF* fake = gen_show_dbs_response(inst,router_cli_ses);
                 poll_add_epollin_event_to_dcb(router_cli_ses->dcb_reply,fake);
-                ret = 1;
-		
-		goto retblock;
+		gwbuf_free(querybuf);
+                return 1;
 	}
 
         route_target = get_shard_route_target(qtype, 
@@ -1841,46 +1851,42 @@ static int routeQuery(
 
 	if(TARGET_IS_UNDEFINED(route_target))
 	{
-		
-		tname = get_shard_target_name(inst,router_cli_ses,querybuf,qtype);
 
-		if( (tname == NULL &&
+	    tname = get_shard_target_name(inst,router_cli_ses,querybuf,qtype);
+
+	    if( (tname == NULL &&
              packet_type != MYSQL_COM_INIT_DB && 
              router_cli_ses->current_db[0] == '\0') ||
-		   packet_type == MYSQL_COM_FIELD_LIST || 
-		   (router_cli_ses->current_db[0] != '\0'))
-		{
-			/**
-			 * No current database and no databases in query or
-			 * the database is ignored, route to first available backend.
-			 */
-                    
-			route_target = TARGET_ANY;
-			skygw_log_write(LOGFILE_TRACE,"schemarouter: Routing query to first available backend.");
+	     packet_type == MYSQL_COM_FIELD_LIST ||
+	     (router_cli_ses->current_db[0] != '\0'))
+	    {
+		/**
+		 * No current database and no databases in query or
+		 * the database is ignored, route to first available backend.
+		 */
 
+		route_target = TARGET_ANY;
+		skygw_log_write(LOGFILE_TRACE,"schemarouter: Routing query to first available backend.");
+
+	    }
+	    else
+	    {
+		if(!change_successful)
+		{
+		    /**
+		     * Bad shard status. The changing of the database
+		     * was not successful and the error message was already sent.
+		     */
+
+		    return 1;
 		}
 		else
-		{            
-            if(!change_successful)
-            {
-                /**
-                 * Bad shard status. The changing of the database 
-                 * was not successful and the error message was already sent.
-                 */
-                
-                ret = 1;
-            }
-            else
-            {
-                skygw_log_write(LOGFILE_ERROR, "Error : Router internal failure (schemarouter)");
-                /** Something else went wrong, terminate connection */
-                ret = 0;
-            }
-
-            goto retblock;
-        
+		{
+		    skygw_log_write(LOGFILE_ERROR, "Error : Router internal failure (schemarouter)");
+		    /** Something else went wrong, terminate connection */
+		    return 0;
 		}
-		
+	    }
 	}
    
 	if (TARGET_IS_ALL(route_target))
@@ -1889,12 +1895,17 @@ static int routeQuery(
 	    {
 		/** This is a session variable modification in a select query
 		 * and it should not succeed. Discard the query and return an error. */
-		while((querybuf = gwbuf_consume(querybuf,gwbuf_length(querybuf))));
+		while((querybuf = gwbuf_consume(querybuf,GWBUF_LENGTH(querybuf))));
 		sprintf(emsg,"User variable modification in SELECT queries is not supported.");
 		ebuf = modutil_create_mysql_err_msg(1,0,1049,"42000",emsg);
-		client_dcb->func.write(client_dcb,ebuf);
-		ret = 1;
-		goto retblock;
+		if(client_dcb->func.write(client_dcb,ebuf) == 0)
+		{
+		    gwbuf_free(ebuf);
+		    skygw_log_write(LE,"[%s] Error: Failed to route error message to client.",
+			     client_dcb->service->name);
+		    return 0;
+		}
+		return 1;
 	    }
 		/**
 		 * It is not sure if the session command in question requires
@@ -1902,7 +1913,7 @@ static int routeQuery(
 		 * Router locking is done inside the function.
 		 */
 		succp = route_session_write(router_cli_ses, 
-					    gwbuf_clone(querybuf), 
+					    querybuf,
 					    inst, 
 					    packet_type, 
 					    qtype);
@@ -1911,9 +1922,9 @@ static int routeQuery(
 		{
 			atomic_add(&inst->stats.n_sescmd, 1);
 			atomic_add(&inst->stats.n_queries, 1);
-			ret = 1;
+			return 1;
 		}
-		goto retblock;
+		return 0;
 	}
 	
 	/** Lock router session */
@@ -1922,8 +1933,7 @@ static int routeQuery(
 		LOGIF(LT, (skygw_log_write(
 			LOGFILE_TRACE,
 			"Route query aborted! Routing session is closed <")));
-		ret = 0;
-		goto retblock;
+		return 0;
 	}
 
 	if (TARGET_IS_ANY(route_target))
@@ -1948,9 +1958,9 @@ static int routeQuery(
 			skygw_log_write(LOGFILE_ERROR,
 				 "Error: Schemarouter: Failed to route query, "
 				"no backends are available.");
+			gwbuf_free(querybuf);
 			rses_end_locked_router_action(router_cli_ses);
-			ret = 0;
-			goto retblock;
+			return 0;
 		}
 
 	}
@@ -1999,14 +2009,12 @@ static int routeQuery(
 		{
 			ss_dassert((bref->bref_pending_cmd == NULL ||
 				router_cli_ses->rses_closed));
-			bref->bref_pending_cmd = gwbuf_clone(querybuf);
-			
+			bref->bref_pending_cmd = querybuf;
 			rses_end_locked_router_action(router_cli_ses);
-			ret = 1;
-			goto retblock;
+			return 1;
 		}
 			
-		if ((ret = target_dcb->func.write(target_dcb, gwbuf_clone(querybuf))) == 1)
+		if ((ret = target_dcb->func.write(target_dcb, querybuf)) == 1)
 		{
 			backend_ref_t* bref;
 			
@@ -2030,7 +2038,6 @@ static int routeQuery(
 	rses_end_locked_router_action(router_cli_ses);
 retblock:
 
-        gwbuf_free(querybuf);
 		
         return ret;
 }
@@ -2322,7 +2329,7 @@ static void clientReply (
                         skygw_log_write_flush(LOGFILE_TRACE,"schemarouter: Connecting to a non-existent database '%s'",
                                               router_cli_ses->current_db);
 			char errmsg[128 + MYSQL_DATABASE_MAXLEN+1];
-			sprintf(errmsg,"Unknown database '%s'",router_cli_ses->connect_db);
+			sprintf(errmsg,"Unknown database '%s'",router_cli_ses->current_db);
 			if(router_cli_ses->rses_config.debug)
 			{
 			    sprintf(errmsg + strlen(errmsg)," ([%lu]: DB not found on connect)",router_cli_ses->rses_client_dcb->session->ses_id);
@@ -2619,7 +2626,7 @@ static void bref_clear_state(
                 else
                 {
                         /** Decrease global operation count */
-                        atomic_add(
+                        prev2 = atomic_add(
                                 &bref->bref_backend->backend_server->stats.n_current_ops, -1);
                         ss_dassert(prev2 > 0);
 			if(prev2 <= 0)
@@ -2924,10 +2931,12 @@ ROUTER_CLIENT_SES* router_cli_ses,
 
 	    if (BREF_IS_IN_USE((&backend_ref[i])))
 	    {
-		rc = dcb->func.write(dcb, gwbuf_clone(querybuf));
+		GWBUF* tmpbuf = gwbuf_clone(querybuf);
+		rc = dcb->func.write(dcb, tmpbuf);
 		atomic_add(&backend_ref[i].bref_backend->stats.queries,1);
 		if (rc != 1)
 		{
+		    gwbuf_free(tmpbuf);
 		    succp = false;
 		}
 	    }
@@ -2940,6 +2949,7 @@ ROUTER_CLIENT_SES* router_cli_ses,
     if (router_cli_ses->rses_nbackends <= 0)
     {
 	spinlock_release(&router_cli_ses->rses_lock);
+	gwbuf_free(querybuf);
 	return false;
     }
 
@@ -2954,7 +2964,7 @@ ROUTER_CLIENT_SES* router_cli_ses,
 	gwbuf_free(querybuf);
 	atomic_add(&router_cli_ses->router->stats.n_hist_exceeded,1);
 	spinlock_release(&router_cli_ses->rses_lock);
-	router_cli_ses->rses_client_dcb->func.hangup(router_cli_ses->rses_client_dcb);
+	dcb_close(router_cli_ses->rses_client_dcb);
 	return false;
     }
 
@@ -2993,7 +3003,7 @@ ROUTER_CLIENT_SES* router_cli_ses,
     }
 
     sescmdlist_add_command(router_cli_ses->rses_sescmd_list,querybuf);
-
+    gwbuf_free(querybuf);
     atomic_add(&router_cli_ses->stats.longest_sescmd,1);
     atomic_add(&router_cli_ses->n_sescmd,1);
 
@@ -3286,7 +3296,7 @@ static bool handle_error_new_connection(
 	succp = connect_backend_servers(
 			rses->rses_backend_ref,
 			router_nservers,
-			ses,
+			rses,
 			inst);
         
         if(!have_servers(rses))
@@ -3395,19 +3405,6 @@ router_handle_state_switch(
 
 return_rc:
     return rc;
-}
-
-
-static sescmd_cursor_t* backend_ref_get_sescmd_cursor (
-        backend_ref_t* bref)
-{
-        sescmd_cursor_t* scur;
-        CHK_BACKEND_REF(bref);
-        
-        scur = &bref->bref_sescmd_cur;
-        CHK_SESCMD_CUR(scur);
-        
-        return scur;
 }
 
 /**

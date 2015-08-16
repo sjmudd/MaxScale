@@ -166,52 +166,6 @@ DCB *
 dcb_alloc(dcb_role_t role)
 {
 DCB	*newdcb;
-DCB	*rval;
-
-	if ((rval = calloc(1, sizeof(DCB))) == NULL)
-	{
-		return NULL;
-	}
-#if defined(SS_DEBUG)
-        rval->dcb_chk_top = CHK_NUM_DCB;
-        rval->dcb_chk_tail = CHK_NUM_DCB;
-#endif
-	rval->dcb_errhandle_called = false;
-        rval->dcb_role = role;
-        spinlock_init(&rval->dcb_initlock);
-	spinlock_init(&rval->writeqlock);
-	spinlock_init(&rval->delayqlock);
-	spinlock_init(&rval->authlock);
-	spinlock_init(&rval->cb_lock);
-	spinlock_init(&rval->pollinlock);
-	spinlock_init(&rval->polloutlock);
-	rval->pollinbusy = 0;
-	rval->readcheck = 0;
-	rval->polloutbusy = 0;
-	rval->writecheck = 0;
-        rval->fd = DCBFD_CLOSED;
-	rval->server = NULL;
-	rval->service = NULL;
-	rval->cursor = NULL;
-	rval->evq.next = NULL;
-	rval->evq.prev = NULL;
-	rval->evq.pending_events = 0;
-	rval->evq.processing = 0;
-	spinlock_init(&rval->evq.eventqlock);
-
-	memset(&rval->stats, 0, sizeof(DCBSTATS));	// Zero the statistics
-	rval->state = DCB_STATE_ALLOC;
-	bitmask_init(&rval->memdata.bitmask);
-	rval->writeqlen = 0;
-	rval->high_water = 0;
-	rval->low_water = 0;
-	rval->next = NULL;
-	rval->callbacks = NULL;
-	rval->data = NULL;
-
-	rval->remote = NULL;
-	rval->user = NULL;
-	rval->flags = 0;
 
     if ((newdcb = calloc(1, sizeof(DCB))) == NULL)
     {
@@ -219,7 +173,6 @@ DCB	*rval;
     }
     newdcb->dcb_chk_top = CHK_NUM_DCB;
     newdcb->dcb_chk_tail = CHK_NUM_DCB;
-        
     newdcb->dcb_errhandle_called = false;
     newdcb->dcb_role = role;
     spinlock_init(&newdcb->dcb_initlock);
