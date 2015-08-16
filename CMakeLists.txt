@@ -164,16 +164,16 @@ execute_process(COMMAND perl ${CMAKE_SOURCE_DIR}/Documentation/format.pl
 ${CMAKE_SOURCE_DIR}/Documentation/Changelog.md
 ${CMAKE_BINARY_DIR}/Changelog.txt)
 execute_process(COMMAND perl ${CMAKE_SOURCE_DIR}/Documentation/format.pl 
-${CMAKE_SOURCE_DIR}/Documentation/Release-Notes/MaxScale-1.1-Release-Notes.md
+${CMAKE_SOURCE_DIR}/Documentation/Release-Notes/MaxScale-1.2.0-Release-Notes.md
  ${CMAKE_BINARY_DIR}/ReleaseNotes.txt)
 execute_process(COMMAND perl ${CMAKE_SOURCE_DIR}/Documentation/format.pl 
-${CMAKE_SOURCE_DIR}/Documentation/Upgrading-To-MaxScale-1.1.0.md
- ${CMAKE_BINARY_DIR}/UpgradingToMaxScale110.txt)
+${CMAKE_SOURCE_DIR}/Documentation/Upgrading/Upgrading-To-MaxScale-1.2.0.md
+ ${CMAKE_BINARY_DIR}/UpgradingToMaxScale120.txt)
 
 
 install(FILES ${CMAKE_BINARY_DIR}/Changelog.txt DESTINATION ${MAXSCALE_SHAREDIR})
 install(FILES ${CMAKE_BINARY_DIR}/ReleaseNotes.txt DESTINATION ${MAXSCALE_SHAREDIR})
-install(FILES ${CMAKE_BINARY_DIR}/UpgradingToMaxScale110.txt DESTINATION ${MAXSCALE_SHAREDIR})
+install(FILES ${CMAKE_BINARY_DIR}/UpgradingToMaxScale120.txt DESTINATION ${MAXSCALE_SHAREDIR})
 install(FILES server/maxscale_template.cnf DESTINATION ${MAXSCALE_SHAREDIR})
 if(WITH_MAXSCALE_CNF)
   install(FILES server/maxscale_template.cnf DESTINATION ${MAXSCALE_CONFDIR} RENAME maxscale.cnf)
@@ -238,6 +238,7 @@ if(PACKAGE)
   else()
 
     # Generic CPack configuration variables
+    SET(CPACK_SET_DESTDIR ON)
     set(CPACK_STRIP_FILES FALSE)
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "MaxScale")
     set(CPACK_PACKAGE_VERSION_MAJOR "${MAXSCALE_VERSION_MAJOR}")
@@ -281,7 +282,7 @@ add_custom_target(testall
   COMMENT "Running full test suite..." VERBATIM)
 
 add_custom_target(testcore
-  COMMAND ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} -DBUILD_TESTS=Y -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR} -DWITH_SCRIPTS=N -DMAXSCALE_VARDIR=${CMAKE_BINARY_DIR}
+  COMMAND ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} -DBUILD_TESTS=Y -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR} -DWITH_SCRIPTS=N -DWITH_MAXSCALE_CNF=N -DMAXSCALE_VARDIR=${CMAKE_BINARY_DIR}
   COMMAND make install
   COMMAND ctest -R Internal
   COMMENT "Running core test suite..." VERBATIM)

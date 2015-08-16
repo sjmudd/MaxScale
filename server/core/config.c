@@ -41,9 +41,9 @@
  * 30/10/14	Massimiliano Pinto	Added disable_master_failback parameter
  * 07/11/14	Massimiliano Pinto	Addition of monitor timeouts for connect/read/write
  * 20/02/15	Markus Mäkelä		Added connection_timeout parameter for services
- * 05/03/15	Massimiliano	Pinto	Added notification_feedback support
+ * 05/03/15	Massimiliano Pinto	Added notification_feedback support
  * 20/04/15	Guillaume Lefranc	Added available_when_donor parameter
- * 22/04/15     Martin Brampton         Added disable_master_role_setting parameter
+ * 22/04/15 Martin Brampton     Added disable_master_role_setting parameter
  *
  * @endverbatim
  */
@@ -85,6 +85,7 @@ static	int	process_config_context(CONFIG_CONTEXT	*);
 static	int	process_config_update(CONFIG_CONTEXT *);
 static	void	free_config_context(CONFIG_CONTEXT	*);
 static	char 	*config_get_value(CONFIG_PARAMETER *, const char *);
+static	const char 	*config_get_value_string(CONFIG_PARAMETER *, const char *);
 static	int	handle_global_item(const char *, const char *);
 static	int	handle_feedback_item(const char *, const char *);
 static	void	global_defaults();
@@ -300,18 +301,18 @@ int		rval;
 static	int
 process_config_context(CONFIG_CONTEXT *context)
 {
-CONFIG_CONTEXT		*obj;
-int			error_count = 0;
-HASHTABLE* monitorhash;
+    CONFIG_CONTEXT  *obj;
+    int             error_count = 0;
+    HASHTABLE*      monitorhash;
 
-if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
-{
-    skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate ,onitor configuration check hashtable.");
-    return 0;
-}
+    if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
+    {
+        skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate ,monitor configuration check hashtable.");
+        return 0;
+    }
+    hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
 
-hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NULL);
-	/**
+    /**
 	 * Process the data and create the services and servers defined
 	 * in the data.
 	 */
@@ -763,6 +764,9 @@ hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NU
 			}
 			if (obj->element)
 			{
+                                SERVER *server = obj->element;
+                                server->persistpoolmax = strtol(config_get_value_string(obj->parameters, "persistpoolmax"), NULL, 0);
+                                server->persistmaxtime = strtol(config_get_value_string(obj->parameters, "persistmaxtime"), NULL, 0);
 				CONFIG_PARAMETER *params = obj->parameters;
 				while (params)
 				{
@@ -776,6 +780,10 @@ hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NU
 								"monitorpw")
 						&& strcmp(params->name,
 								"type")
+						&& strcmp(params->name,
+								"persistpoolmax")
+						&& strcmp(params->name,
+								"persistmaxtime")
 						)
 					{
 						serverAddParameter(obj->element,
@@ -934,60 +942,67 @@ hashtable_memory_fns(monitorhash,(HASHMEMORYFN)strdup,NULL,(HASHMEMORYFN)free,NU
 				setipaddress(&serv_addr.sin_addr, (address == NULL) ? "0.0.0.0" : address);
 				gateway.id = (unsigned long) (serv_addr.sin_addr.s_addr + (port != NULL ? atoi(port) : 0 + getpid()));
 			}
-                
-			if (service && socket && protocol) {        
-				CONFIG_CONTEXT *ptr = context;
-				while (ptr && strcmp(ptr->object, service) != 0)
-					ptr = ptr->next;
-				if (ptr && ptr->element)
-				{
-					serviceAddProtocol(ptr->element,
-                                                           protocol,
-							   socket,
-                                                           0);
-				} else {
-					LOGIF(LE, (skygw_log_write_flush(
-						LOGFILE_ERROR,
-                                        	"Error : Listener '%s', "
-                                        	"service '%s' not found. "
-						"Listener will not execute for socket %s.",
-	                                        obj->object, service, socket)));
-					error_count++;
-				}
-			}
 
-			if (service && port && protocol) {
+			if(service && protocol && (socket || port))
+			{
+			    if (socket)
+			    {
 				CONFIG_CONTEXT *ptr = context;
 				while (ptr && strcmp(ptr->object, service) != 0)
-					ptr = ptr->next;
+				    ptr = ptr->next;
 				if (ptr && ptr->element)
 				{
-					serviceAddProtocol(ptr->element,
-                                                           protocol,
-							   address,
-                                                           atoi(port));
+				    serviceAddProtocol(ptr->element,
+						     protocol,
+						     socket,
+						     0);
+				} 
+				else
+				{
+				    LOGIF(LE, (skygw_log_write_flush(
+					    LOGFILE_ERROR,
+					    "Error : Listener '%s', "
+					    "service '%s' not found. "
+					    "Listener will not execute for socket %s.",
+					    obj->object, service, socket)));
+				    error_count++;
+				}
+			    }
+
+			    if (port)
+			    {
+				CONFIG_CONTEXT *ptr = context;
+				while (ptr && strcmp(ptr->object, service) != 0)
+				    ptr = ptr->next;
+				if (ptr && ptr->element)
+				{
+				    serviceAddProtocol(ptr->element,
+						     protocol,
+						     address,
+						     atoi(port));
 				}
 				else
 				{
-					LOGIF(LE, (skygw_log_write_flush(
-						LOGFILE_ERROR,
-                                        	"Error : Listener '%s', "
-                                        	"service '%s' not found. "
-						"Listener will not execute.",
-	                                        obj->object, service)));
-					error_count++;
+				    LOGIF(LE, (skygw_log_write_flush(
+					    LOGFILE_ERROR,
+					    "Error : Listener '%s', "
+					    "service '%s' not found. "
+					    "Listener will not execute.",
+					    obj->object, service)));
+				    error_count++;
 				}
+			    }
 			}
 			else
 			{
-				LOGIF(LE, (skygw_log_write_flush(
-                                        LOGFILE_ERROR,
-                                        "Error : Listener '%s' is misisng a "
-                                        "required "
-                                        "parameter. A Listener must have a "
-                                        "service, port and protocol defined.",
-                                        obj->object)));
-				error_count++;
+			    LOGIF(LE, (skygw_log_write_flush(
+				    LOGFILE_ERROR,
+				    "Error : Listener '%s' is missing a "
+				    "required "
+				    "parameter. A Listener must have a "
+				    "service, port and protocol defined.",
+				    obj->object)));
+			    error_count++;
 			}
 		}
 		else if (!strcmp(type, "monitor"))
@@ -1164,6 +1179,25 @@ config_get_value(CONFIG_PARAMETER *params, const char *name)
 		params = params->next;
 	}
 	return NULL;
+}
+
+/**
+ * Get the value of a config parameter as a string
+ *
+ * @param params	The linked list of config parameters
+ * @param name		The parameter to return
+ * @return the parameter value or null string if not found
+ */
+static const char *
+config_get_value_string(CONFIG_PARAMETER *params, const char *name)
+{
+	while (params)
+	{
+		if (!strcmp(params->name, name))
+			return (const char *)params->value;
+		params = params->next;
+	}
+	return "";
 }
 
 
@@ -2026,6 +2060,7 @@ static char *monitor_params[] =
                 "passwd",
 		"script",
 		"events",
+		"mysql51_replication",
 		"monitor_interval",
 		"detect_replication_lag",
 		"detect_stale_master",
@@ -2444,4 +2479,13 @@ void config_add_param(CONFIG_CONTEXT* obj, char* key,char* value)
     nptr->value = strdup(value);
     nptr->next = obj->parameters;
     obj->parameters = nptr;
+}
+/**
+ * Return the pointer to the global options for MaxScale.
+ * @return Pointer to the GATEWAY_CONF structure. This is a static structure and
+ * should not be modified.
+ */
+GATEWAY_CONF* config_get_global_options()
+{
+    return &gateway;
 }

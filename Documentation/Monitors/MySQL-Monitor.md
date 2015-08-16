@@ -79,7 +79,7 @@ detect_stale_master=true
  
 ### `script`
 
-This script will be executed when a server changes its state. The parameter should be an absolute path to the script or it should be in the executable path.
+This script will be executed when a server changes its state. The parameter should be an absolute path to the script or it should be in the executable path. The user which is used to run MaxScale should have execution rights to the file itself and the directory it resides in.
 
 ```
 script=/home/user/script.sh
@@ -96,6 +96,14 @@ A list of event names which cause the script to be executed. If this option is n
 
 ```
 events=master_down,slave_down
+```
+
+### `mysql51_replication`
+
+Enable support for MySQL 5.1 replication monitoring. This is needed if a MySQL server older than 5.5 is used as a slave in replication.
+
+```
+mysql51_replication=true
 ```
 
 ## Script events
