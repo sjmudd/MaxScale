@@ -3202,6 +3202,8 @@ dcb_close_service(SERVICE* service)
 
 /**
  * Check if all DCBs are closed and all zombies have been processed.
+ * If there are DCBs still open and in the list of active DCBs, this will set
+ * the flag that signals all DCBs to be closed.
  * @return False if there are open DCBs or DCBs still in the zombie queue, otherwise true.
  */
 bool dcb_all_closed()
@@ -3209,8 +3211,19 @@ bool dcb_all_closed()
     spinlock_acquire(&dcbspin);
     if(allDCBs != NULL)
     {
-	spinlock_release(&dcbspin);
-	return false;
+	DCB* dcb = allDCBs;
+	while(dcb)
+	{
+	    if(dcb->dcb_role != DCB_ROLE_INTERNAL)
+		break;
+	    dcb = dcb->next;
+	}
+	if(dcb != NULL)
+	{
+	    dcb_close_flag = 1;
+	    spinlock_release(&dcbspin);
+	    return false;
+	}
     }
     spinlock_release(&dcbspin);
     spinlock_acquire(&zombiespin);
