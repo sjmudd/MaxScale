@@ -1574,7 +1574,11 @@ int main(int argc, char **argv)
                 goto return_main;
         }
 
-	ini_parse(cnf_file_path,cnf_preparser,NULL);
+	if(ini_parse(cnf_file_path,cnf_preparser,NULL) != 0)
+	{
+	    rc = MAXSCALE_BADCONFIG;
+	    goto return_main;
+	}
 
 
         /** Use the cache dir for the mysql folder of the embedded library */
@@ -2075,7 +2079,7 @@ bool handle_path_arg(char** dest, char* path, char* arg, bool rd, bool wr)
  * @param section Section name
  * @param name Parameter name
  * @param value Parameter value
- * @return 1 in all cases
+ * @return 0 on error, 1 when successful
  */
 static int cnf_preparser(void* data, const char* section, const char* name, const char* value)
 {
@@ -2093,14 +2097,24 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 		{
 		    set_logdir(tmp);
 		}
+		else
+		{
+		    return 0;
+		}
 	    }
 	}
 	else if(strcmp(name, "libdir") == 0)
 	{
-	    if(get_libdir() == default_libdir )
+	    if(strcmp(get_libdir(),default_libdir) == 0 )
 	    {
-		handle_path_arg(&tmp,(char*)value,NULL,true,false);
-		set_libdir(tmp);
+		if(handle_path_arg(&tmp,(char*)value,NULL,true,false))
+		{
+		    set_libdir(tmp);
+		}
+		else
+		{
+		    return 0;
+		}
 	    }
 	}
 	else if(strcmp(name, "piddir") == 0)
@@ -2110,6 +2124,10 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 		if(handle_path_arg(&tmp,(char*)value,NULL,true,true))
 		{
 		    set_piddir(tmp);
+		}
+		else
+		{
+		    return 0;
 		}
 	    }
 	}
@@ -2123,14 +2141,24 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 		    set_datadir(tmp);
 		    datadir_defined = true;
 		}
+		else
+		{
+		    return 0;
+		}
 	    }
 	}
 	else if(strcmp(name, "cachedir") == 0)
 	{
-	    if(get_cachedir() == default_cachedir)
+	    if(strcmp(get_cachedir(),default_cachedir) == 0)
 	    {
-		handle_path_arg((char**)&tmp,(char*)value,NULL,true,false);
-		set_cachedir(tmp);
+		if(handle_path_arg((char**)&tmp,(char*)value,NULL,true,false))
+		{
+		    set_cachedir(tmp);
+		}
+		else
+		{
+		    return 0;
+		}
 	    }
 	}
 	else if(strcmp(name, "language") == 0)
@@ -2140,6 +2168,10 @@ static int cnf_preparser(void* data, const char* section, const char* name, cons
 		if(handle_path_arg((char**)&tmp,(char*)value,NULL,true,false))
 		{
 		    set_langdir(tmp);
+		}
+		else
+		{
+		    return 0;
 		}
 	    }
 	}
