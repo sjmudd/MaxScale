@@ -33,7 +33,7 @@ static	void	*newSession(ROUTER *instance, SESSION *session);
 static	void 	closeSession(ROUTER *instance, void *session);
 static	void 	freeSession(ROUTER *instance, void *session);
 static	int	routeQuery(ROUTER *instance, void *session, GWBUF *queue);
-static  void	clientReply(ROUTER *instance, void *session, GWBUF *queue);
+static  void	clientReply(ROUTER *instance, void *session, GWBUF *queue,DCB* dcb);
 static	void	diagnostic(ROUTER *instance, DCB *dcb);
 static  uint8_t getCapabilities (ROUTER* inst, void* router_session);
 static void handleError(
@@ -152,7 +152,7 @@ routeQuery(ROUTER *instance, void *session, GWBUF *queue)
 	return 0;
 }
 
-void clientReply(ROUTER* instance, void* session, GWBUF* queue)
+void clientReply(ROUTER* instance, void* session, GWBUF* queue, DCB* dcb)
 {
 }
 

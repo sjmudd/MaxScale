@@ -4538,6 +4538,7 @@ int process_show_shards(ROUTER_CLIENT_SES* rses)
     resultset_stream_mysql(sl.rset,rses->rses_client_dcb);
     resultset_free(sl.rset);
     hashtable_iterator_free(iter);
+    return 0;
 }
 
 /**
