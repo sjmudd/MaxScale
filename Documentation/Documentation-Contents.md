@@ -66,6 +66,7 @@ Here are detailed documents about the filters MaxScale offers. They contain conf
  - [Named Server Filter](Filters/Named-Server-Filter.md)
 
 ## Monitors
+
  - [MySQL Monitor](Monitors/MySQL-Monitor.md)
  - [Galera Monitor](Monitors/Galera-Monitor.md)
  - [Multi-Master Monitor](Monitors/MM-Monitor.md)
