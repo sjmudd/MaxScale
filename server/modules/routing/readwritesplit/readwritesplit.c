@@ -1584,9 +1584,24 @@ void check_drop_tmp_table(
   rses_prop_tmp = router_cli_ses->rses_properties[RSES_PROP_TYPE_TMPTABLES];
   master_dcb = router_cli_ses->rses_master_ref->bref_dcb;
 
+  if(master_dcb == NULL)
+  {
+      skygw_log_write(LE,"[%s] Error: Master server DBC is NULL. "
+	      "This means that the connection to the master server is already "
+	      "closed while a query is still being routed.",__FUNCTION__);
+      return;
+  }
+
   CHK_DCB(master_dcb);
 
   data = (MYSQL_session*)master_dcb->session->data;
+
+  if(data == NULL)
+  {
+      skygw_log_write(LE,"[%s] Error: User data in master server DBC is NULL.",__FUNCTION__);
+      return;
+  }
+
   dbname = (char*)data->db;
 
   if (is_drop_table_query(querybuf))
@@ -1636,7 +1651,8 @@ static skygw_query_type_t is_read_tmp_table(
   bool target_tmp_table = false;
   int tsize = 0, klen = 0,i;
   char** tbl = NULL;
-  char *hkey,*dbname;
+  char *dbname;
+  char hkey[MYSQL_DATABASE_MAXLEN+MYSQL_TABLE_MAXLEN+2];
   MYSQL_session* data;
 
   DCB*               master_dcb     = NULL;
@@ -1646,9 +1662,23 @@ static skygw_query_type_t is_read_tmp_table(
   rses_prop_tmp = router_cli_ses->rses_properties[RSES_PROP_TYPE_TMPTABLES];
   master_dcb = router_cli_ses->rses_master_ref->bref_dcb;
 
+  if(master_dcb == NULL)
+  {
+      skygw_log_write(LE,"[%s] Error: Master server DBC is NULL. "
+	      "This means that the connection to the master server is already "
+	      "closed while a query is still being routed.",__FUNCTION__);
+      return qtype;
+  }
   CHK_DCB(master_dcb);
 
   data = (MYSQL_session*)master_dcb->session->data;
+
+  if(data == NULL)
+  {
+      skygw_log_write(LE,"[%s] Error: User data in master server DBC is NULL.",__FUNCTION__);
+      return qtype;
+  }
+
   dbname = (char*)data->db;
 
   if (QUERY_IS_TYPE(qtype, QUERY_TYPE_READ) || 
@@ -1664,12 +1694,7 @@ static skygw_query_type_t is_read_tmp_table(
 	  /** Query targets at least one table */
 	  for(i = 0; i<tsize && !target_tmp_table && tbl[i]; i++)
 	    {
-	      klen = strlen(dbname) + strlen(tbl[i]) + 2;
-	      hkey = calloc(klen,sizeof(char));
-	      strcpy(hkey,dbname);
-	      strcat(hkey,".");
-	      strcat(hkey,tbl[i]);
-
+	      sprintf(hkey,"%s.%s",dbname,tbl[i]);
 	      if (rses_prop_tmp && 
 		  rses_prop_tmp->rses_prop_data.temp_tables)
 		{
@@ -1684,8 +1709,6 @@ static skygw_query_type_t is_read_tmp_table(
 					     "Query targets a temporary table: %s",hkey)));
 		    }
 		}
-
-	      free(hkey);
 	    }
 
 	}
@@ -1730,9 +1753,24 @@ static void check_create_tmp_table(
   rses_prop_tmp = router_cli_ses->rses_properties[RSES_PROP_TYPE_TMPTABLES];
   master_dcb = router_cli_ses->rses_master_ref->bref_dcb;
 
+  if(master_dcb == NULL)
+  {
+      skygw_log_write(LE,"[%s] Error: Master server DBC is NULL. "
+	      "This means that the connection to the master server is already "
+	      "closed while a query is still being routed.",__FUNCTION__);
+      return;
+  }
+
   CHK_DCB(master_dcb);
 
   data = (MYSQL_session*)master_dcb->session->data;
+
+  if(data == NULL)
+  {
+      skygw_log_write(LE,"[%s] Error: User data in master server DBC is NULL.",__FUNCTION__);
+      return;
+  }
+
   dbname = (char*)data->db;
 
 
@@ -2017,8 +2055,9 @@ static bool route_single_stmt(
 	GWBUF*             querybuf)
 {
 	skygw_query_type_t qtype          = QUERY_TYPE_UNKNOWN;
-	mysql_server_cmd_t packet_type;
+	mysql_server_cmd_t packet_type = MYSQL_COM_UNDEFINED;
 	uint8_t*           packet;
+	size_t		   packet_len;
 	int                ret            = 0;
 	DCB*               master_dcb     = NULL;
 	DCB*               target_dcb     = NULL;
@@ -2026,11 +2065,8 @@ static bool route_single_stmt(
 	bool           	   succp          = false;
 	int                rlag_max       = MAX_RLAG_UNDEFINED;
 	backend_type_t     btype; /*< target backend type */
-	
-	
+
 	ss_dassert(!GWBUF_IS_TYPE_UNDEFINED(querybuf));
-	packet = GWBUF_DATA(querybuf);
-	packet_type = packet[4];
 
 	/** 
 	 * Read stored master DCB pointer. If master is not set, routing must 
@@ -2058,7 +2094,19 @@ static bool route_single_stmt(
 	{
 		querybuf = gwbuf_make_contiguous(querybuf);
 	}
+
+	packet = GWBUF_DATA(querybuf);
+	packet_len = gw_mysql_get_byte3(packet);
 	
+	if(packet_len == 0)
+	{
+	    route_target = TARGET_MASTER;
+	    packet_type = MYSQL_COM_UNDEFINED;
+	}
+	else
+	{
+	    packet_type = packet[4];
+
 	switch(packet_type) {
 		case MYSQL_COM_QUIT:        /*< 1 QUIT will close all sessions */
 		case MYSQL_COM_INIT_DB:     /*< 2 DDL must go to the master */
@@ -2106,10 +2154,15 @@ static bool route_single_stmt(
 	/**
 	 * Check if the query has anything to do with temporary tables.
 	 */
+	if (!rses_begin_locked_router_action(rses))
+	{
+	    succp = false;
+	    goto retblock;
+	}
 	qtype = is_read_tmp_table(rses, querybuf, qtype);
 	check_create_tmp_table(rses, querybuf, qtype);
 	check_drop_tmp_table(rses, querybuf,qtype);
-	
+	rses_end_locked_router_action(rses);
 	/**
 	 * If autocommit is disabled or transaction is explicitly started
 	 * transaction becomes active and master gets all statements until
@@ -2273,7 +2326,7 @@ static bool route_single_stmt(
 		}
 		goto retblock;
 	}
-	
+	}
 	/** Lock router session */
 	if (!rses_begin_locked_router_action(rses))
 	{
@@ -2493,8 +2546,8 @@ static bool route_single_stmt(
 			rses_end_locked_router_action(rses);
 			goto retblock;
 		}
-		
-		if ((ret = target_dcb->func.write(target_dcb, gwbuf_clone(querybuf))) == 1)
+		GWBUF* wbuf = gwbuf_clone(querybuf);
+		if ((ret = target_dcb->func.write(target_dcb, wbuf)) == 1)
 		{
 			backend_ref_t* bref;
 			
@@ -2508,7 +2561,8 @@ static bool route_single_stmt(
 		}
 		else
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+		    gwbuf_free(wbuf);
+			LOGIF((LE|LT), (skygw_log_write_flush(
 				LOGFILE_ERROR,
 				"Error : Routing query failed.")));
 			succp = false;
@@ -2556,7 +2610,10 @@ static bool rses_begin_locked_router_action(
         ROUTER_CLIENT_SES* rses)
 {
         bool succp = false;
-        
+
+        if(rses == NULL)
+	    return false;
+
         CHK_CLIENT_RSES(rses);
 
         if (rses->rses_closed) {
@@ -3825,7 +3882,7 @@ static GWBUF* sescmd_cursor_process_replies(
                         /** Mark the rest session commands as replied */
                         scmd->my_sescmd_is_replied = true;
                         scmd->reply_cmd = *((unsigned char*)replybuf->start + 4);
-			skygw_log_write(LOGFILE_DEBUG,"Master '%s' responded to a session command.",
+			skygw_log_write(LT,"Master '%s' responded to a session command.",
 			     bref->bref_backend->backend_server->unique_name);
 			int i;
 			
@@ -3845,6 +3902,11 @@ static GWBUF* sescmd_cursor_process_replies(
 				    if(ses->rses_backend_ref[i].bref_dcb)
 					dcb_close(ses->rses_backend_ref[i].bref_dcb);
 				    *reconnect = true;
+				    skygw_log_write(LT,"Disabling slave %s:%d, result differs from master's result. Master: %d Slave: %d",
+					    ses->rses_backend_ref[i].bref_backend->backend_server->name,
+					     ses->rses_backend_ref[i].bref_backend->backend_server->port,
+					     bref->reply_cmd,
+					     ses->rses_backend_ref[i].reply_cmd);
 				}
 			    }
 			}
@@ -3852,11 +3914,17 @@ static GWBUF* sescmd_cursor_process_replies(
                 }
 		else
 		{
-		    skygw_log_write(LOGFILE_DEBUG,"Slave '%s' responded faster to a session command.",
-			     bref->bref_backend->backend_server->unique_name);
+		    skygw_log_write(LT,"Slave '%s' responded before master to a session command. Result: %d",
+			     bref->bref_backend->backend_server->unique_name,
+			     (int)bref->reply_cmd);
+		    if(bref->reply_cmd == 0xff)
+		    {
+			SERVER* serv = bref->bref_backend->backend_server;
+			skygw_log_write(LE,"Error: Slave '%s' (%s:%u) failed to execute session command.",
+				 serv->unique_name,serv->name,serv->port);
+		    }
 		    if(replybuf)
 			while((replybuf = gwbuf_consume(replybuf,gwbuf_length(replybuf))));
-		    return NULL;
 		}
 	    
 	    
