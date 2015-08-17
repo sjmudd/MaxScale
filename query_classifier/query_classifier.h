@@ -98,6 +98,7 @@ typedef struct parsing_info_st {
  */
 skygw_query_type_t query_classifier_get_type(GWBUF* querybuf);
 skygw_query_op_t query_classifier_get_operation(GWBUF* querybuf);
+slist_cursor_t* query_classifier_get_functions(GWBUF* querybuf);
 /** Free THD context and close MYSQL */
 #if defined(NOT_USED)
 char*           skygw_query_classifier_get_stmtname(GWBUF* buf);

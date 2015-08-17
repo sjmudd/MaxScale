@@ -699,7 +699,12 @@ static slist_t* slist_init_ex(
 {
         slist_t* list;
         
-        list = (slist_t*)calloc(1, sizeof(slist_t));
+        if((list = (slist_t*)calloc(1, sizeof(slist_t))) == NULL)
+        {
+            skygw_log_write(LE,"[%s] Error: Memory allocation failed.",__func__);
+            return NULL;
+        }
+
         list->slist_chk_top = CHK_NUM_SLIST;
         list->slist_chk_tail = CHK_NUM_SLIST;
 
@@ -797,7 +802,10 @@ static slist_cursor_t* slist_cursor_init(
         CHK_SLIST(list);
         slist_cursor_t* c;
 
-        c = (slist_cursor_t *)calloc(1, sizeof(slist_cursor_t));
+        if((c = (slist_cursor_t *)calloc(1, sizeof(slist_cursor_t))) == NULL)
+        {
+            skygw_log_write(LE,"[%s] Error: Memory allocation failed.",__func__);
+        }
         c->slcursor_chk_top = CHK_NUM_SLIST_CURSOR;
         c->slcursor_chk_tail = CHK_NUM_SLIST_CURSOR;
         c->slcursor_list = list;
@@ -834,7 +842,11 @@ slist_cursor_t* slist_init(void)
         slist_t* list;
         slist_cursor_t* slc;
 
-        list = slist_init_ex(true);
+        if((list = slist_init_ex(true)) == NULL)
+        {
+            skygw_log_write(LE,"[%s] Error: slist_init failed.",__func__);
+            return NULL;
+        }
         CHK_SLIST(list);
         slc = slist_cursor_init(list);
         CHK_SLIST_CURSOR(slc);
@@ -954,7 +966,7 @@ void slcursor_add_data(
 	{
                 CHK_SLIST_NODE(c->slcursor_pos);
         }
-        ss_dassert(list->slist_tail->slnode_next == NULL);        
+        ss_dassert(list->slist_tail == NULL || list->slist_tail->slnode_next == NULL);
         pos = slist_node_init(data, c);
         slist_add_node(list, pos);
         CHK_SLIST(list);
@@ -2175,4 +2187,51 @@ int simple_str_hash(char* key)
   }
 
   return hash;
+}
+
+char* trim_characters(char** string, const char* characters)
+{
+    char* cptr = (char*)characters;
+    char* strptr = *string;
+
+    if(string == NULL || *string == NULL || characters == NULL)
+    {
+        skygw_log_write(LE,"[%s] Error: NULL parameters passed.",__func__);
+        return NULL;
+    }
+
+    while(*cptr != '\0')
+    {
+        if(*strptr == *cptr)
+        {
+            memmove(*string,strptr,strlen(strptr));
+            strptr = *string;
+            cptr = (char*)characters;
+            continue;
+        }
+        cptr++;
+    }
+
+    strptr = strrchr (*string,'\0');
+    cptr = (char*)characters;
+    ss_dassert(strptr != NULL);
+    strptr--;
+
+
+    while(*cptr != '\0')
+    {
+        if(*strptr == *cptr)
+        {
+            *strptr = '\0';
+            strptr--;
+            cptr = (char*)characters;
+            if(strptr > *string)
+                continue;
+            else
+                break;
+        }
+        cptr++;
+    }
+
+    return *string;
 }

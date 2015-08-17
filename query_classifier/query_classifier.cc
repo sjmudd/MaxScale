@@ -79,7 +79,6 @@ static int is_autocommit_stmt(LEX* lex);
 static void parsing_info_set_plain_str(void* ptr, char* str);
 static void* skygw_get_affected_tables(void* lexptr);
 
-
 /**
  * Calls parser for the query includede in the buffer. Creates and adds parsing 
  * information to buffer if it doesn't exist already. Resolves the query type. 
@@ -1295,6 +1294,50 @@ char* skygw_get_affected_fields(GWBUF* buf)
 			lex->current_select = lex->current_select->next_select_in_list();
 		}
 	return where;
+}
+
+
+/**
+ * Returns all the fields that the query affects.
+ * @param buf Buffer to parse
+ * @return Pointer to newly allocated string or NULL if nothing was found
+ */
+slist_cursor_t* query_classifier_get_functions(GWBUF* buf)
+{
+    slist_cursor_t* rval;
+    LEX* lex;
+    THD* thd;
+    Item* item;
+    Item::Type itype;
+
+    if(!query_is_parsed(buf)){
+        parse_query(buf);
+    }
+
+    if((lex = get_lex(buf)) == NULL){
+        return NULL;
+    }
+
+    thd = lex->thd;
+
+    if((rval = slist_init ()) == NULL)
+    {
+        return NULL;
+    }
+
+    item = thd->free_list;
+    while(item)
+    {
+        itype = item->type();
+        if(itype == Item::FUNC_ITEM || itype == Item::SUM_FUNC_ITEM){
+            char* value = strdup((char*)((Item_func*)item)->func_name ());
+            trim_characters(&value,"()");
+            slcursor_add_data (rval,(void*)value);
+        }
+        item = item->next;
+    }
+    slcursor_move_to_begin (rval);
+    return rval;
 }
 
 bool skygw_query_has_clause(GWBUF* buf)

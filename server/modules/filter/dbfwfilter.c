@@ -51,7 +51,7 @@
  * @subsection secRule Rule syntax
  * This is the syntax used when defining rules.
  *@code{.unparsed}
- * rule NAME deny [wildcard | columns VALUE ... | regex REGEX | limit_queries COUNT TIMEPERIOD HOLDOFF | no_where_clause] [at_times VALUE...] [on_queries [select|update|insert|delete]]
+ * rule NAME deny [wildcard | columns VALUE ... | functions VALUE ... | regex REGEX | limit_queries COUNT TIMEPERIOD HOLDOFF | no_where_clause] [at_times VALUE...] [on_queries [select|update|insert|delete]]
  *@endcode
  * @subsection secUser User syntax
  * This is the syntax used when linking users to rules. It takes one or more 
@@ -129,7 +129,8 @@ typedef enum {
 	RT_PERMISSION, /*< Simple denying rule */
 	RT_WILDCARD, /*< Wildcard denial rule */
 	RT_REGEX, /*< Regex matching rule */
-	RT_CLAUSE /*< WHERE-clause requirement rule */
+	RT_CLAUSE, /*< WHERE-clause requirement rule */
+	    RT_FUNCTION /*< Function name rule */
 }ruletype_t;
 
 const char* rule_names[] = {
@@ -139,7 +140,8 @@ const char* rule_names[] = {
 	"PERMISSION",
 	"WILDCARD",
 	"REGEX",
-	"CLAUSE"
+	"CLAUSE",
+        "FUNCTION"
 };
 
 
@@ -248,6 +250,9 @@ char* fw_get_token(char* string, char** saved,char* buffer);
 static int hashkeyfun(void* key);
 static int hashcmpfun (void *, void *);
 void handle_queryspeed(FW_INSTANCE* my_instance,RULELIST *rulelist,USER* user, bool* matches, char** message);
+void handle_columns(FW_INSTANCE* my_instance,RULELIST *rulelist,GWBUF* queue, bool* matches, char** message);
+void handle_function(FW_INSTANCE* my_instance,RULELIST *rulelist,GWBUF* queue, bool* matches, char** message);
+
 /**
  * Hashtable key hashing function. Uses a simple string hashing algorithm.
  * @param key Key to hash
@@ -1014,6 +1019,24 @@ bool parse_rule(char* rule, FW_INSTANCE* instance)
                 continue;
 
             }
+	    else if(strcmp(tok,"functions") == 0)
+            {
+                STRLINK *tail = NULL,*current;
+                ruledef->type = RT_FUNCTION;
+                tok = fw_get_token(NULL,&saveptr,buffer);
+                while(tok && strcmp(tok,"at_times") != 0 &&
+		      strcmp(tok,"on_queries") != 0){
+                    current = malloc(sizeof(STRLINK));
+                    current->value = strdup(tok);
+                    current->next = tail;
+                    tail = current;
+                    tok = fw_get_token(NULL,&saveptr,buffer);
+                }
+
+                ruledef->data = (void*)tail;
+                continue;
+
+            }
 	    else if(strcmp(tok,"at_times") == 0)
             {
 		if(at_def)
@@ -1719,31 +1742,16 @@ bool rule_matches(FW_INSTANCE* my_instance, FW_SESSION* my_session, GWBUF *queue
 		   
             if(is_sql && is_real)
 	    {
-                where = skygw_get_affected_fields(queue);
-                if(where != NULL){
-		    char* saveptr;
-		    char* tok = strtok_r(where," ",&saveptr);
-		    while(tok)
-		    {
-			strln = (STRLINK*)rulelist->rule->data;
-			while(strln)
-			{
-			    if(strcasecmp(tok,strln->value) == 0)
-			    {
-				matches = true;
-				sprintf(emsg,"Permission denied to column '%s'.",strln->value);
-				skygw_log_write(LOGFILE_TRACE, "dbfwfilter: rule '%s': query targets forbidden column: %s",rulelist->rule->name,strln->value);
-				msg = strdup(emsg);
-				goto queryresolved;
-			    }
-			    strln = strln->next;
-			}
-			tok = strtok_r(NULL,",",&saveptr);
-		    }
-		    free(where);
-                }
+		handle_columns(my_instance,rulelist,queue,&matches,&msg);
             }
-			
+            break;
+
+        case RT_FUNCTION:
+
+            if(is_sql && is_real)
+	    {
+		handle_function(my_instance,rulelist,queue,&matches,&msg);
+            }
             break;
 
         case RT_WILDCARD:
@@ -2169,6 +2177,69 @@ int main(int argc, char** argv)
 }
 
 #endif
+
+void handle_columns(FW_INSTANCE* my_instance,RULELIST *rulelist,GWBUF* queue, bool* matches, char** message)
+{
+    STRLINK* strln = NULL;
+    char* where;
+    char emsg[512];
+
+    where = skygw_get_affected_fields(queue);
+    if(where != NULL){
+	char* saveptr;
+	char* tok = strtok_r(where," ",&saveptr);
+	while(tok)
+	{
+	    strln = (STRLINK*)rulelist->rule->data;
+	    while(strln)
+	    {
+		if(strcasecmp(tok,strln->value) == 0)
+		{
+		    sprintf(emsg,"Permission denied to column '%s'.",strln->value);
+		    skygw_log_write(LOGFILE_TRACE, "dbfwfilter: rule '%s': query targets forbidden column: %s",rulelist->rule->name,strln->value);
+		    *message = strdup(emsg);
+		    *matches = true;
+		    return;
+		}
+		strln = strln->next;
+	    }
+	    tok = strtok_r(NULL,",",&saveptr);
+	}
+	free(where);
+    }
+}
+
+void handle_function(FW_INSTANCE* my_instance,RULELIST *rulelist,GWBUF* queue, bool* matches, char** message)
+{
+    STRLINK* strln = NULL;
+    char emsg[512];
+    char* value;
+    slist_cursor_t* funcs;
+
+    funcs = query_classifier_get_functions(queue);
+    if(funcs != NULL){	
+	while((value = (char*)slcursor_get_data(funcs)))
+	{
+	    strln = (STRLINK*)rulelist->rule->data;
+	    while(strln)
+	    {
+		if(strcasecmp(value,strln->value) == 0)
+		{
+		    sprintf(emsg,"Permission denied when using function '%s'.",strln->value);
+		    skygw_log_write(LOGFILE_TRACE, "dbfwfilter: rule '%s': query uses forbidden function: %s",rulelist->rule->name,strln->value);
+		    *message = strdup(emsg);
+		    *matches = true;
+		    slist_done(funcs);
+		    return;
+		}
+		strln = strln->next;
+	    }
+	    if(!slcursor_step_ahead(funcs))
+		break;
+	}
+	slist_done(funcs);
+    }
+}
 
 /**
  * Handle the rate limiting rule type.

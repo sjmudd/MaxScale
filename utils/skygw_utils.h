@@ -273,7 +273,7 @@ char* replace_literal(char* haystack,
 bool is_valid_posix_path(char* path);
 bool strip_escape_chars(char*);
 int simple_str_hash(char* key);
-
+char* trim_characters(char** string, const char* characters);
 
 EXTERN_C_BLOCK_END
 

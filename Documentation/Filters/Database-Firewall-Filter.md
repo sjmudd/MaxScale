@@ -35,7 +35,7 @@ The database firewall filter has one mandatory parameter that defines the locati
 The rules are defined by using the following syntax:
 
 ```
-rule NAME [deny|allow] [wildcard | columns VALUE ... |
+rule NAME [deny|allow] [wildcard | columns VALUE ... | functions VALUE ... |
      regex REGEX | limit_queries COUNT TIMEPERIOD HOLDOFF |
       no_where_clause] [at_times VALUE...] [on_queries [select|update|insert|delete]]
 ```
@@ -55,6 +55,10 @@ This rule blocks all queries that use the wildcard character *.
 #### `columns`
 
 This rule expects a list of values after the `columns` keyword. These values are interpreted as column names and if a query targets any of these, it is blocked.
+
+#### `functions`
+
+This rule expects a list of values after the `functions` keyword. These values are interpreted as function names and if a query uses any of these, it is blocked.
 
 #### `regex`
 
