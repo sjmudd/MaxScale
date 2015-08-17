@@ -27,8 +27,8 @@ The full list of dependencies for the most common distributions is provided in t
 You will need to install all of the following packages for all versions of RHEL and CentOS.
 
 ```
-gcc gcc-c++ ncurses-devel bison glibc-devel cmake libgcc perl make libtool 
-openssl-devel libaio libaio-devel librabbitmq-devel libcurl-devel pcre-devel
+gcc gcc-c++ ncurses-devel bison glibc-devel cmake libgcc perl make libtool \
+    openssl-devel libaio libaio-devel librabbitmq-devel libcurl-devel pcre-devel
 ```
 
 In addition, if you wish to to build an RPM package include:
@@ -61,7 +61,7 @@ MariaDB-devel MariaDB-server
 These packages are required on all versions of Ubuntu and Debian.
 
 ```
-	build-essential libssl-dev libaio-dev ncurses-dev bison
+	build-essential libssl-dev libaio-dev ncurses-dev bison \
 	cmake perl libtool librabbitmq-dev libcurl-dev libpcre3-dev
 ```
 
@@ -74,6 +74,8 @@ If you want to build a DEB package, you will also need:
 You will also need some version specific packages.
 
 #### Ubuntu 14.04 or later, Debian 8 (Jessie) or later
+
+*At the time of writing, the libmariadbd-dev package is broken and does not contain the required libmysqld.a library. Please follow the install instructions for earlier version of Ubuntu and Debian.*
 
 ```
 	libmariadbclient-dev libmariadbd-dev                            
@@ -144,7 +146,7 @@ cmake ..
 ```
 This will automatically search your system for the right files and libraries and if you have your libraries installed in standard locations, it should succeed. If there are errors with the CMake configuration, read the error messages, provide the needed variables for CMake and call `cmake` again with the additional parameters.
 
-Here is an example of a cmake call with parameters for custom library locations, building of tests and without the installation of init scripts.
+Here is an example of a cmake call with parameters for custom library locations, building of tests and without the installation of init scripts or the example maxscale.cnf file.
 
 ```
 $ cmake .. -DMYSQL_DIR=/usr/mariadb-5.5.41-linux-x86_64/include/mysql \
@@ -152,7 +154,7 @@ $ cmake .. -DMYSQL_DIR=/usr/mariadb-5.5.41-linux-x86_64/include/mysql \
 -DMYSQLCLIENT_LIBRARIES=/usr/mariadb-5.5.41-linux-x86_64/lib/libmysqlclient.so \
 -DERRMSG=/usr/mariadb-5.5.41-linux-x86_64/share/english/errmsg.sys \
 -DCMAKE_INSTALL_PREFIX=/home/maxscale/MaxScale -DBUILD_TESTS=Y \
--DWITH_SCRIPTS=N
+-DWITH_SCRIPTS=N -DWITH_MAXSCALE_CNF=N
 
 <pre>
 -- CMake version: 2.8.12.2
