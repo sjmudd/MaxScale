@@ -97,6 +97,16 @@ It is possible to use the maxadmin command to obtain statistics regarding the se
 
 It should be noted that network listeners count as a user of the service, therefore there will always be one user per network port in which the service listens. More detail can be obtained by use of the "show service" command which is passed a service name.
 
+
+<a name="reloading"></a> 
+### Reloading the Configuration
+
+MaxScale's configuration file can be updated and reloaded while MaxScale is running. Any modifications to the existing configuration file will be read by the running MaxScale process once a SIGHUP is sent to it or a `reload config` command is sent through maxadmin. Exceptions to this are the directory paths in the `[maxscale]` section.
+
+New monitors, listeners, filters, servers and services can be added to MaxScale which will be operational after a configuration reload. For example, you can add new servers to MaxScale's configuration if an already configured server fails. This allows for continuous usage of MaxScale with less downtime. You can also add and remove filters to services to modify their behavior.
+
+It is also possible to update individual services with the `reload service` command in maxadmin. This command will update the service and the servers, filter and listeners it is using. With this, it is possible to keep other services operational while a configuraton update is done on one service.
+
 <a name="persistent"></a>
 ### Persistent Connections
 
