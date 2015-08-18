@@ -2056,7 +2056,6 @@ void init_response_status (
          */
         ss_dassert(*nbytes_left > 0);
         ss_dassert(*npackets > 0);
-        ss_dassert(*npackets<128);
 }
 
 
