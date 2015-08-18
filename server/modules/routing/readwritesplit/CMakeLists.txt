@@ -1,4 +1,4 @@
-add_library(readwritesplit SHARED readwritesplit.c rws_common.c)
+add_library(readwritesplit SHARED readwritesplit.c)
 target_link_libraries(readwritesplit ssl pthread log_manager query_classifier)
 install(TARGETS readwritesplit DESTINATION ${MAXSCALE_LIBDIR})
 if(BUILD_TESTS)

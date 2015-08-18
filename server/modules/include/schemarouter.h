@@ -308,7 +308,6 @@ typedef struct router_instance {
 	ROUTER_CLIENT_SES*      connections; /*< List of client connections         */
 	SPINLOCK                lock;	     /*< Lock for the instance data         */
 	BACKEND**               servers;     /*< Backend servers                    */
-        BACKEND**               old_servers; /*< Backend servers still in use after a config reload */
 	BACKEND*                master;      /*< NULL or pointer                    */
 	schemarouter_config_t        schemarouter_config; /*< expanded config info from SERVICE */
 	int                     schemarouter_version;/*< version number for router's config */

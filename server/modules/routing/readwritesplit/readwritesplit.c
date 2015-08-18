@@ -278,7 +278,7 @@ static void refreshInstance(
         ROUTER_INSTANCE*  router,
         CONFIG_PARAMETER* param);
 
-int calculate_weights(ROUTER_INSTANCE* router, SERVICE* service);
+void calculate_weights(ROUTER_INSTANCE* router, SERVICE* service);
 int allocate_backends(ROUTER_INSTANCE *router,SERVICE *service);
 static void bref_clear_state(backend_ref_t* bref, bref_state_t state);
 static void bref_set_state(backend_ref_t*   bref, bref_state_t state);
@@ -526,7 +526,6 @@ createInstance(SERVICE *service, char **options)
         }
         router->service = service;
 	router->servers = NULL;
-	router->old_servers = NULL;
         spinlock_init(&router->lock);
 
 	if(allocate_backends(router,service) != 0)
@@ -627,8 +626,6 @@ createInstance(SERVICE *service, char **options)
         return (ROUTER *)router;
 }
 
-
-
 /**
  * Update the router instance. This updates the router options, other parameters
  * and adds and removes servers from the router.
@@ -646,20 +643,7 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     CONFIG_PARAMETER*   param;
 
     spinlock_acquire(&router->lock);
-
-    /** This prevents sessions from referring to invalid server references when
-     they are closed*/
-    if(router->old_servers)
-    {
-	for(i = 0;router->old_servers[i];i++)
-	{
-	    free(router->old_servers[i]);
-	}
-	free(router->old_servers);
-    }
-    router->old_servers = router->servers;
-    router->servers = NULL;
-
+ 
     router->rwsplit_config.rw_max_slave_conn_count = CONFIG_MAX_SLAVE_CONN;
     router->rwsplit_config.rw_max_slave_replication_lag = CONFIG_MAX_SLAVE_RLAG;
     router->rwsplit_config.rw_use_sql_variables_in = CONFIG_SQL_VARIABLES_IN;
@@ -672,12 +656,11 @@ static	int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     refreshInstance(router,NULL);
 
     /** Reallocate the backend reference structures*/
-    if(allocate_backends(router,service) != 0 ||
-       calculate_weights(router,service) != 0)
+    if(allocate_backends(router,service) != 0)
     {
 	rval = -1;
     }
-
+    calculate_weights(router,service);
     /** Close all current sessions to force the new configuration into use */
     router->connections = NULL;
     spinlock_release(&router->lock);
@@ -2118,7 +2101,6 @@ static bool route_single_stmt(
 	check_create_tmp_table(rses, querybuf, qtype);
 	check_drop_tmp_table(rses, querybuf,qtype);
 	rses_end_locked_router_action(rses);
-
 	/**
 	 * If autocommit is disabled or transaction is explicitly started
 	 * transaction becomes active and master gets all statements until
@@ -5408,4 +5390,152 @@ static backend_ref_t* get_root_master_bref(
 			STRSRVSTATUS(BREFSRV(rses->rses_master_ref)))));
 	}
 	return candidate_bref;
+}
+
+/**
+* Calculate server weights based on the 'weightby' parameter of the service.
+* @param router Router instance
+* @param service Service who owns the router
+* @return 0 on success, -1 if memory allocation fails
+*/
+void calculate_weights(ROUTER_INSTANCE* router, SERVICE* service)
+{
+    char* weightby;
+    /*
+     * If server weighting has been defined calculate the percentage
+     * of load that will be sent to each server. This is only used for
+     * calculating the least connections, either globally or within a
+     * service, or the number of current operations on a server.
+     */
+    if ((weightby = serviceGetWeightingParameter(service)) != NULL)
+    {
+	int 	n, total = 0;
+	BACKEND	*backend;
+	char* param;
+
+	for (n = 0; router->servers[n]; n++)
+	{
+	    backend = router->servers[n];
+	    if((param = serverGetParameter(backend->backend_server, weightby)) == NULL)
+	    {
+		skygw_log_write(LE,"Server %s is missing the weighting parameter %s.",
+			 backend->backend_server->unique_name,
+			 weightby);
+		continue;
+	    }
+	    total += atoi(param);
+	}
+	if (total <= 0)
+	{
+	    LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+				     "WARNING: Weighting Parameter for service '%s' "
+		    "will be ignored as no servers have valid values "
+		    "for the parameter '%s'.\n",
+				     service->name, weightby)));
+	}
+	else
+	{
+	    for (n = 0; router->servers[n]; n++)
+	    {
+		long perc;
+		long wght;
+
+		backend = router->servers[n];
+		if((param = serverGetParameter(backend->backend_server,weightby)) == NULL ||
+		 (wght = atoi(param)) <= 0)
+		{
+		    backend->weight = 1;
+		    skygw_log_write(
+			    LOGFILE_ERROR,
+			     "Server '%s' has no valid value "
+			    "for weighting parameter '%s', "
+			    "no queries will be routed to "
+			    "this server.\n",
+			     router->servers[n]->backend_server->unique_name,
+			     weightby);
+		}
+		else
+		{
+		    perc = (wght*1000) / total;
+
+		    if (perc <= 0 && wght != 0)
+		    {
+			perc = 1;
+		    }
+		    backend->weight = perc;
+		}
+	    }
+	}
+    }
+}
+
+/**
+* Allocate the memory for the backend reference structures and initialize
+* them with default values.
+* @param router Router instance
+* @param service Service who owns the router
+* @return 0 on success, -1 if memory allocation fails
+*/
+int allocate_backends(ROUTER_INSTANCE *router,SERVICE *service)
+{
+    SERVER_REF* sref;
+    int i, nservers;
+    /** Calculate number of servers */
+    sref = service->servers;
+    nservers = 0;
+
+    while (sref != NULL)
+    {
+	nservers++;
+	sref=sref->next;
+    }
+
+    /** Free old memory if this is a reallocation of servers */
+    if(router->servers)
+    {
+	for(i = 0;router->servers[i];i++)
+	{
+	    free(router->servers[i]);
+	}
+	free(router->servers);
+    }
+
+    router->servers = (BACKEND **)calloc(nservers + 1, sizeof(BACKEND *));
+
+    if (router->servers == NULL)
+    {
+	return -1;
+    }
+    /**
+     * Create an array of the backend servers in the router structure to
+     * maintain a count of the number of connections to each
+     * backend server.
+     */
+
+    sref = service->servers;
+    nservers= 0;
+
+    while (sref != NULL) {
+	if ((router->servers[nservers] = malloc(sizeof(BACKEND))) == NULL)
+	{
+	    /** clean up */
+	    for (i = 0; i < nservers; i++) {
+		free(router->servers[i]);
+	    }
+	    router->servers[0] = NULL;
+	    return -1;
+	}
+	router->servers[nservers]->backend_server = sref->server;
+	router->servers[nservers]->backend_conn_count = 0;
+	router->servers[nservers]->be_valid = false;
+	router->servers[nservers]->weight = 1000;
+#if defined(SS_DEBUG)
+	router->servers[nservers]->be_chk_top = CHK_NUM_BACKEND;
+	router->servers[nservers]->be_chk_tail = CHK_NUM_BACKEND;
+#endif
+	nservers += 1;
+	sref = sref->next;
+    }
+    router->servers[nservers] = NULL;
+    return 0;
 }

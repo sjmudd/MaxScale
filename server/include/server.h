@@ -108,7 +108,6 @@ typedef struct server {
 #if defined(SS_DEBUG)
         skygw_chk_t     server_chk_tail;
 #endif
-        bool            has_changed;    /*< If the monitor parameters have changed*/
 } SERVER;
 
 /**
@@ -211,5 +210,5 @@ extern DCB      *server_get_persistent(SERVER *, char *, const char *);
 extern void	server_update_address(SERVER *, char *);
 extern void	server_update_port(SERVER *,  unsigned short);
 extern RESULTSET	*serverGetList();
-extern void server_remove_old_servers();
+extern void server_free_all();
 #endif

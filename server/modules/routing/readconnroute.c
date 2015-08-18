@@ -352,15 +352,11 @@ char		*weightby;
 	/*
 	 * Process the options
 	 */
-
-
-
 	inst->bitmask = 0;
 	inst->bitvalue = 0;
 	if (options)
 	{
 	    	process_options(inst,options);
-		
 	}
 	if(inst->bitmask == 0 && inst->bitvalue == 0)
 	{
@@ -397,17 +393,13 @@ updateInstance(ROUTER *instance, SERVICE *service, char **options)
     SERVER_REF* sref;
     BACKEND* backend;
 
-    if(inst->old_servers)
+    /** Free the old backend server references and allocate new ones */
+    for(i = 0;inst->servers[i];i++)
     {
-	for(i = 0;inst->old_servers[i];i++)
-	{
-	    free(inst->old_servers[i]);
-	}
-	free(inst->old_servers);
+	free(inst->servers[i]);
     }
-    inst->old_servers = inst->servers;
-    inst->servers = NULL;
-    
+    free(inst->servers);
+
     for (sref = service->servers, n = 0; sref; sref = sref->next)
 	n++;
 

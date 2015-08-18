@@ -271,8 +271,6 @@ TOPN_INSTANCE	*my_instance;
 	return (FILTER *)my_instance;
 }
 
-
-
 /**
  *
  * @param instance

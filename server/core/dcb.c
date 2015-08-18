@@ -512,10 +512,12 @@ bool    succp = false;
 			}
 		}
 	}
+	atomic_add(&zombies_procesing,1);
 	spinlock_release(&zombiespin);
 
         dcb_process_victim_queue(listofdcb);
-        
+	atomic_add(&zombies_procesing,-1);
+
         return zombies;
 } 
        
@@ -532,7 +534,6 @@ static inline void
 dcb_process_victim_queue(DCB *listofdcb)
 {
     DCB *dcb;
-    atomic_add(&zombies_procesing,1);
     dcb = listofdcb;
     while (dcb != NULL) 
     {
@@ -584,7 +585,6 @@ dcb_process_victim_queue(DCB *listofdcb)
     }
     /** Reset threads session data */
     LOGIF(LT, tls_log_info.li_sesid = 0);
-        atomic_add(&zombies_procesing,-1);
 }
 
 /**

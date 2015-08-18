@@ -917,7 +917,7 @@ unsigned long	qtime;
 				&tls_log_info.li_enabled_logs)));
 			dcb->func.accept(dcb);
 		}
-		else if(dcb->state == DCB_STATE_POLLING)
+		else
 		{
 			LOGIF(LD, (skygw_log_write(
 				LOGFILE_DEBUG,

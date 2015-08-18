@@ -105,7 +105,6 @@ SERVER 	*server;
         server->persistmax = 0;
         spinlock_init(&server->persistlock);
 
-	server->has_changed = false;
 	spinlock_acquire(&server_spin);
 	server->next = allServers;
 	allServers = server;
@@ -299,7 +298,7 @@ printServer(SERVER *server)
 	printf("\tTotal connections:	%d\n", server->stats.n_connections);
 	printf("\tCurrent connections:	%d\n", server->stats.n_current);
 	printf("\tPersistent connections:	%d\n", server->stats.n_persistent);
-	printf("\tPersistent actual max:	%lu\n", server->persistmax);
+	printf("\tPersistent actual max:	%d\n", server->persistmax);
 }
 
 /**
@@ -743,7 +742,6 @@ serverAddMonUser(SERVER *server, char *user, char *passwd)
 void
 server_update(SERVER *server, char *protocol, char *user, char *passwd, char* address,unsigned short port)
 {
-    bool changed = false;
 	if (strcmp(server->protocol, protocol) != 0)
 	{
                 LOGIF(LM, (skygw_log_write(
@@ -753,7 +751,6 @@ server_update(SERVER *server, char *protocol, char *user, char *passwd, char* ad
                         protocol)));
 		free(server->protocol);
 		server->protocol = strdup(protocol);
-		changed = true;
 	}
 
         if (user != NULL && passwd != NULL) {
@@ -765,7 +762,6 @@ server_update(SERVER *server, char *protocol, char *user, char *passwd, char* ad
                                 "Update server monitor credentials for server %s",
 				server->name)));
                         serverAddMonUser(server, user, passwd);
-			changed = true;
                 }
 	}
 
@@ -773,15 +769,12 @@ server_update(SERVER *server, char *protocol, char *user, char *passwd, char* ad
 	{
 	    free(server->name);
 	    server->name = strdup(address);
-	    changed = true;
 	}
 
 	if(port > 0 && port != server->port)
 	{
 	    server->port = port;
-	    changed = true;
 	}
-    server->has_changed = changed;
 }
 
 /**
@@ -969,21 +962,11 @@ server_update_port(SERVER *server, unsigned short port)
 }
 
 /**
- * Check if the server has changed since the last configuration reload.
- * @param server Backend server
- * @return true if the server has changed otherwise false
- */
-bool server_has_changed(SERVER* server)
-{
-    return server->has_changed;
-}
-
-/**
  * Remove servers which are no longer in the configuration file from the list
  * of servers.
  * @param context Configuration context
  */
-void server_remove_old_servers()
+void server_free_all()
 {
     while(allServers)
 	server_free(allServers);

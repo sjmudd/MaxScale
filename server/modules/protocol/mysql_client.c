@@ -603,10 +603,8 @@ static int gw_mysql_do_authentication(DCB *dcb, GWBUF **buf) {
 	    }
 	    else
 	    {
-		LOGIF(LM, (skygw_log_write(LOGFILE_MESSAGE,
-				"%s: login attempt for user %s, user not "
-				"found.",
-				dcb->service->name, username)));
+		skygw_log_write(LE,"%s: Error: login attempt for DCB %p in state %s ",
+				dcb->service->name,dcb,STRDCBSTATE(dcb->state));
 	    }
 	}
 
@@ -1385,7 +1383,7 @@ int gw_MySQLListener(
 		}
 		// TCP socket create
 		if ((l_so = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-			skygw_log_write(LE,"Error: can't create socket: %i %s",
+			skygw_log_write(LE,"Error: can't create TCP socket: %i %s",
 				errno,
 				strerror(errno));
 			return 0;

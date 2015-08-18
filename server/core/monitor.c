@@ -579,6 +579,11 @@ MONITOR_SERVERS *ptr;
 	return ptr != NULL;
 }
 
+/**
+ * Disable monitors which are no longer found in the configuration file or
+ * that have their module type changed.
+ * @param ctx Configuration context which the validity of monitors is based on
+ */
 void monitor_disable_obsolete(CONFIG_CONTEXT* ctx)
 {
     MONITOR* mymonitor;
@@ -608,7 +613,14 @@ void monitor_disable_obsolete(CONFIG_CONTEXT* ctx)
 	mymonitor = mymonitor->next;
     }
 }
-void monitor_add_parameters(MONITOR* monitor, CONFIG_PARAMETER* params)
+
+/**
+ * Add configuration parameters to the monitor. All parameters are copied to the
+ * monitor and old monitor parameters are removed.
+ * @param monitor Monitor
+ * @param params Configuration parameters to add
+ */
+void monitor_set_parameters(MONITOR* monitor, CONFIG_PARAMETER* params)
 {
     CONFIG_PARAMETER *t,*p;
 

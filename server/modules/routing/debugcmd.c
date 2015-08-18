@@ -595,14 +595,6 @@ struct subcommand removeoptions[] = {
             {ARG_TYPE_STRING, ARG_TYPE_STRING, 0}
         },
 	{
-            "filter",
-            1,
-            remove_filter,
-            "Remove filter from MaxScale. Example : remove filter RegexFilter",
-            "Remove filter from MaxScale. Example : remove filter RegexFilter",
-            {ARG_TYPE_STRING, 0, 0}
-        },
-	{
             NULL, 0, NULL, NULL, NULL, {0, 0, 0}
         }
 };
@@ -1135,9 +1127,9 @@ reload_dbusers(DCB *dcb, SERVICE *service)
 }
 
 /**
- * 
- * @param dcb
- * @param filter
+ * Reload a single filter in all the services
+ * @param dcb Client DCBb
+ * @param filter Filter definition
  */
 static void
 reload_filter(DCB *dcb, FILTER_DEF *filter)
@@ -1256,27 +1248,10 @@ static void telnetdRemoveUser(
         }
 }
 
-/**
- * Remove a filter from MaxScale.
- * @param dcb Client DCB
- * @param filter Name of the filter
- */
-static void remove_filter(DCB *dcb, char *filter)
-{
-    FILTER_DEF* def = filter_find(filter);
-    if(def)
-    {
-	filter_free(def);
-	dcb_printf(dcb, "Removed filter %s.\n",filter);
-    }
-    else
-    {
-	dcb_printf(dcb, "Could not removed filter %s. Filter was not found.\n",filter);
-    }
-}
+
 
 /**
- * Print the adminsitration users
+ * Print the administration users
  *
  * @param dcb	The DCB to print the user data to
  */

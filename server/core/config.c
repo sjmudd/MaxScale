@@ -1593,7 +1593,7 @@ process_config_update(CONFIG_CONTEXT *context)
 CONFIG_CONTEXT		*obj;
 
         /** Remove old servers before adding any new or renamed ones */
-	server_remove_old_servers();
+	server_free_all();
 
 	/** Disable obsolete services */
 	serviceRemoveObsolete(context);
@@ -2854,7 +2854,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 				obj->object)));
 			error_count++;
 		}
-		monitor_add_parameters(obj->element,obj->parameters);
+		monitor_set_parameters(obj->element,obj->parameters);
 		((MONITOR*)obj->element)->state = MONITOR_STATE_STOPPED;
 	}
 	else

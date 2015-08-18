@@ -622,7 +622,6 @@ getAllUsers(SERVICE *service, USERS *users)
 		goto cleanup;
             }
 
-
 	service->resources = resource_alloc();
 
 	 while(server != NULL)
@@ -648,7 +647,7 @@ getAllUsers(SERVICE *service, USERS *users)
 		LOGIF(LE, (skygw_log_write_flush(
 			LOGFILE_ERROR,
                         "Error : failed to set timeout values for backend "
-			"connection. %s",mysql_error(con))));
+			"connection.")));
 		mysql_close(con);
 		goto cleanup;
             }
@@ -658,8 +657,7 @@ getAllUsers(SERVICE *service, USERS *users)
 		LOGIF(LE, (skygw_log_write_flush(
                         LOGFILE_ERROR,
                         "Error : failed to set external connection. "
-                        "It is needed for backend server connections. %s",
-			mysql_error(con))));
+                        "It is needed for backend server connections.")));
 		mysql_close(con);
 		goto cleanup;
             }
@@ -754,7 +752,8 @@ getAllUsers(SERVICE *service, USERS *users)
                 server = server->next;
             }
 
-            if(server == NULL)
+
+            if (server == NULL)
 	    {
 		LOGIF(LE, (skygw_log_write_flush(
                         LOGFILE_ERROR,
@@ -1249,7 +1248,7 @@ getUsers(SERVICE *service, USERS *users)
 
 	free(dpwd);
 
-	if(server == NULL)
+	if (server == NULL)
 	{
 	    LOGIF(LE, (skygw_log_write_flush(
 		    LOGFILE_ERROR,

@@ -756,6 +756,9 @@ bool parse_router_options(ROUTER_INSTANCE* router,char** options)
     if(router->schemarouter_config.disable_sescmd_hist && router->schemarouter_config.max_sescmd_hist > 0)
     {
 	router->schemarouter_config.max_sescmd_hist = 0;
+	skygw_log_write(LE,"Warning: Both 'max_sescmd_history' and 'disable_sescmd_history' are defined, "
+		"the session command history is disabled. Remove 'disable_sescmd_history' if you wish to set "
+		"an upper limit to the amount of session commands.");
     }
 
     return failure;
@@ -868,20 +871,9 @@ static	int
 updateInstance(ROUTER *instance,SERVICE *service, char **options)
 {
     ROUTER_INSTANCE* router = (ROUTER_INSTANCE*)instance;
-    ROUTER_CLIENT_SES* client;
-    int i,rval = 0;
+    int rval = 0;
 
     spinlock_acquire(&router->lock);
-
-    if(router->old_servers)
-    {
-	for(i = 0;router->old_servers[i];i++)
-	    free(router->old_servers[i]);
-	free(router->old_servers);
-    }
-
-    router->old_servers = router->servers;
-    router->servers = NULL;
 
     if(options)
     {
@@ -892,7 +884,9 @@ updateInstance(ROUTER *instance,SERVICE *service, char **options)
     }
 
     if(alloc_backends(router,service) != 0)
+    {
 	rval = -1;
+    }
     spinlock_release(&router->lock);
     return rval;
 
@@ -4559,7 +4553,6 @@ int alloc_backends(ROUTER_INSTANCE* router, SERVICE* service)
 	    free(router->servers[i]);
 	}
 	free(router->servers);
-	router->servers = NULL;
     }
 
     while (server != NULL)
@@ -4571,6 +4564,8 @@ int alloc_backends(ROUTER_INSTANCE* router, SERVICE* service)
 
     if (router->servers == NULL)
     {
+	skygw_log_write(LE,"[%s] Error: Memory allocation failed when trying to allocate "
+		"memory for %d backend references.",nservers+1);
 	return -1;
     }
     /**
@@ -4584,6 +4579,8 @@ int alloc_backends(ROUTER_INSTANCE* router, SERVICE* service)
     while (server != NULL) {
 	if ((router->servers[nservers] = malloc(sizeof(BACKEND))) == NULL)
 	{
+	    skygw_log_write(LE,"[%s] Error: Memory allocation failed when trying to allocate "
+		    "backend reference number %d.",nservers);
 	    return -1;
 	}
 	router->servers[nservers]->backend_server = server->server;

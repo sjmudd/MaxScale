@@ -99,6 +99,7 @@ static int find_type(typelib_t* tl, const char* needle, int maxlen);
 static void service_add_qualified_param(
         SERVICE*          svc,
         CONFIG_PARAMETER* param);
+
 void serviceRemoveObsolete(CONFIG_CONTEXT* ctx);
 /**
  * Allocate a new service for the gateway to support
@@ -545,7 +546,7 @@ int	n = 0,i;
 	{
 		n += (i = serviceStart(ptr));
 
-		if(i == 0)
+ 		if(i == 0)
 		{
 			LOGIF(LE, (skygw_log_write(
 				LOGFILE_ERROR,
@@ -594,7 +595,7 @@ if(service->state == SERVICE_STATE_OBSOLETE ||
 		    listeners++;
 		    break;
 		default:
-		    skygw_log_write(LE,"[%s] Error: Listener session is in invalid state: %s",
+		    skygw_log_write(LE,"[%s] Error: Listener session is in invalid state when stopping port: %s",
 			     service->name,STRSESSIONSTATE(port->listener->session->state));
 		    break;
 		}
@@ -895,7 +896,8 @@ SERV_PROTOCOL	*proto;
 }
 
 /**
- * Remove all protocols from the service
+ * Remove all protocols from the service. This function assumes that the listener DCB
+ * has already been closed.
  * @param service
  */
 void serviceRemoveProtocols(SERVICE* service)
@@ -932,7 +934,7 @@ void serviceRemoveAllProtocols()
 }
 /**
  * Remove all servers from a service. This should be called before each configuration
- * reload. The servers will be added with serviceAddBackend again
+ * reload. The servers will be added with serviceAddBackend again during the configuration update.
  * @param service Service to clear
  */
 void
