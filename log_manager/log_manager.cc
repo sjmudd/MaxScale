@@ -1375,6 +1375,9 @@ int skygw_log_write_flush(
         va_list valist;
         size_t  len;
 
+        if(!LOG_IS_ENABLED(id))
+            return err;
+
         if (!logmanager_register(true)) 
 	{
 		err = -1;
@@ -1431,7 +1434,10 @@ int skygw_log_write(
         int     i,err = 0;
         va_list valist;
         size_t  len;
-        
+
+        if(!LOG_IS_ENABLED(id))
+            return err;
+
         if (!logmanager_register(true)) 
 	{
 		err = -1;

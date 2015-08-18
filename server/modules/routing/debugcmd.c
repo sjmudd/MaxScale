@@ -1164,9 +1164,9 @@ reload_filter(DCB *dcb, FILTER_DEF *filter)
 
 
 /**
- *
+ * Reload a single service from the configuration file.
  * @param dcb
- * @param filter
+ * @param service
  */
 static void
 reload_service(DCB *dcb, SERVICE* service)
@@ -1174,6 +1174,7 @@ reload_service(DCB *dcb, SERVICE* service)
     int rval;
 
     serviceStop(service);
+    dcb_close_service(service);
     rval = config_reload_service(service);
 
     if(rval == 0)
@@ -1190,7 +1191,7 @@ reload_service(DCB *dcb, SERVICE* service)
 }
 
 /**
- * Relaod the configuration data from the config file
+ * Reload the configuration data from the config file
  *
  * @param dcb		DCB to use to send output
  */
