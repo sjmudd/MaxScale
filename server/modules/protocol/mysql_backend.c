@@ -1633,11 +1633,22 @@ static GWBUF* process_response_data (
                         {
                                 uint8_t* data;
 
-                                /** Read next packet length */
-                                data = GWBUF_DATA(readbuf);
-                                nbytes_left = MYSQL_GET_PACKET_LEN(data)+MYSQL_HEADER_LEN;
-                                /** Store new status to protocol structure */
-                                protocol_set_response_status(p, npackets_left, nbytes_left);  
+                                /** Read next packet length if there is at least
+				 * three bytes left. If there is less than three
+				 * bytes in the buffer or it is NULL, we need to
+				 wait for more data from the backend server.*/
+				if(readbuf == NULL || GWBUF_LENGTH(readbuf) < 3)
+				{
+				    skygw_log_write(LD," %lu [%s] Read %s packet with %d bytes. Waiting for %d packets.",
+					     pthread_self(),__FUNCTION__,readbuf?"partial":"empty",
+					     readbuf?GWBUF_LENGTH(readbuf):0,npackets_left);
+				    break;
+				}
+
+				data = GWBUF_DATA(readbuf);
+				nbytes_left = MYSQL_GET_PACKET_LEN(data)+MYSQL_HEADER_LEN;
+				/** Store new status to protocol structure */
+				protocol_set_response_status(p, npackets_left, nbytes_left);
                         }
                 }
         }
