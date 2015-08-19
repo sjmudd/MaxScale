@@ -1829,13 +1829,11 @@ dcb_close(DCB *dcb)
     /*<
      * Stop dcb's listening and modify state accordingly.
      */
-    if (dcb->state == DCB_STATE_POLLING  || dcb->state == DCB_STATE_LISTENING)
+
+    if ((dcb->state == DCB_STATE_POLLING && !dcb_maybe_add_persistent(dcb))
+	 || (dcb->state == DCB_STATE_LISTENING))
     {
-	if ((dcb->state == DCB_STATE_POLLING && !dcb_maybe_add_persistent(dcb))
-            || (dcb->state == DCB_STATE_LISTENING))
-	{
-            dcb_close_finish(dcb);
-        }
+	dcb_close_finish(dcb);
     }
     
     spinlock_acquire(&zombiespin);

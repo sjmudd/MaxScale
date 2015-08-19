@@ -523,6 +523,7 @@ int		   i, nfds, timeout_bias = 1;
 intptr_t	   thread_id = (intptr_t)arg;
 int		   poll_spins = 0;
 
+	ss_dassert(bitmask_isset(&poll_mask, thread_id) == 0);
 	/** Add this thread to the bitmask of running polling threads */
 	bitmask_set(&poll_mask, thread_id);
 	if (thread_data)
