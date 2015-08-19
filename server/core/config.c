@@ -112,6 +112,8 @@ void	config_monitor_update(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context);
 int	config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *running);
 int config_add_filter(CONFIG_CONTEXT* obj);
 void service_debug_show(char* service_name);
+bool config_convert_integer(char* value, int* iptr);
+bool config_verify_context();
 static	char		*config_file = NULL;
 static	GATEWAY_CONF	gateway;
 static	FEEDBACK_CONF	feedback;
@@ -1906,6 +1908,7 @@ config_percentage_value(char *str)
 static char *InternalRouters[] = {
 	"debugcli",
 	"cli",
+	"maxinfo",
 	NULL
 };
 
@@ -2885,7 +2888,15 @@ GATEWAY_CONF* config_get_global_options()
  */
 void config_set_reload_flag()
 {
-    reload_state = RELOAD_START;
+    if(config_verify_context())
+    {
+	reload_state = RELOAD_START;
+    }
+    else
+    {
+	skygw_log_write(LE,"Errors were found from the configuration file. Configuration reload aborted. "
+		"Please fix the errors and try again.");
+    }
 }
 
 /**
@@ -3039,4 +3050,364 @@ int config_add_filter(CONFIG_CONTEXT* obj)
 	}
     }
     return error_count == 0 ? 0 : -1;
+}
+
+CONFIG_CONTEXT* config_get_section(CONFIG_CONTEXT* context, char* name)
+{
+    CONFIG_CONTEXT* section = context;
+
+    while(section)
+    {
+	if(strcmp(section->object,name) == 0)
+	    return section;
+	section = section->next;
+    }
+
+    return NULL;
+}
+
+/**
+ * Verify that all required parameters for a server are found
+ * @param context Configuration context
+ * @param section The server section to verify
+ * @return true if the section is valid, false if errors are found
+ */
+bool config_verify_server(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
+{
+    CONFIG_PARAMETER *port;
+    int intval;
+    bool rval = true;
+
+    if((config_get_param(section->parameters,"protocol")) == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Server is missing the 'protocol' parameter.",section->object);
+	rval = false;
+    }
+
+    if((config_get_param(section->parameters,"address")) == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Server is missing the 'address' parameter.",section->object);
+	rval = false;
+    }
+
+    if((port = config_get_param(section->parameters,"port")) == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Server is missing the 'port' parameter.",section->object);
+	rval = false;
+    }
+
+    if(!config_convert_integer(port->value,&intval) || intval <= 0)
+    {
+	skygw_log_write(LE,"[%s] Error: Invalid port value: %s. ",section->object,port->value);
+	rval = false;
+    }
+
+    return rval;
+}
+
+/**
+ * Verify that all required parameters for a filter are found
+ * @param context Configuration context
+ * @param section The filter section to verify
+ * @return true if the section is valid, false if errors are found
+ */
+bool config_verify_filter(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
+{
+    bool rval = true;
+
+    if(config_get_param(section->parameters,"module") == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Filter is missing the 'module' parameter.",section->object);
+	rval = false;
+    }
+
+    return rval;
+}
+
+/**
+ * Parse a string and find the matching sections from the configuration context
+ * @param context Configuration context
+ * @param value A comma separated list of section names
+ * @return true if all sections were found, false if a section was not found
+ */
+bool config_find_sections_from_string(CONFIG_CONTEXT* context,const char* needle, char* value)
+{
+    char *str,*tok,*sptr;
+    bool rval = true;
+
+    str = strdup(value);
+    tok = strtok_r(str,needle,&sptr);
+    while(tok)
+    {
+	if(config_get_section(context,tok) == NULL)
+	{
+	    skygw_log_write(LE,"Error: '%s' is not a valid section name.",tok);
+	    rval = false;
+	    break;
+	}
+	tok = strtok_r(NULL,needle,&sptr);
+    }
+    free(str);
+    return rval;
+}
+/**
+ * Verify that all required parameters for a monitor are found
+ * @param context Configuration context
+ * @param section The monitor section to verify
+ * @return true if the section is valid, false if errors are found
+ */
+bool config_verify_monitor(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
+{
+    bool rval = true;
+    CONFIG_PARAMETER* servers;
+
+    if((servers = config_get_param(section->parameters,"servers")) == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Monitor is missing the 'servers' parameter.",section->object);
+	rval = false;
+    }
+    else
+    {
+	if(!config_find_sections_from_string(context,", ",servers->value))
+	{
+	    skygw_log_write(LE,"[%s] Error: Monitor has invalid values in the 'servers' parameter: %s",section->object,servers->value);
+	    rval = false;
+	}
+    }
+
+    if(config_get_param(section->parameters,"module") == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Monitor is missing the 'module' parameter.",section->object);
+	rval = false;
+    }
+
+    if(config_get_param(section->parameters,"user") == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Monitor is missing the 'user' parameter.",section->object);
+	rval = false;
+    }
+
+    if(config_get_param(section->parameters,"passwd") == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Monitor is missing the 'passwd' parameter.",section->object);
+	rval = false;
+    }
+
+    return rval;
+}
+bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
+{
+    CONFIG_CONTEXT* *search;
+    CONFIG_PARAMETER *servers,*router,*filters;
+    int intval;
+    bool rval = true;
+
+    if((router = config_get_param(section->parameters,"router")) == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Service is missing the 'router' parameter.",section->object);
+	rval = false;
+    }
+
+    if((servers = config_get_param(section->parameters,"servers")) == NULL)
+    {
+	if(router != NULL && !internalService(router->value))
+	{
+	    skygw_log_write(LE,"[%s] Error: Service is missing the 'servers' parameter.",section->object);
+	    rval = false;
+	}
+    }
+    else
+    {
+	if(!config_find_sections_from_string(context,", ",servers->value))
+	{
+	    skygw_log_write(LE,"[%s] Error: Service has invalid values in the 'servers' parameter: %s",section->object,servers->value);
+	    rval = false;
+	}
+    }
+
+    if((filters = config_get_param(section->parameters,"filters")))
+    {
+	if(!config_find_sections_from_string(context,"| ",filters->value))
+	{
+	    skygw_log_write(LE,"[%s] Error: Service has invalid values in the 'filters' parameter: %s",section->object,filters->value);
+	    rval = false;
+	}
+    }
+
+    if(router != NULL && !internalService(router->value))
+    {
+	if(config_get_param(section->parameters,"user") == NULL)
+	{
+
+	    skygw_log_write(LE,"[%s] Error: Service is missing the 'user' parameter.",section->object);
+	    rval = false;
+	}
+
+	if(config_get_param(section->parameters,"passwd") == NULL)
+	{
+	    skygw_log_write(LE,"[%s] Error: Service is missing the 'passwd' parameter.",section->object);
+	    rval = false;
+	}
+    }
+
+    return rval;
+}
+bool config_verify_listener(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
+{
+    CONFIG_CONTEXT* *search;
+    CONFIG_PARAMETER *service,*port,*socket,*protocol;
+    int intval;
+    bool rval = true;
+
+    if((service = config_get_param(section->parameters,"service")) == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Listener is missing the 'service' parameter.",section->object);
+	rval = false;
+    }
+
+    if(config_get_section(context,service->value) == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Service '%s' for listener not found.",
+		 section->object,service->value);
+	rval = false;
+    }
+
+    port = config_get_param(section->parameters,"port");
+    socket = config_get_param(section->parameters,"socket");
+
+    if(port == NULL && socket == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Listener is missing both 'port' and 'socket' parameters. "
+		"At least one of them must be defined for each listener.",
+		 section->object);
+	rval = false;
+    }
+
+    if(port)
+    {
+	if(!config_convert_integer(port->value,&intval) || intval <= 0)
+	{
+	    skygw_log_write(LE,"[%s] Error: Invalid port value: %s. ",section->object,port->value);
+	    rval = false;
+	}
+    }
+
+    if(socket)
+    {
+	if(!is_valid_posix_path(socket->value))
+	{
+	    skygw_log_write(LE,"[%s] Error: Invalid socket path: %s. ",section->object,port->value);
+	    rval = false;
+	}
+    }
+
+    if(config_get_param(section->parameters,"protocol") == NULL)
+    {
+	skygw_log_write(LE,"[%s] Error: Listener is missing the 'protocol' parameter.",section->object);
+	rval = false;
+    }
+
+    return rval;
+}
+
+/**
+ * Convert a string into an integer value and check that the conversion was valid.
+ * @param value String to convert
+ * @param iptr Location where the result is written
+ * @return true if the string is a valid integer, otherwise false.
+ */
+bool config_convert_integer(char* value, int* iptr)
+{
+    int intval;
+    char* strptr;
+
+    intval = strtol(value,&strptr,0);
+
+    /** No valid numbers */
+    if(strptr == value)
+	return false;
+
+    /** Unexpected characters in string */
+    if(*strptr != '\0')
+	return false;
+
+    *iptr = intval;
+
+    return true;
+}
+
+/**
+ * Verify the in-memory representation of the configuration file. This function
+ * checks that all mandatory parameters are defined for each of the module types.
+ * @param context Configuration context
+ * @return true if the context is valid, false if errors were found.
+ */
+bool config_verify_context()
+{
+
+    CONFIG_CONTEXT base,*context,*section,*search;
+    CONFIG_PARAMETER *param;
+    bool rval = true;
+
+    base.object = "";
+    base.next = NULL;
+    base.element = NULL;
+    base.parameters = NULL;
+
+    if (ini_parse(config_file, handler, &base) < 0)
+    {
+	skygw_log_write(LE,"Error: Parsing the configuration file failed.");
+	return false;
+    }
+
+    context = base.next;
+    section = context;
+
+    while(section)
+    {
+	if((param = config_get_param(section->parameters,"type")) == NULL)
+	{
+	    skygw_log_write(LE,"[%s] Error: Missing 'type' parameter.",section->object);
+	    rval = false;
+	}
+	else
+	{
+	    if(strcmp(param->value,"service") == 0)
+	    {
+		if(!config_verify_service(context,section))
+		    rval = false;
+	    }
+	    else if(strcmp(param->value,"listener") == 0)
+	    {
+		if(!config_verify_listener(context,section))
+		    rval = false;
+	    }
+	    else if(strcmp(param->value,"monitor") == 0)
+	    {
+		if(!config_verify_monitor(context,section))
+		    rval = false;
+	    }
+	    else if(strcmp(param->value,"filter") == 0)
+	    {
+		if(!config_verify_filter(context,section))
+		    rval = false;
+	    }
+	    else if(strcmp(param->value,"server") == 0)
+	    {
+		if(!config_verify_server(context,section))
+		    rval = false;
+	    }
+	    else
+	    {
+		skygw_log_write(LE,"[%s] Error: Invalid value for 'type' parameter. Value was not one of "
+			"'server', 'listener', 'monitor', 'filter' or 'server': '%s'",section->object,param->value);
+		return false;
+	    }
+	}
+	section = section->next;
+    }
+
+    free_config_context(base.next);
+
+    return rval;
 }

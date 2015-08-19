@@ -298,7 +298,7 @@ printServer(SERVER *server)
 	printf("\tTotal connections:	%d\n", server->stats.n_connections);
 	printf("\tCurrent connections:	%d\n", server->stats.n_current);
 	printf("\tPersistent connections:	%d\n", server->stats.n_persistent);
-	printf("\tPersistent actual max:	%d\n", server->persistmax);
+	printf("\tPersistent actual max:	%ld\n", server->persistmax);
 }
 
 /**
