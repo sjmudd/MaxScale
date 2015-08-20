@@ -215,15 +215,15 @@ CONFIG_PARAMETER	*param, *p1;
 }
 
 /**
- * Handle SSL parameters.
- * @param obj
- * @param mode
- * @param ssl_cert
- * @param ssl_key
- * @param ssl_ca_cert
- * @param ssl_version
- * @param verify_depth
- * @return
+ * Handle SSL parameters and configure the service to use SSL.
+ * @param service Service to configure
+ * @param mode SSL mode, one of 'enabled', 'required' and 'disabled'
+ * @param ssl_cert SSL certificate path
+ * @param ssl_key SSL Private key path
+ * @param ssl_ca_cert SSL CA certificate path
+ * @param ssl_version SSL version string
+ * @param verify_depth SSL certificate verification depth
+ * @return 0 on success, non-zero on error
  */
 int config_handle_ssl(SERVICE* service,
 		      char* mode,
@@ -402,8 +402,10 @@ void config_start_reload()
 }
 
 /**
- * Reload the configuration file for the MaxScale
- *
+ * Reload the configuration file for the MaxScale.
+ * This processes the configuration file, loads or updates all the modules
+ * in the configuration file and disables obsolete modules. After all relevant
+ * modules have been loaded or updated, the services and monitors are started.
  * @return A zero return indicates a fatal error reading the configuration
  */
 void
@@ -452,7 +454,12 @@ config_reload_active()
 	    reload_state = RELOAD_INACTIVE;
 }
 
-
+/**
+ * Check the state of the configuration reload. If the configuration reload is set
+ * as started, prepare MaxScale for the configuration reload. If the configuration reload
+ * is prepared, do the actual configuration reload only if all DCBs have been closed
+ * and processed.
+ */
 void config_reload()
 {
     if(spinlock_acquire_nowait(&reload_lock))
@@ -474,6 +481,7 @@ void config_reload()
     }
 }
 
+/***/
 int
 config_read_config(CONFIG_CONTEXT* context)
 {
@@ -636,8 +644,8 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 					if((((SERVICE *)(obj->element))->version_string = malloc((strlen(version_string) +
 						strlen("5.5.5-") + 1) * sizeof(char))) == NULL)
 					{
-					    skygw_log_write(LE,"Error: Memory allocation failed in [%s] %s:%d",
-						     __FUNCTION__,__FILE__,__LINE__);
+					    skygw_log_write(LE,"[%s] Error: Memory allocation failed when allocating server string.",
+						     __FUNCTION__);
 					    error_count++;
 					    break;
 					}
@@ -1133,12 +1141,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 
 		obj = obj->next;
 	} /*< while */
-	/** TODO: consistency check function */
-
-        /**
-         * error_count += consistency_checks();
-         */
-
+	
 	if (error_count)
 	{
 		LOGIF(LE, (skygw_log_write_flush(
@@ -1599,8 +1602,8 @@ CONFIG_CONTEXT		*obj;
 
 	/** Disable obsolete services */
 	serviceRemoveObsolete(context);
-
 	serviceRemoveAllProtocols();
+
 	/** Disable obsolete monitors */
 	monitor_disable_obsolete(context);
 
@@ -1612,7 +1615,6 @@ CONFIG_CONTEXT		*obj;
 	while (obj)
 	{
 		char *type = config_get_value(obj->parameters, "type");
-
 		if (type == NULL)
                 {
                     LOGIF(LE,
@@ -1650,7 +1652,6 @@ CONFIG_CONTEXT		*obj;
 	while (obj)
 	{
 		char *type = config_get_value(obj->parameters, "type");
-
 		if (type == NULL)
 			;
 		else if (!strcmp(type, "service"))
@@ -1664,10 +1665,13 @@ CONFIG_CONTEXT		*obj;
 		{
 			config_monitor_update(obj, context);
 		}
+		else if (type && strcmp(type, "listener") == 0)
+		{
+		    config_listener_update(obj, context);
+		}
 		else if (strcmp(type, "server") != 0 &&
                          strcmp(type, "monitor") != 0 &&
-			 strcmp(type, "filter") != 0 &&
-			 strcmp(type, "listener") != 0)
+			 strcmp(type, "filter") != 0)
 		{
 			LOGIF(LE, (skygw_log_write_flush(
                                 LOGFILE_ERROR,
@@ -1677,25 +1681,6 @@ CONFIG_CONTEXT		*obj;
 		}
 		obj = obj->next;
 	}
-
-	obj = context;
-	while(obj)
-	{
-	    char *type = config_get_value(obj->parameters, "type");
-	    if (type && strcmp(type, "listener") == 0)
-	    {
-		config_listener_update(obj, context);
-	    }
-	    obj = obj->next;
-	}
-
-#ifdef SS_DEBUG
-	LOGIF(LD,(skygw_log_write(LD,"data dir:%s",get_datadir())));
-	LOGIF(LD,(skygw_log_write(LD,"cache dir:%s",get_cachedir())));
-	LOGIF(LD,(skygw_log_write(LD,"lib dir:%s",get_libdir())));
-
-#endif
-
 	return 1;
 }
 
@@ -2882,7 +2867,8 @@ GATEWAY_CONF* config_get_global_options()
 }
 
 /**
- * Signal a thread that the configuration should be reloaded.
+ * Check that the configuration is valid and if so, signal the threads that the
+ * configuration should be reloaded.
  */
 void config_set_reload_flag()
 {
@@ -3000,6 +2986,12 @@ int config_reload_service(void* data)
     return rval;
 }
 
+/**
+ * Add a filter to the configuration context. This allocates the filter module
+ * and adds the filter options and parameters.
+ * @param obj Configuration context
+ * @return 0 on success, -1 on error
+ */
 int config_add_filter(CONFIG_CONTEXT* obj)
 {
     int error_count = 0;
@@ -3015,9 +3007,7 @@ int config_add_filter(CONFIG_CONTEXT* obj)
     else
     {
 	LOGIF(LE, (skygw_log_write_flush(
-		LOGFILE_ERROR,
-					 "Error: Filter '%s' has no module "
-		"defined defined to load.",
+		LOGFILE_ERROR,"Error: Filter '%s' has no module defined to load.",
 					 obj->object)));
 	error_count++;
     }
@@ -3050,6 +3040,12 @@ int config_add_filter(CONFIG_CONTEXT* obj)
     return error_count == 0 ? 0 : -1;
 }
 
+/**
+ * Return the section from the configuration context that matches the given name.
+ * @param context Configuration context
+ * @param name Section name to search for
+ * @return Pointer to the section in the configuration or NULL if it was not found
+ */
 CONFIG_CONTEXT* config_get_section(CONFIG_CONTEXT* context, char* name)
 {
     CONFIG_CONTEXT* section = context;
@@ -3193,6 +3189,14 @@ bool config_verify_monitor(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 
     return rval;
 }
+
+/**
+ * Verify that a service section is valid and that all required parameters have been defined.
+ * @param context Configuration context
+ * @param section The service section of the configuration context
+ * @return true if the service configuration is valid, false if one or more errors
+ * were detected
+ */
 bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 {
     CONFIG_CONTEXT* *search;
@@ -3250,6 +3254,14 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 
     return rval;
 }
+
+/**
+ * Verify that a listener section is valid and that all required parameters have been defined.
+ * @param context Configuration context
+ * @param section The listener section of the configuration context
+ * @return true if the listener configuration is valid, false if one or more errors
+ * were detected
+ */
 bool config_verify_listener(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 {
     CONFIG_CONTEXT* *search;
@@ -3347,12 +3359,7 @@ bool config_verify_context()
     CONFIG_PARAMETER *param;
     bool rval = true;
 
-    base.object = "";
-    base.next = NULL;
-    base.element = NULL;
-    base.parameters = NULL;
-
-    if (ini_parse(config_file, handler, &base) < 0)
+    if (config_read_config(&base) != 0)
     {
 	skygw_log_write(LE,"Error: Parsing the configuration file failed.");
 	return false;

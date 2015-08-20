@@ -3501,22 +3501,8 @@ static bool select_connect_backend_servers(
 
                 if (!master_found)
                 {
-                        LOGIF(LE, (skygw_log_write(
-                                LOGFILE_ERROR,
-                                "Error : Couldn't find suitable %s from %d "
-                                "candidates.",
-                                (is_synced_master ? "Galera node" : "Master"),
-                                router_nservers)));
-
-                        LOGIF(LM, (skygw_log_write(
-                                LOGFILE_MESSAGE,
-                                "Error : Couldn't find suitable %s from %d "
-                                "candidates.",
-                                (is_synced_master ? "Galera node" : "Master"),
-                                router_nservers)));
-
-                        LOGIF(LT, (skygw_log_write(
-                                LOGFILE_TRACE,
+                        LOGIF((LE|LM|LT), (skygw_log_write(
+                                (LE|LM|LT),
                                 "Error : Couldn't find suitable %s from %d "
                                 "candidates.",
                                 (is_synced_master ? "Galera node" : "Master"),
@@ -3524,24 +3510,8 @@ static bool select_connect_backend_servers(
                 }
                 else if (!master_connected)
                 {
-                        LOGIF(LE, (skygw_log_write(
-                                LOGFILE_ERROR,
-                                "Error : Couldn't connect to any %s although "
-                                "there exists at least one %s node in the "
-                                "cluster.",
-                                (is_synced_master ? "Galera node" : "Master"),
-                                (is_synced_master ? "Galera node" : "Master"))));
-
-                        LOGIF(LM, (skygw_log_write(
-                                LOGFILE_MESSAGE,
-                                "Error : Couldn't connect to any %s although "
-                                "there exists at least one %s node in the "
-                                "cluster.",
-                                (is_synced_master ? "Galera node" : "Master"),
-                                (is_synced_master ? "Galera node" : "Master"))));
-
-                        LOGIF(LT, (skygw_log_write(
-                                LOGFILE_TRACE,
+                        LOGIF((LE|LM|LT), (skygw_log_write(
+                                (LE|LM|LT),
                                 "Error : Couldn't connect to any %s although "
                                 "there exists at least one %s node in the "
                                 "cluster.",
@@ -3551,13 +3521,8 @@ static bool select_connect_backend_servers(
 
                 if (slaves_connected < min_nslaves)
                 {
-                        LOGIF(LE, (skygw_log_write(
-                                LOGFILE_ERROR,
-                                "Error : Couldn't establish required amount of "
-                                "slave connections for router session.")));
-
-                        LOGIF(LM, (skygw_log_write(
-                                LOGFILE_MESSAGE,
+                        LOGIF((LE|LM|LT), (skygw_log_write(
+                                (LE|LM|LT),
                                 "Error : Couldn't establish required amount of "
                                 "slave connections for router session.")));
                 }
