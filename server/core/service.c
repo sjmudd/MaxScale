@@ -745,7 +745,8 @@ int		listeners = 0;
 	    }
 	    port = port->next;
 	}
-		/** Add the task that monitors session timeouts */
+
+	/** Add the task that monitors session timeouts */
 	if(service->conn_timeout > 0)
 	{
 	    hktask_add("connection_timeout",session_close_timeouts,NULL,5);

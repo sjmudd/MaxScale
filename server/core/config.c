@@ -2257,26 +2257,24 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			if (user && auth) {
 				service_update(service, router, user, auth);
 
-				if (enable_root_user)
-					serviceEnableRootUser(service, config_truth_value(enable_root_user));
+				serviceEnableRootUser(service, enable_root_user ?
+				    config_truth_value(enable_root_user) : 0);
 
-				if (connection_timeout)
-					serviceSetTimeout(service, config_truth_value(connection_timeout));
+				serviceSetTimeout(service, connection_timeout ?
+				    atoi(connection_timeout) : 0);
 
+				serviceAuthAllServers(service, auth_all_servers ?
+				    config_truth_value(auth_all_servers) : 0);
 
-				if (auth_all_servers)
-					serviceAuthAllServers(service, config_truth_value(auth_all_servers));
+				serviceOptimizeWildcard(service, optimize_wildcard ?
+				    config_truth_value(optimize_wildcard) : 0);
 
-				if (optimize_wildcard)
-					serviceOptimizeWildcard(service, config_truth_value(optimize_wildcard));
+				serviceStripDbEsc(service, strip_db_esc ?
+				    config_truth_value(strip_db_esc) : 0);
 
-				if (strip_db_esc)
-					serviceStripDbEsc(service, config_truth_value(strip_db_esc));
-
-				if (allow_localhost_match_wildcard_host)
-					serviceEnableLocalhostMatchWildcardHost(
-						service,
-						config_truth_value(allow_localhost_match_wildcard_host));
+				serviceEnableLocalhostMatchWildcardHost(service,
+						allow_localhost_match_wildcard_host ?
+						    config_truth_value(allow_localhost_match_wildcard_host) : 0);
 
 				serviceWeightBy(service,weightby);
 				/** Read, validate and set max_slave_connections */        
