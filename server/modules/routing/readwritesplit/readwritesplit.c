@@ -1526,6 +1526,13 @@ void check_drop_tmp_table(
       return;
   }
 
+  if(router_cli_ses->rses_master_ref == NULL)
+  {
+      skygw_log_write(LE,"[%s] Error: Master server reference is NULL.",
+		      __FUNCTION__);
+      return;
+  }
+
   rses_prop_tmp = router_cli_ses->rses_properties[RSES_PROP_TYPE_TMPTABLES];
   master_dcb = router_cli_ses->rses_master_ref->bref_dcb;
 
@@ -1609,6 +1616,13 @@ static skygw_query_type_t is_read_tmp_table(
       skygw_log_write(LE,"[%s] Error: NULL parameters passed: %p %p",
 		      __FUNCTION__,router_cli_ses,querybuf);
       return type;
+  }
+
+  if(router_cli_ses->rses_master_ref == NULL)
+  {
+      skygw_log_write(LE,"[%s] Error: Master server reference is NULL.",
+		      __FUNCTION__);
+      return;
   }
 
   rses_prop_tmp = router_cli_ses->rses_properties[RSES_PROP_TYPE_TMPTABLES];
@@ -1703,6 +1717,13 @@ static void check_create_tmp_table(
   {
       skygw_log_write(LE,"[%s] Error: NULL parameters passed: %p %p",
 		      __FUNCTION__,router_cli_ses,querybuf);
+      return;
+  }
+
+  if(router_cli_ses->rses_master_ref == NULL)
+  {
+      skygw_log_write(LE,"[%s] Error: Master server reference is NULL.",
+		      __FUNCTION__);
       return;
   }
 

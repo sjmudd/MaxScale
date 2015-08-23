@@ -747,6 +747,7 @@ RESULTSET	*set;
 			resultset_free(set);
 		}
 	}
+	gwbuf_free(queue);
 	return 1;
 }
 
