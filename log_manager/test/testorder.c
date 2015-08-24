@@ -70,14 +70,14 @@ int main(int argc, char** argv)
   iterations = atoi(argv[1]);
   interval = atoi(argv[2]);
   
-  succp = skygw_logmanager_init( 3, optstr);
+  succp = mxs_logmanager_init( 3, optstr);
   if(!succp)
       fprintf(stderr,"Error, log manager initialization failed.\n");
   ss_dassert(succp);
 
-  skygw_log_disable(LOGFILE_TRACE);
-  skygw_log_disable(LOGFILE_MESSAGE);
-  skygw_log_disable(LOGFILE_DEBUG);
+  mxs_log_disable(LOGFILE_TRACE);
+  mxs_log_disable(LOGFILE_MESSAGE);
+  mxs_log_disable(LOGFILE_DEBUG);
 
   for(i = 0;i<iterations;i++){
 
@@ -90,9 +90,9 @@ int main(int argc, char** argv)
     memset(message + strlen(message), ' ', msgsize);
     memset(message + block_size - 1,'\0',1);
     if(interval > 0 && i % interval == 0){
-      err = skygw_log_write_flush(LOGFILE_ERROR, message);
+      err = mxs_log_flush(LOGFILE_ERROR, message);
     }else{
-      err = skygw_log_write(LOGFILE_ERROR, message);
+      err = mxs_log(LOGFILE_ERROR, message);
     }
     if(err){
       fprintf(stderr,"Error: log_manager returned %d",err);
@@ -102,8 +102,8 @@ int main(int argc, char** argv)
     nanosleep(&ts1, NULL);
   }
 
-  skygw_log_flush(LOGFILE_ERROR);
-  skygw_logmanager_done();
+  mxs_flush_file(LOGFILE_ERROR);
+  mxs_logmanager_done();
   free(message);
   free(optstr[0]);
   free(optstr[1]);

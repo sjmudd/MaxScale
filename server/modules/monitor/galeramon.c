@@ -90,7 +90,7 @@ version()
 void
 ModuleInit()
 {
-	LOGIF(LM, (skygw_log_write(
+	LOGIF(LM, (mxs_log(
                            LOGFILE_MESSAGE,
                            "Initialise the MySQL Galera Monitor module %s.\n",
                            version_str)));
@@ -172,13 +172,13 @@ startMonitor(void *arg,void* opt)
 		script_error = true;
 		if(access(params->value,F_OK) == 0)
 		{
-		skygw_log_write(LE,
+		mxs_log(LE,
 			 "Error: The file cannot be executed: %s",
 			 params->value);
 		}
 		else
 		{
-		skygw_log_write(LE,
+		mxs_log(LE,
 			 "Error: The file cannot be found: %s",
 			 params->value);
 		}
@@ -195,7 +195,7 @@ startMonitor(void *arg,void* opt)
     }
     if(script_error)
     {
-	skygw_log_write(LE,"Error: Errors were found in the script configuration parameters "
+	mxs_log(LE,"Error: Errors were found in the script configuration parameters "
 		"for the monitor '%s'. The script will not be used.",mon->name);
 	free(handle->script);
 	handle->script = NULL;
@@ -342,7 +342,7 @@ char 			*server_string;
 
 			if (mon_status_changed(database) && mon_print_fail_status(database))
 			{
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Error : Monitor was unable to connect to "
 					"server %s:%d : \"%s\"",
@@ -378,7 +378,7 @@ char 			*server_string;
 		if(mysql_field_count(database->con) < 2)
 		{
 		    mysql_free_result(result);
-		    skygw_log_write(LE,"Error: Unexpected result for \"SHOW STATUS LIKE 'wsrep_local_state'\". Expected 2 columns."
+		    mxs_log(LE,"Error: Unexpected result for \"SHOW STATUS LIKE 'wsrep_local_state'\". Expected 2 columns."
 				    " MySQL Version: %s",version_str);
 		    return;
 		}
@@ -397,7 +397,7 @@ char 			*server_string;
 						{
 						    mysql_free_result(result);
 						    mysql_free_result(result2);
-						    skygw_log_write(LE,"Error: Unexpected result for \"SHOW VARIABLES LIKE 'wsrep_sst_method'\". Expected 2 columns."
+						    mxs_log(LE,"Error: Unexpected result for \"SHOW VARIABLES LIKE 'wsrep_sst_method'\". Expected 2 columns."
 							    " MySQL Version: %s",version_str);
 						    return;
 						}
@@ -422,7 +422,7 @@ char 			*server_string;
 		if(mysql_field_count(database->con) < 2)
 		{
 		    mysql_free_result(result);
-		    skygw_log_write(LE,"Error: Unexpected result for \"SHOW STATUS LIKE 'wsrep_local_index'\". Expected 2 columns."
+		    mxs_log(LE,"Error: Unexpected result for \"SHOW STATUS LIKE 'wsrep_local_index'\". Expected 2 columns."
 							    " MySQL Version: %s",version_str);
 		    return;
 		}
@@ -470,7 +470,7 @@ monitor_event_t evtype;
     master_stickiness = handle->disableMasterFailback;
 	if (mysql_thread_init())
 	{
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                                    LOGFILE_ERROR,
                                    "Fatal : mysql_thread_init failed in monitor "
                                    "module. Exiting.\n")));
@@ -530,7 +530,7 @@ monitor_event_t evtype;
 			/* Log server status change */
 			if (mon_status_changed(ptr))
 			{
-				LOGIF(LD, (skygw_log_write_flush(
+				LOGIF(LD, (mxs_log_flush(
 					LOGFILE_DEBUG,
 					"Backend server %s:%d state : %s",
 					ptr->server->name,
@@ -615,13 +615,13 @@ monitor_event_t evtype;
 		}
 
 		if (is_cluster == 0 && log_no_members) {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Error: there are no cluster members")));
 			log_no_members = 0;
 		} else {
 			if (is_cluster > 0 && log_no_members == 0) {
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Info: found cluster members")));
 				log_no_members = 1;
@@ -640,7 +640,7 @@ monitor_event_t evtype;
 			evtype = mon_get_event_type(ptr);
 			if(isGaleraEvent(evtype))
 			{
-			    skygw_log_write(LOGFILE_TRACE,"Server changed state: %s[%s:%u]: %s",
+			    mxs_log(LOGFILE_TRACE,"Server changed state: %s[%s:%u]: %s",
 				     ptr->server->unique_name,
 				     ptr->server->name,ptr->server->port,
 				     mon_get_event_name(ptr));

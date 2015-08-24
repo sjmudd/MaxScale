@@ -613,19 +613,19 @@ flushlog(DCB *pdcb, char *logname)
 	}
 	else if (!strcasecmp(logname, "error"))
 	{
-		skygw_log_rotate(LOGFILE_ERROR);
+		mxs_log_rotate(LOGFILE_ERROR);
 	}
 	else if (!strcasecmp(logname, "message"))
 	{
-		skygw_log_rotate(LOGFILE_MESSAGE);
+		mxs_log_rotate(LOGFILE_MESSAGE);
 	}
 	else if (!strcasecmp(logname, "trace"))
 	{
-		skygw_log_rotate(LOGFILE_TRACE);
+		mxs_log_rotate(LOGFILE_TRACE);
 	}
 	else if (!strcasecmp(logname, "debug"))
 	{
-		skygw_log_rotate(LOGFILE_DEBUG);
+		mxs_log_rotate(LOGFILE_DEBUG);
 	}
 	else
 	{
@@ -642,10 +642,10 @@ flushlog(DCB *pdcb, char *logname)
 static void
 flushlogs(DCB *pdcb)
 {
-	skygw_log_rotate(LOGFILE_ERROR);
-	skygw_log_rotate(LOGFILE_MESSAGE);
-	skygw_log_rotate(LOGFILE_TRACE);
-	skygw_log_rotate(LOGFILE_DEBUG);
+	mxs_log_rotate(LOGFILE_ERROR);
+	mxs_log_rotate(LOGFILE_MESSAGE);
+	mxs_log_rotate(LOGFILE_TRACE);
+	mxs_log_rotate(LOGFILE_DEBUG);
 }
 
 
@@ -1455,7 +1455,7 @@ static void enable_log_action(DCB *dcb, char *arg1) {
                 return ;
         }
 		
-        skygw_log_enable(type);
+        mxs_log_enable(type);
 }
 
 /**
@@ -1479,7 +1479,7 @@ static void disable_log_action(DCB *dcb, char *arg1) {
                 return ;
         }
 
-        skygw_log_disable(type);
+        mxs_log_disable(type);
 }
 
 /**

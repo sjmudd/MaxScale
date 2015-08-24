@@ -78,7 +78,7 @@ version()
 void
 ModuleInit()
 {
-	LOGIF(LM, (skygw_log_write(
+	LOGIF(LM, (mxs_log(
                            LOGFILE_MESSAGE,
                            "Initialise the MySQL Cluster Monitor module %s.\n",
                            version_str)));
@@ -143,13 +143,13 @@ startMonitor(void *arg,void* opt)
 		script_error = true;
 		if(access(params->value,F_OK) == 0)
 		{
-		skygw_log_write(LE,
+		mxs_log(LE,
 			 "Error: The file cannot be executed: %s",
 			 params->value);
 		}
 		else
 		{
-		skygw_log_write(LE,
+		mxs_log(LE,
 			 "Error: The file cannot be found: %s",
 			 params->value);
 		}
@@ -167,7 +167,7 @@ startMonitor(void *arg,void* opt)
     }
      if(script_error)
     {
-	skygw_log_write(LE,"Error: Errors were found in the script configuration parameters "
+	mxs_log(LE,"Error: Errors were found in the script configuration parameters "
 		"for the monitor '%s'. The script will not be used.",mon->name);
 	free(handle->script);
 	handle->script = NULL;
@@ -285,7 +285,7 @@ char 			*server_string;
 		if (mysql_real_connect(database->con, database->server->name,
 			uname, dpwd, NULL, database->server->port, NULL, 0) == NULL)
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Error : Monitor was unable to connect to "
 				"server %s:%d : \"%s\"",
@@ -326,7 +326,7 @@ char 			*server_string;
 		if(mysql_field_count(database->con) < 2)
 		{
 		    mysql_free_result(result);
-		    skygw_log_write(LE,"Error: Unexpected result for \"SHOW STATUS LIKE 'Ndb_number_of_ready_data_nodes'\". Expected 2 columns."
+		    mxs_log(LE,"Error: Unexpected result for \"SHOW STATUS LIKE 'Ndb_number_of_ready_data_nodes'\". Expected 2 columns."
 				    " MySQL Version: %s",version_str);
 		    return;
 		}
@@ -346,7 +346,7 @@ char 			*server_string;
 		if(mysql_field_count(database->con) < 2)
 		{
 		    mysql_free_result(result);
-		    skygw_log_write(LE,"Error: Unexpected result for \"SHOW STATUS LIKE 'Ndb_cluster_node_id'\". Expected 2 columns."
+		    mxs_log(LE,"Error: Unexpected result for \"SHOW STATUS LIKE 'Ndb_cluster_node_id'\". Expected 2 columns."
 				    " MySQL Version: %s",version_str);
 		    return;
 		}
@@ -393,7 +393,7 @@ spinlock_release(&mon->lock);
 
 	if (mysql_thread_init())
 	{
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                                    LOGFILE_ERROR,
                                    "Fatal : mysql_thread_init failed in monitor "
                                    "module. Exiting.\n")));
@@ -437,7 +437,7 @@ spinlock_release(&mon->lock);
 			if (ptr->server->status != ptr->mon_prev_status ||
 				SERVER_IS_DOWN(ptr->server))
 			{
-				LOGIF(LD, (skygw_log_write_flush(
+				LOGIF(LD, (mxs_log_flush(
 					LOGFILE_DEBUG,
 					"Backend server %s:%d state : %s",
 					ptr->server->name,
@@ -459,7 +459,7 @@ spinlock_release(&mon->lock);
 			evtype = mon_get_event_type(ptr);
 			if(isNdbEvent(evtype))
 			{
-			    skygw_log_write(LOGFILE_TRACE,"Server changed state: %s[%s:%u]: %s",
+			    mxs_log(LOGFILE_TRACE,"Server changed state: %s[%s:%u]: %s",
 				     ptr->server->unique_name,
 				     ptr->server->name,ptr->server->port,
 				     mon_get_event_name(ptr));

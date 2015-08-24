@@ -18,13 +18,13 @@ int harness_init(int argc, char** argv, HARNESS_INSTANCE** inst){
 	char** optstr;
 
 	if(!(argc == 2 && strcmp(argv[1],"-h") == 0)){
-		skygw_logmanager_init(0,NULL);
+		mxs_logmanager_init(0,NULL);
 	}
  
 	if(!(instance.head = calloc(1,sizeof(FILTERCHAIN))))
 		{
 			printf("Error: Out of memory\n");
-			skygw_log_write(LOGFILE_ERROR,"Error: Out of memory\n");
+			mxs_log(LOGFILE_ERROR,"Error: Out of memory\n");
       
 			return 1;
 		}
@@ -57,14 +57,14 @@ int harness_init(int argc, char** argv, HARNESS_INSTANCE** inst){
 	optstr[1] = strdup("-j");
 	optstr[2] = strdup(tmp);
 	optstr[3] = NULL;
-	skygw_logmanager_init( 3, optstr);
+	mxs_logmanager_init( 3, optstr);
 	free(optstr);
 	
 	rval = process_opts(argc,argv);
 	
 	if(!(instance.thrpool = malloc(instance.thrcount * sizeof(pthread_t)))){
 		printf("Error: Out of memory\n");
-		skygw_log_write(LOGFILE_ERROR,"Error: Out of memory\n");
+		mxs_log(LOGFILE_ERROR,"Error: Out of memory\n");
 		return 1;
 	}
   
@@ -265,7 +265,7 @@ int routeQuery(void* ins, void* session, GWBUF* queue)
 
 	}else{
 		printf("Error: cannot allocate enough memory.\n");
-		skygw_log_write(LOGFILE_ERROR,"Error: cannot allocate enough memory.\n");
+		mxs_log(LOGFILE_ERROR,"Error: cannot allocate enough memory.\n");
 		return 0;
 	}
 
@@ -348,14 +348,14 @@ int load_query()
 	buffer = (char*)calloc(4092,sizeof(char));
 	if(buffer == NULL){
 		printf("Error: cannot allocate enough memory.\n");
-		skygw_log_write(LOGFILE_ERROR,"Error: cannot allocate enough memory.\n");
+		mxs_log(LOGFILE_ERROR,"Error: cannot allocate enough memory.\n");
 		return 1;
 	}
 
 	query_list = calloc(qbuff_sz,sizeof(char*));
 	if(query_list == NULL){
 		printf("Error: cannot allocate enough memory.\n");
-		skygw_log_write(LOGFILE_ERROR,"Error: cannot allocate enough memory.\n");
+		mxs_log(LOGFILE_ERROR,"Error: cannot allocate enough memory.\n");
 		free(buffer);
 		return 1;
 	}
@@ -367,7 +367,7 @@ int load_query()
 			char** tmpbuff = realloc(query_list,sizeof(char*)*qbuff_sz*2);
 			if(tmpbuff == NULL){
 				printf("Error: cannot allocate enough memory.\n");
-				skygw_log_write(LOGFILE_ERROR,"Error: cannot allocate enough memory.\n");
+				mxs_log(LOGFILE_ERROR,"Error: cannot allocate enough memory.\n");
 				rval = 1;
 				goto retblock;
 			}
@@ -394,7 +394,7 @@ int load_query()
 			if(tmpbff[i] == NULL)
 				{
 					printf("Error: cannot allocate a new buffer.\n");
-					skygw_log_write(LOGFILE_ERROR,"Error: cannot allocate a new buffer.\n");
+					mxs_log(LOGFILE_ERROR,"Error: cannot allocate a new buffer.\n");
 					int x;
 					for(x = 0;x<i;x++)
 						{
@@ -419,7 +419,7 @@ int load_query()
 		instance.buffer = tmpbff;
 	}else{
 		printf("Error: cannot allocate enough memory for buffers.\n");
-		skygw_log_write(LOGFILE_ERROR,"Error: cannot allocate enough memory for buffers.\n");    
+		mxs_log(LOGFILE_ERROR,"Error: cannot allocate enough memory for buffers.\n");    
 		free_buffers();
 	    rval = 1;
 		goto retblock;
@@ -552,7 +552,7 @@ int load_config( char* fname)
             printf("Inih file open error.\n");
         else if(inirval == -2)
             printf("inih memory error.\n");
-		skygw_log_write(LOGFILE_ERROR,"Error parsing configuration file!\n");
+		mxs_log(LOGFILE_ERROR,"Error parsing configuration file!\n");
 		config_ok = 0;
 		goto cleanup;
 	}
@@ -561,7 +561,7 @@ int load_config( char* fname)
 	}
 	if(instance.conf == NULL){
 		printf("Nothing valid was read from the file.\n");
-		skygw_log_write(LOGFILE_MESSAGE,"Nothing valid was read from the file.\n");
+		mxs_log(LOGFILE_MESSAGE,"Nothing valid was read from the file.\n");
 		config_ok = 0;
 		goto cleanup;
 	}
@@ -574,7 +574,7 @@ int load_config( char* fname)
 		iter = instance.conf;
 	}else{
 		printf("No filters found in the configuration file.\n");
-		skygw_log_write(LOGFILE_MESSAGE,"No filters found in the configuration file.\n");
+		mxs_log(LOGFILE_MESSAGE,"No filters found in the configuration file.\n");
 		config_ok = 0;
 		goto cleanup;
 	}
@@ -600,7 +600,7 @@ int load_config( char* fname)
 				if(!instance.head || !load_filter(instance.head,instance.conf)){
 
 					printf("Error creating filter instance!\nModule: %s\n",item->value);
-					skygw_log_write(LOGFILE_ERROR,"Error creating filter instance!\nModule: %s\n",item->value);
+					mxs_log(LOGFILE_ERROR,"Error creating filter instance!\nModule: %s\n",item->value);
 					config_ok = 0;
 					goto cleanup;
 
@@ -743,7 +743,7 @@ int load_filter(FILTERCHAIN* fc, CONFIG* cnf)
 				if(fc->instance->setUpstream && fc->instance->clientReply){
 					fc->instance->setUpstream(fc->filter, fc->session[i], fc->up[i]);
 				}else{
-					skygw_log_write(LOGFILE_MESSAGE,
+					mxs_log(LOGFILE_MESSAGE,
 									"Warning: The filter %s does not support client replies.\n",fc->name);
 				}
 
@@ -827,7 +827,7 @@ FILTERCHAIN* load_filter_module(char* str)
 		if( (flt_ptr->instance = (FILTER_OBJECT*)load_module(str, MODULE_FILTER)) == NULL)
 			{
 				printf("Error: Module loading failed: %s\n",str);
-				skygw_log_write(LOGFILE_ERROR,"Error: Module loading failed: %s\n",str);
+				mxs_log(LOGFILE_ERROR,"Error: Module loading failed: %s\n",str);
 				free(flt_ptr->down);
 				free(flt_ptr);
 				return NULL;

@@ -20,7 +20,7 @@ void init_test_env(char *path)
             NULL
         };
 
-    skygw_logmanager_init(argc,argv);
+    mxs_logmanager_init(argc,argv);
     poll_init();
     hkinit();
 }

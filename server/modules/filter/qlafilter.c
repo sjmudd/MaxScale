@@ -212,7 +212,7 @@ int		i;
 				}
 				else if (!filter_standard_parameter(params[i]->name))
 				{
-					LOGIF(LE, (skygw_log_write_flush(
+					LOGIF(LE, (mxs_log_flush(
 						LOGFILE_ERROR,
 						"qlafilter: Unexpected parameter '%s'.\n",
 						params[i]->name)));
@@ -223,7 +223,7 @@ int		i;
 		if (my_instance->match &&
 			regcomp(&my_instance->re, my_instance->match, REG_ICASE))
 		{
-			LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 				"qlafilter: Invalid regular expression '%s'"
 				" for the match parameter.\n",
 					my_instance->match)));
@@ -239,7 +239,7 @@ int		i;
 			regcomp(&my_instance->nore, my_instance->nomatch,
 								REG_ICASE))
 		{
-			LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 				"qlafilter: Invalid regular expression '%s'"
 				" for the nomatch paramter.\n",
 					my_instance->match)));
@@ -272,7 +272,7 @@ updateInstance(FILTER *instance, char **options, FILTER_PARAMETER ** params)
 
     if((new_filter = (QLA_INSTANCE*)createInstance(options,params)) == NULL)
     {
-	skygw_log_write(LE,"Error: Instance update failed for QLA filter");
+	mxs_log(LE,"Error: Instance update failed for QLA filter");
 	return -1;
     }
 
@@ -321,7 +321,7 @@ char		*remote, *userName;
 			(char *)malloc(strlen(my_instance->filebase) + 20))
 						== NULL)
 		{
-			LOGIF(LE, (skygw_log_write(
+			LOGIF(LE, (mxs_log(
 				LOGFILE_ERROR,
 			      "Error : Memory allocation for qla filter "
 			      "file name failed due to %d, %s.",
@@ -359,7 +359,7 @@ char		*remote, *userName;
 			
 			if (my_session->fp == NULL)
 			{
-				LOGIF(LE, (skygw_log_write(
+				LOGIF(LE, (mxs_log(
 					LOGFILE_ERROR,
 					"Error : Opening output file '%s' for qla "
 					"filter failed due to %d, %s",
@@ -374,7 +374,7 @@ char		*remote, *userName;
 	}
 	else
 	{
-		LOGIF(LE, (skygw_log_write(
+		LOGIF(LE, (mxs_log(
 			LOGFILE_ERROR,
 			"Error : Memory allocation for qla filter failed due to "
 			"%d, %s.",

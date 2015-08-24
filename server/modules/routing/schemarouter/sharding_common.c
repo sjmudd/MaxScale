@@ -46,7 +46,7 @@ bool extract_database(GWBUF* buf, char* str)
 	tok = strtok_r(query," ;",&saved);
 	if(tok == NULL || strcasecmp(tok,"use") != 0)
 	{
-	    skygw_log_write(LOGFILE_ERROR,"extract_database: Malformed chage database packet.");
+	    mxs_log(LOGFILE_ERROR,"extract_database: Malformed chage database packet.");
 	    succp = false;
 	    goto retblock;
 	}
@@ -54,7 +54,7 @@ bool extract_database(GWBUF* buf, char* str)
 	tok = strtok_r(NULL," ;",&saved);
 	if(tok == NULL)
 	{
-	    skygw_log_write(LOGFILE_ERROR,"extract_database: Malformed chage database packet.");
+	    mxs_log(LOGFILE_ERROR,"extract_database: Malformed chage database packet.");
 	    succp = false;
 	    goto retblock;
 	}
@@ -78,14 +78,14 @@ bool extract_database(GWBUF* buf, char* str)
  */
 void create_error_reply(char* fail_str,DCB* dcb)
 {
-    skygw_log_write_flush(
+    mxs_log_flush(
 	    LOGFILE_TRACE,
 	    "change_current_db: failed to change database: %s", fail_str);
     GWBUF* errbuf = modutil_create_mysql_err_msg(1, 0, 1049, "42000", fail_str);
 
     if (errbuf == NULL)
     {
-	LOGIF(LE, (skygw_log_write_flush(
+	LOGIF(LE, (mxs_log_flush(
 		LOGFILE_ERROR,
 		"Error : Creating buffer for error message failed.")));
 	return;
@@ -125,7 +125,7 @@ bool change_current_db(MYSQL_session* mysql_session,
 	    succp = false;
 	    goto retblock;
 	}
-	skygw_log_write(LOGFILE_TRACE,"change_current_db: INIT_DB with database '%s'",
+	mxs_log(LOGFILE_TRACE,"change_current_db: INIT_DB with database '%s'",
 		 db);
 	/**
 	 * Update the session's active database only if it's in the hashtable.
@@ -140,7 +140,7 @@ bool change_current_db(MYSQL_session* mysql_session,
 	else
 	{
 	    strncpy(mysql_session->db,db,MYSQL_DATABASE_MAXLEN);
-	    skygw_log_write(LOGFILE_TRACE,"change_current_db: database is on server: '%s'.",target);
+	    mxs_log(LOGFILE_TRACE,"change_current_db: database is on server: '%s'.",target);
 	    succp = true;
 	    goto retblock;
 	}
@@ -148,9 +148,9 @@ bool change_current_db(MYSQL_session* mysql_session,
     else
     {
 	/** Create error message */
-	skygw_log_write_flush(LOGFILE_ERROR,
+	mxs_log_flush(LOGFILE_ERROR,
 			 "change_current_db: failed to change database: Query buffer too large");
-	skygw_log_write_flush(LOGFILE_TRACE,
+	mxs_log_flush(LOGFILE_TRACE,
 			 "change_current_db: failed to change database: Query buffer too large [%d bytes]",GWBUF_LENGTH(buf));
 	succp = false;
 	goto retblock;

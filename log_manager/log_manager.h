@@ -56,15 +56,6 @@ typedef struct log_info_st
 #define LT LOGFILE_TRACE
 #define LD LOGFILE_DEBUG
 
-/** 
- * Check if specified log type is enabled in general or if it is enabled
- * for the current session.
- */
-#define LOG_IS_ENABLED(id) (((lm_enabled_logfiles_bitmask & id) || 	\
-		(log_ses_count[id] > 0 && 				\
-		tls_log_info.li_enabled_logs & id)) ? true : false)
-
-
 #define LOG_MAY_BE_ENABLED(id) (((lm_enabled_logfiles_bitmask & id) ||	\
 				log_ses_count[id] > 0) ? true : false)
 /**
@@ -80,7 +71,7 @@ typedef struct log_info_st
  * Execute the given command if specified log is enabled in general or
  * if the log is enabled for the current session.
  */	
-#define LOGIF(id,cmd) if (LOG_IS_ENABLED(id))	\
+#define LOGIF(id,cmd) if (mxs_log_enabed(id))	\
 	{					\
 		cmd;				\
 	}
@@ -103,25 +94,32 @@ typedef enum { UNINIT = 0, INIT, RUN, DONE } flat_obj_state_t;
 
 EXTERN_C_BLOCK_BEGIN
 
-bool skygw_logmanager_init(int argc, char* argv[]);
-void skygw_logmanager_done(void);
-void skygw_logmanager_exit(void);
+/**
+ * Initialization functions
+ */
+bool mxs_logmanager_init(int argc, char* argv[]);
+void mxs_logmanager_done(void);
+void mxs_logmanager_exit(void);
+void mxs_log_done(void);
 
 /**
- * free private write buffer list
+ * Logging functions
  */
-void skygw_log_done(void);
-int  skygw_log_write(logfile_id_t id, const char* format, ...);
-int  skygw_log_flush(logfile_id_t id);
-void skygw_log_sync_all(void);
-int  skygw_log_rotate(logfile_id_t id);
-int  skygw_log_write_flush(logfile_id_t id, const char* format, ...);
-int  skygw_log_enable(logfile_id_t id);
-int  skygw_log_disable(logfile_id_t id);
-void skygw_log_sync_all(void);
-void skygw_set_highp(int);
-void logmanager_enable_syslog(int);
-void logmanager_enable_maxscalelog(int);
+int  mxs_log(logfile_id_t id, const char* format, ...);
+int  mxs_log_flush(logfile_id_t id, const char* format, ...);
+
+/**
+ * Log file management
+ */
+int  mxs_flush_file(logfile_id_t id);
+void mxs_log_sync_all(void);
+int  mxs_log_rotate(logfile_id_t id);
+int  mxs_log_enable(logfile_id_t id);
+int  mxs_log_disable(logfile_id_t id);
+void mxs_set_highp(int);
+void mxs_enable_syslog(int);
+void mxs_enable_maxscalelog(int);
+bool mxs_log_enabed(int id);
 
 EXTERN_C_BLOCK_END
 

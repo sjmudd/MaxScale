@@ -111,7 +111,7 @@ blr_slave_request(ROUTER_INSTANCE *router, ROUTER_SLAVE *slave, GWBUF *queue)
 {
 	if (slave->state < 0 || slave->state > BLRS_MAXSTATE)
 	{
-        	LOGIF(LE, (skygw_log_write(
+        	LOGIF(LE, (mxs_log(
                            LOGFILE_ERROR, "Invalid slave state machine state (%d) for binlog router.",
 					slave->state)));
 		gwbuf_consume(queue, gwbuf_length(queue));
@@ -136,7 +136,7 @@ blr_slave_request(ROUTER_INSTANCE *router, ROUTER_SLAVE *slave, GWBUF *queue)
 			blr_send_custom_error(slave->dcb, 1, 0,
 				"MariaDB 10 Slave is required for Slave registration");
 
-			LOGIF(LE, (skygw_log_write(
+			LOGIF(LE, (mxs_log(
 				LOGFILE_ERROR,
 				"%s: Slave %s: a MariaDB 10 Slave is required for Slave registration",
 				router->service->name,
@@ -159,14 +159,14 @@ blr_slave_request(ROUTER_INSTANCE *router, ROUTER_SLAVE *slave, GWBUF *queue)
 		return blr_ping(router, slave, queue);
 		break;
 	case COM_QUIT:
-		LOGIF(LD, (skygw_log_write(LOGFILE_DEBUG,
+		LOGIF(LD, (mxs_log(LOGFILE_DEBUG,
 			"COM_QUIT received from slave with server_id %d",
 				slave->serverid)));
 		break;
 	default:
 		blr_send_custom_error(slave->dcb, 1, 0,
 			"MySQL command not supported by the binlog router.");
-        	LOGIF(LE, (skygw_log_write(
+        	LOGIF(LE, (mxs_log(
                            LOGFILE_ERROR,
 			"Unexpected MySQL Command (%d) received from slave",
 			MYSQL_COMMAND(queue))));	
@@ -230,7 +230,7 @@ int	query_len;
 	qtext += 5;		// Skip header and first byte of the payload
 	query_text = strndup(qtext, query_len);
 
-	LOGIF(LT, (skygw_log_write(
+	LOGIF(LT, (mxs_log(
 		LOGFILE_TRACE, "Execute statement from the slave '%s'", query_text)));
 	/*
 	 * Implement a very rudimental "parsing" of the query text by extarcting the
@@ -243,14 +243,14 @@ int	query_len;
 	if ((word = strtok_r(query_text, sep, &brkb)) == NULL)
 	{
 	
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR, "%s: Incomplete query.",
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR, "%s: Incomplete query.",
 					router->service->name)));
 	}
 	else if (strcasecmp(word, "SELECT") == 0)
 	{
 		if ((word = strtok_r(NULL, sep, &brkb)) == NULL)
 		{
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR, "%s: Incomplete select query.",
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR, "%s: Incomplete select query.",
 					router->service->name)));
 		}
 		else if (strcasecmp(word, "UNIX_TIMESTAMP()") == 0)
@@ -308,14 +308,14 @@ int	query_len;
 	{
 		if ((word = strtok_r(NULL, sep, &brkb)) == NULL)
 		{
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR, "%s: Incomplete show query.",
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR, "%s: Incomplete show query.",
 					router->service->name)));
 		}
 		else if (strcasecmp(word, "VARIABLES") == 0)
 		{
 			if ((word = strtok_r(NULL, sep, &brkb)) == NULL)
 			{
-				LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+				LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 					"%s: Expected LIKE clause in SHOW VARIABLES.",
 					router->service->name)));
 			}
@@ -323,7 +323,7 @@ int	query_len;
 			{
 				if ((word = strtok_r(NULL, sep, &brkb)) == NULL)
 				{
-					LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+					LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 					"%s: Missing LIKE clause in SHOW VARIABLES.",
 					router->service->name)));
 				}
@@ -348,7 +348,7 @@ int	query_len;
 		{
 			if ((word = strtok_r(NULL, sep, &brkb)) == NULL)
 			{
-				LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+				LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 					"%s: Expected SHOW MASTER STATUS command",
 						router->service->name)));
 			}
@@ -362,7 +362,7 @@ int	query_len;
 		{
 			if ((word = strtok_r(NULL, sep, &brkb)) == NULL)
 			{
-				LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+				LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 					"%s: Expected SHOW MASTER STATUS command",
 						router->service->name)));
 			}
@@ -382,7 +382,7 @@ int	query_len;
 	{
 		if ((word = strtok_r(NULL, sep, &brkb)) == NULL)
 		{
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR, "%s: Incomplete set command.",
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR, "%s: Incomplete set command.",
 					router->service->name)));
 		}
 		else if (strcasecmp(word, "@master_heartbeat_period") == 0)
@@ -427,7 +427,7 @@ int	query_len;
 		{
 			if ((word = strtok_r(NULL, sep, &brkb)) == NULL)
 			{
-				LOGIF(LE, (skygw_log_write(LOGFILE_ERROR, "%s: Truncated SET NAMES command.",
+				LOGIF(LE, (mxs_log(LOGFILE_ERROR, "%s: Truncated SET NAMES command.",
 					router->service->name)));
 			}
 			else if (strcasecmp(word, "latin1") == 0)
@@ -446,7 +446,7 @@ int	query_len;
 	{
 		if ((word = strtok_r(NULL, sep, &brkb)) == NULL)
 		{
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR, "%s: Incomplete DISCONNECT command.",
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR, "%s: Incomplete DISCONNECT command.",
 					router->service->name)));
 
 		}
@@ -459,7 +459,7 @@ int	query_len;
 		{
 			if ((word = strtok_r(NULL, sep, &brkb)) == NULL)
 			{
-				LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+				LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 					"%s: Expected DISCONNECT SERVER $server_id",
 						router->service->name)));
 			} else {
@@ -472,7 +472,7 @@ int	query_len;
 	free(query_text);
 
 	query_text = strndup(qtext, query_len);
-	LOGIF(LE, (skygw_log_write(
+	LOGIF(LE, (mxs_log(
 		LOGFILE_ERROR, "Unexpected query from slave %s: %s", slave->dcb->remote, query_text)));
 	free(query_text);
 	blr_slave_send_error(router, slave, "Unexpected SQL query received from slave.");
@@ -503,7 +503,7 @@ GWBUF	*clone;
 	}
 	else
 	{
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 			"Failed to clone server response to send to slave.")));
 		return 0;
 	}
@@ -1202,7 +1202,7 @@ uint32_t	chksum;
 	binlognamelen = len - 11;
 	if (binlognamelen > BINLOG_FNAMELEN)
 	{
-        	LOGIF(LE, (skygw_log_write(
+        	LOGIF(LE, (mxs_log(
 			LOGFILE_ERROR,
 			"blr_slave_binlog_dump truncating binlog filename "
 			"from %d to %d",
@@ -1212,7 +1212,7 @@ uint32_t	chksum;
 	ptr += 4;		// Skip length and sequence number
 	if (*ptr++ != COM_BINLOG_DUMP)
 	{
-        	LOGIF(LE, (skygw_log_write(
+        	LOGIF(LE, (mxs_log(
 			LOGFILE_ERROR,
 			"blr_slave_binlog_dump expected a COM_BINLOG_DUMP but received %d",
 			*(ptr-1))));
@@ -1226,7 +1226,7 @@ uint32_t	chksum;
 	strncpy(slave->binlogfile, (char *)ptr, binlognamelen);
 	slave->binlogfile[binlognamelen] = 0;
 
-       	LOGIF(LD, (skygw_log_write(
+       	LOGIF(LD, (mxs_log(
 		LOGFILE_DEBUG,
 		"%s: COM_BINLOG_DUMP: binlog name '%s', length %d, "
 		"from position %lu.", router->service->name,
@@ -1284,7 +1284,7 @@ uint32_t	chksum;
 	dcb_add_callback(slave->dcb, DCB_REASON_DRAINED, blr_slave_callback, slave);
 	slave->state = BLRS_DUMPING;
 
-	LOGIF(LM, (skygw_log_write(
+	LOGIF(LM, (mxs_log(
 		LOGFILE_MESSAGE,
 			"%s: New slave %s, server id %d,  requested binlog file %s from position %lu",
 				router->service->name, slave->dcb->remote,
@@ -1419,7 +1419,7 @@ uint8_t		*ptr;
 				poll_fake_write_event(slave->dcb);
 				return rval;
 			}
-			LOGIF(LE, (skygw_log_write(
+			LOGIF(LE, (mxs_log(
 				LOGFILE_ERROR,
 				"blr_slave_catchup failed to open binlog file %s",
 					slave->binlogfile)));
@@ -1445,7 +1445,7 @@ uint8_t		*ptr;
 		{
 unsigned long beat1 = hkheartbeat;
 			blr_close_binlog(router, slave->file);
-if (hkheartbeat - beat1 > 1) LOGIF(LE, (skygw_log_write(
+if (hkheartbeat - beat1 > 1) LOGIF(LE, (mxs_log(
                                         LOGFILE_ERROR, "blr_close_binlog took %d beats",
 				hkheartbeat - beat1)));
 			blr_slave_rotate(router, slave, GWBUF_DATA(record));
@@ -1461,7 +1461,7 @@ beat1 = hkheartbeat;
 					poll_fake_write_event(slave->dcb);
 					return rval;
 				}
-				LOGIF(LE, (skygw_log_write(
+				LOGIF(LE, (mxs_log(
 					LOGFILE_ERROR,
 					"blr_slave_catchup failed to open binlog file %s",
 					slave->binlogfile)));
@@ -1469,7 +1469,7 @@ beat1 = hkheartbeat;
 				dcb_close(slave->dcb);
 				break;
 			}
-if (hkheartbeat - beat1 > 1) LOGIF(LE, (skygw_log_write(
+if (hkheartbeat - beat1 > 1) LOGIF(LE, (mxs_log(
                                         LOGFILE_ERROR, "blr_open_binlog took %d beats",
 				hkheartbeat - beat1)));
 		}
@@ -1534,7 +1534,7 @@ if (hkheartbeat - beat1 > 1) LOGIF(LE, (skygw_log_write(
 			slave->stats.n_caughtup++;
 			if (slave->stats.n_caughtup == 1)
 			{
-				LOGIF(LM, (skygw_log_write(LOGFILE_MESSAGE,
+				LOGIF(LM, (mxs_log(LOGFILE_MESSAGE,
 					"%s: Slave %s is up to date %s, %lu.",
 					router->service->name,
 					slave->dcb->remote,
@@ -1542,7 +1542,7 @@ if (hkheartbeat - beat1 > 1) LOGIF(LE, (skygw_log_write(
 			}
 			else if ((slave->stats.n_caughtup % 50) == 0)
 			{
-				LOGIF(LM, (skygw_log_write(LOGFILE_MESSAGE,
+				LOGIF(LM, (mxs_log(LOGFILE_MESSAGE,
 					"%s: Slave %s is up to date %s, %lu.",
 					router->service->name,
 					slave->dcb->remote,
@@ -1566,7 +1566,7 @@ if (hkheartbeat - beat1 > 1) LOGIF(LE, (skygw_log_write(
 			 * but the new binlog file has not yet been created. Therefore
 			 * we ignore these issues during the rotate processing.
 			 */
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"Slave reached end of file for binlog file %s at %lu "
 				"which is not the file currently being downloaded. "
 				"Master binlog is %s, %lu. This may be caused by a "
@@ -1625,7 +1625,7 @@ ROUTER_INSTANCE		*router = slave->router;
 		}
 		else
 		{
-        		LOGIF(LD, (skygw_log_write(
+        		LOGIF(LD, (mxs_log(
                            LOGFILE_DEBUG, "Ignored callback due to slave state %s",
 					blrs_states[slave->state])));
 		}
@@ -1972,7 +1972,7 @@ blr_slave_disconnect_server(ROUTER_INSTANCE *router, ROUTER_SLAVE *slave, int se
 		{
 			/* server_id found */
 			server_found = 1;
-			LOGIF(LM, (skygw_log_write(LOGFILE_MESSAGE, "%s: Slave %s, server id %d, disconnected by %s@%s",
+			LOGIF(LM, (mxs_log(LOGFILE_MESSAGE, "%s: Slave %s, server id %d, disconnected by %s@%s",
 				router->service->name,
 				sptr->dcb->remote,
 				server_id,
@@ -2002,7 +2002,7 @@ blr_slave_disconnect_server(ROUTER_INSTANCE *router, ROUTER_SLAVE *slave, int se
 	}
 
 	if (n == 0) {
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR, "Error: gwbuf memory allocation in "
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR, "Error: gwbuf memory allocation in "
 			"DISCONNECT SERVER server_id [%d]",
 			sptr->serverid)));
 
@@ -2052,7 +2052,7 @@ blr_slave_disconnect_all(ROUTER_INSTANCE *router, ROUTER_SLAVE *slave)
 			len = 5 + strlen(server_id) + strlen(state) + 1;
 
 			if ((pkt = gwbuf_alloc(len)) == NULL) {
-				LOGIF(LE, (skygw_log_write(LOGFILE_ERROR, "Error: gwbuf memory allocation in "
+				LOGIF(LE, (mxs_log(LOGFILE_ERROR, "Error: gwbuf memory allocation in "
 					"DISCONNECT ALL for [%s], server_id [%d]",
 					sptr->dcb->remote, sptr->serverid)));
 
@@ -2063,7 +2063,7 @@ blr_slave_disconnect_all(ROUTER_INSTANCE *router, ROUTER_SLAVE *slave)
 				return 1;
 			}
 
-			LOGIF(LM, (skygw_log_write(LOGFILE_MESSAGE, "%s: Slave %s, server id %d, disconnected by %s@%s",
+			LOGIF(LM, (mxs_log(LOGFILE_MESSAGE, "%s: Slave %s, server id %d, disconnected by %s@%s",
 				router->service->name,
 				sptr->dcb->remote, sptr->serverid, slave->dcb->user, slave->dcb->remote)));
 

@@ -68,7 +68,7 @@ main(int argc, char **argv)
 	arg_vector[4] = "-l";
 	arg_vector[5] = "LOGFILE_ERROR";
 	arg_vector[6] = NULL;
-	skygw_logmanager_init(arg_count,arg_vector);
+	mxs_logmanager_init(arg_count,arg_vector);
 	free(arg_vector[2]);
 	free(arg_vector);
 	
@@ -89,7 +89,7 @@ main(int argc, char **argv)
 	}
 
 	free(pw);
-	skygw_log_sync_all();
-	skygw_logmanager_done();
+	mxs_log_sync_all();
+	mxs_logmanager_done();
 	return rval;
 }

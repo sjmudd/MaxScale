@@ -200,7 +200,7 @@ server_get_persistent(SERVER *server, char *user, const char *protocol)
             }
             else
             {
-                LOGIF(LD, (skygw_log_write_flush(
+                LOGIF(LD, (mxs_log_flush(
                     LOGFILE_DEBUG,
                     "%lu [server_get_persistent] Rejected dcb "
                     "%p from pool, user %s looking for %s, protocol %s "
@@ -744,7 +744,7 @@ server_update(SERVER *server, char *protocol, char *user, char *passwd, char* ad
 {
 	if (strcmp(server->protocol, protocol) != 0)
 	{
-                LOGIF(LM, (skygw_log_write(
+                LOGIF(LM, (mxs_log(
                         LOGFILE_MESSAGE,
                         "Update server protocol for server %s to protocol %s.",
                         server->name,
@@ -757,7 +757,7 @@ server_update(SERVER *server, char *protocol, char *user, char *passwd, char* ad
                 if (strcmp(server->monuser, user) != 0 ||
                     strcmp(server->monpw, passwd) != 0)
                 {
-                        LOGIF(LM, (skygw_log_write(
+                        LOGIF(LM, (mxs_log(
                                 LOGFILE_MESSAGE,
                                 "Update server monitor credentials for server %s",
 				server->name)));

@@ -80,7 +80,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
         
         if (session == NULL) 
 	{
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Failed to allocate memory for "
                         "session object due error %d, %s.",
@@ -164,7 +164,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
                         session_free(session);
                         client_dcb->session = NULL;
                         session = NULL;
-                        LOGIF(LE, (skygw_log_write_flush(
+                        LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                 "Error : Failed to create %s session.",
                                 service->name)));
@@ -205,7 +205,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
 				session_free(session);
 				client_dcb->session = NULL;
 				session = NULL;
-				LOGIF(LE, (skygw_log_write(
+				LOGIF(LE, (mxs_log(
 					LOGFILE_ERROR,
 					"Error : Setting up filters failed. "
 					"Terminating session %s.",
@@ -224,7 +224,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
 		session_free(session);
                 client_dcb->session = NULL;
                 session = NULL;
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Failed to create %s session.",
                         service->name)));
@@ -243,7 +243,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
                 
 		if (session->client->user == NULL)
 		{
-			LOGIF(LT, (skygw_log_write(
+			LOGIF(LT, (mxs_log(
 				LOGFILE_TRACE,
 				"Started session [%lu] for %s service ",
 				session->ses_id,
@@ -251,7 +251,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
 		}
 		else
 		{
-			LOGIF(LT, (skygw_log_write(
+			LOGIF(LT, (mxs_log(
 				LOGFILE_TRACE,
 				"Started %s client session [%lu] for '%s' from %s",
 				service->name,
@@ -435,7 +435,7 @@ bool session_free(
 		free(session->filters);
 	}
 	
-	LOGIF(LT, (skygw_log_write(
+	LOGIF(LT, (mxs_log(
 		LOGFILE_TRACE,
 		"Stopped %s client session [%lu]",
 		session->service->name,
@@ -801,7 +801,7 @@ int		i;
 	if ((session->filters = calloc(service->n_filters,
 				sizeof(SESSION_FILTER))) == NULL)
 	{
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Insufficient memory to allocate session filter "
 			"tracking.\n")));
@@ -812,7 +812,7 @@ int		i;
 	{
 		if (service->filters[i] == NULL)
 		{
-                	LOGIF(LE, (skygw_log_write_flush(
+                	LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Service '%s' contains an unresolved filter.\n",
 					service->name)));
@@ -821,7 +821,7 @@ int		i;
 		if ((head = filterApply(service->filters[i], session,
 						&session->head)) == NULL)
 		{
-                	LOGIF(LE, (skygw_log_write_flush(
+                	LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Error : Failed to create filter '%s' for "
 				"service '%s'.\n",
@@ -842,7 +842,7 @@ int		i;
 				session->filters[i].session,
 						&session->tail)) == NULL)
 		{
-                	LOGIF(LE, (skygw_log_write_flush(
+                	LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Failed to create filter '%s' for service '%s'.\n",
 					service->filters[i]->name,

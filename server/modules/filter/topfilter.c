@@ -224,7 +224,7 @@ TOPN_INSTANCE	*my_instance;
 				my_instance->user = strdup(params[i]->value);
 			else if (!filter_standard_parameter(params[i]->name))
 			{
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"topfilter: Unexpected parameter '%s'.\n",
 					params[i]->name)));
@@ -232,7 +232,7 @@ TOPN_INSTANCE	*my_instance;
 		}
 		if (options)
 		{
-			LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 				"topfilter: Options are not supported by this "
 				" filter. They will be ignored\n")));
 		}
@@ -240,7 +240,7 @@ TOPN_INSTANCE	*my_instance;
 		if (my_instance->match &&
 			regcomp(&my_instance->re, my_instance->match, REG_ICASE))
 		{
-			LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 				"topfilter: Invalid regular expression '%s'"
 				" for the match parameter.\n",
 					my_instance->match)));
@@ -255,7 +255,7 @@ TOPN_INSTANCE	*my_instance;
 			regcomp(&my_instance->exre, my_instance->exclude,
 								REG_ICASE))
 		{
-			LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 				"qlafilter: Invalid regular expression '%s'"
 				" for the nomatch paramter.\n",
 					my_instance->match)));
@@ -286,7 +286,7 @@ updateInstance(FILTER *instance, char **options, FILTER_PARAMETER ** params)
 
     if((new_filter = (TOPN_INSTANCE*)createInstance(options,params)) == NULL)
     {
-	skygw_log_write(LE,"Error: Instance update failed for QLA filter");
+	mxs_log(LE,"Error: Instance update failed for QLA filter");
 	return -1;
     }
 

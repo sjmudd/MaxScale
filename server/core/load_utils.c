@@ -93,7 +93,7 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 	mem->data = realloc(mem->data, mem->size + realsize + 1);
 	if(mem->data == NULL) {
 		/* out of memory! */ 
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error in module_feedback_send(), not enough memory for realloc")));
 		return 0;
@@ -138,7 +138,7 @@ MODULE_INFO	*mod_info = NULL;
 
 		if (access(fname, F_OK) == -1)
 		{
-		    LOGIF(LE, (skygw_log_write_flush(
+		    LOGIF(LE, (mxs_log_flush(
 			    LOGFILE_ERROR,
 						     "Error : Unable to find library for "
 			    "module: %s. Module dir: %s",
@@ -148,7 +148,7 @@ MODULE_INFO	*mod_info = NULL;
 
 		if ((dlhandle = dlopen(fname, RTLD_NOW|RTLD_LOCAL)) == NULL)
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
 				"Error : Unable to load library for module: "
                                 "%s\n\n\t\t      %s."
@@ -160,7 +160,7 @@ MODULE_INFO	*mod_info = NULL;
 
 		if ((sym = dlsym(dlhandle, "version")) == NULL)
 		{
-                        LOGIF(LE, (skygw_log_write_flush(
+                        LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                 "Error : Version interface not supported by "
                                 "module: %s\n\t\t\t      %s.",
@@ -188,7 +188,7 @@ MODULE_INFO	*mod_info = NULL;
 			if (strcmp(type, MODULE_PROTOCOL) == 0
 				&& mod_info->modapi != MODULE_API_PROTOCOL)
 			{
-                        	LOGIF(LE, (skygw_log_write_flush(
+                        	LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Module '%s' does not implement "
 					"the protocol API.\n",
@@ -198,7 +198,7 @@ MODULE_INFO	*mod_info = NULL;
 			if (strcmp(type, MODULE_ROUTER) == 0
 				&& mod_info->modapi != MODULE_API_ROUTER)
 			{
-                        	LOGIF(LE, (skygw_log_write_flush(
+                        	LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Module '%s' does not implement "
 					"the router API.\n",
@@ -208,7 +208,7 @@ MODULE_INFO	*mod_info = NULL;
 			if (strcmp(type, MODULE_MONITOR) == 0
 				&& mod_info->modapi != MODULE_API_MONITOR)
 			{
-                        	LOGIF(LE, (skygw_log_write_flush(
+                        	LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Module '%s' does not implement "
 					"the monitor API.\n",
@@ -218,7 +218,7 @@ MODULE_INFO	*mod_info = NULL;
 			if (strcmp(type, MODULE_FILTER) == 0
 				&& mod_info->modapi != MODULE_API_FILTER)
 			{
-                        	LOGIF(LE, (skygw_log_write_flush(
+                        	LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Module '%s' does not implement "
 					"the filter API.\n",
@@ -234,7 +234,7 @@ MODULE_INFO	*mod_info = NULL;
 
 		if ((sym = dlsym(dlhandle, "GetModuleObject")) == NULL)
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                 "Error : Expected entry point interface missing "
                                 "from module: %s\n\t\t\t      %s.",
@@ -246,7 +246,7 @@ MODULE_INFO	*mod_info = NULL;
 		ep = sym;
 		modobj = ep();
 
-		LOGIF(LM, (skygw_log_write_flush(
+		LOGIF(LM, (mxs_log_flush(
                         LOGFILE_MESSAGE,
                         "Loaded module %s: %s from %s",
                         module,
@@ -453,7 +453,7 @@ MODULES	*modules_list = registered;
 FEEDBACK_CONF *feedback_config = config_get_feedback_data();
 
 	if (!module_create_feedback_report(&buffer, modules_list, feedback_config)) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 		"Error in module_create_feedback_report(): gwbuf_alloc() failed to allocate memory")));
 
@@ -573,7 +573,7 @@ module_feedback_send(void* data) {
 	/* Configuration check */
 
 	if (feedback_config->feedback_enable == 0 || feedback_config->feedback_url == NULL || feedback_config->feedback_user_info == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error in module_feedback_send(): some mandatory parameters are not set"
 			" feedback_enable=%u, feedback_url=%s, feedback_user_info=%s",
@@ -596,7 +596,7 @@ module_feedback_send(void* data) {
 		/* It's not the rigt time, mark it as to be done and return */
 		feedback_config->feedback_last_action = _NOTIFICATION_SEND_PENDING;
 
-		LOGIF(LT, (skygw_log_write_flush(
+		LOGIF(LT, (mxs_log_flush(
 			LOGFILE_TRACE,
 			"module_feedback_send(): execution skipped, current hour [%d]"
 			" is not within the proper interval (from 2 AM to 4 AM)",
@@ -609,7 +609,7 @@ module_feedback_send(void* data) {
 	if (feedback_config->feedback_last_action == _NOTIFICATION_SEND_OK) {
 		/* task was done before, return */
 
-		LOGIF(LT, (skygw_log_write_flush(
+		LOGIF(LT, (mxs_log_flush(
 			LOGFILE_TRACE,
 			"module_feedback_send(): execution skipped because of previous succesful run: hour is [%d], last_action [%d]",
 			hour, feedback_config->feedback_last_action)));
@@ -617,13 +617,13 @@ module_feedback_send(void* data) {
 		return;
 	}
  
-	LOGIF(LT, (skygw_log_write_flush(
+	LOGIF(LT, (mxs_log_flush(
 		LOGFILE_TRACE,
 		"module_feedback_send(): task now runs: hour is [%d], last_action [%d]",
 		hour, feedback_config->feedback_last_action)));
 
 	if (!module_create_feedback_report(&buffer, modules_list, feedback_config)) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error in module_create_feedback_report(): gwbuf_alloc() failed to allocate memory")));
 
@@ -640,12 +640,12 @@ module_feedback_send(void* data) {
 	} else {
 		feedback_config->feedback_last_action = _NOTIFICATION_SEND_ERROR;
 
-		LOGIF(LT, (skygw_log_write_flush(
+		LOGIF(LT, (mxs_log_flush(
 			LOGFILE_TRACE,
 			"Error in module_create_feedback_report(): do_http_post ret_code is %d", http_send)));
 	}
 
-	LOGIF(LT, (skygw_log_write_flush(
+	LOGIF(LT, (mxs_log_flush(
 		LOGFILE_TRACE,
 		"module_feedback_send(): task completed: hour is [%d], last_action [%d]",
 			hour,
@@ -827,7 +827,7 @@ do_http_post(GWBUF *buffer, void *cfg) {
 		/* Check for errors */
 		if(res != CURLE_OK) {
 			ret_code = 2;
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Error: do_http_post(), curl call for [%s] failed due: %s, %s",
 				feedback_config->feedback_url,	
@@ -847,7 +847,7 @@ do_http_post(GWBUF *buffer, void *cfg) {
 				goto cleanup;
 			}
 		} else {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Error: do_http_post(), Bad HTTP Code from remote server: %lu",
 				http_code)));
@@ -855,14 +855,14 @@ do_http_post(GWBUF *buffer, void *cfg) {
 			goto cleanup;
 		}
 	} else {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Error: do_http_post(), curl object not initialized")));
 		ret_code = 1;
 		goto cleanup;
 	}
 
-	LOGIF(LT, (skygw_log_write_flush(
+	LOGIF(LT, (mxs_log_flush(
 		LOGFILE_TRACE,
 		"do_http_post() ret_code [%d], HTTP code [%d]",
 		ret_code, http_code)));

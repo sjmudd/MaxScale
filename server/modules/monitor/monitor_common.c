@@ -309,13 +309,13 @@ void monitor_launch_script(MONITOR* mon,MONITOR_SERVERS* ptr, char* script)
     mon_append_node_names(mon->databases,argstr,PATH_MAX + MON_ARG_MAX + 1);
     if((cmd = externcmd_allocate(argstr)) == NULL)
     {
-	skygw_log_write(LE,"Failed to execute script: %s",script);
+	mxs_log(LE,"Failed to execute script: %s",script);
 	return;
     }
 
     if(externcmd_execute(cmd))
     {
-	skygw_log_write(LOGFILE_ERROR,
+	mxs_log(LOGFILE_ERROR,
 		 "Error: Failed to execute script "
 		"'%s' on server state change event %s.",
 		 script,mon_get_event_type(ptr));
@@ -346,7 +346,7 @@ int mon_parse_event_string(bool* events, size_t count,char* string)
 	event = mon_name_to_event(tok);
 	if(event == UNDEFINED_MONITOR_EVENT)
 	{
-	    skygw_log_write(LE,"Error: Invalid event name %s",tok);
+	    mxs_log(LE,"Error: Invalid event name %s",tok);
 	    return -1;
 	}
 	events[event] = true;

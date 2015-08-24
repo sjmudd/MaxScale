@@ -90,7 +90,7 @@ MySQLProtocol* mysql_protocol_init(
         if (p == NULL) {
             int eno = errno;
             errno = 0;
-            LOGIF(LE, (skygw_log_write_flush(
+            LOGIF(LE, (mxs_log_flush(
                     LOGFILE_ERROR,
                     "%lu [mysql_init_protocol] MySQL protocol init failed : "
                     "memory allocation due error  %d, %s.",
@@ -193,7 +193,7 @@ int gw_read_backend_handshake(
 			if (h_len <= 4) {
 				/* log error this exit point */
 				conn->protocol_auth_state = MYSQL_HANDSHAKE_FAILED;
-                                LOGIF(LD, (skygw_log_write(
+                                LOGIF(LD, (mxs_log(
                                         LOGFILE_DEBUG,
                                         "%lu [gw_read_backend_handshake] after "
                                         "dcb_read, fd %d, "
@@ -212,7 +212,7 @@ int gw_read_backend_handshake(
                                 
 				conn->protocol_auth_state = MYSQL_HANDSHAKE_FAILED;
 
-                                LOGIF(LD, (skygw_log_write(
+                                LOGIF(LD, (mxs_log(
                                         LOGFILE_DEBUG,
                                         "%lu [gw_receive_backend_auth] Invalid "
                                         "authentication message from backend dcb %p "
@@ -224,7 +224,7 @@ int gw_read_backend_handshake(
                                         errcode,
                                         bufstr)));
                                 
-                                LOGIF(LE, (skygw_log_write_flush(
+                                LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Error : Invalid authentication message "
                                         "from backend. Error code: %d, Msg : %s",
@@ -238,7 +238,7 @@ int gw_read_backend_handshake(
 				 */
 
 				if (errcode == 1129) {
-					LOGIF(LE, (skygw_log_write_flush(
+					LOGIF(LE, (mxs_log_flush(
 						LOGFILE_ERROR,
 						"Server %s has been put into maintenance mode due to the server blocking connections from MaxScale. Run 'mysqladmin -h %s -P %d flush-hosts' on this server before taking this server out of maintenance mode.",
 						dcb->server->unique_name,
@@ -261,7 +261,7 @@ int gw_read_backend_handshake(
 
 				conn->protocol_auth_state = MYSQL_HANDSHAKE_FAILED;
 
-                                LOGIF(LD, (skygw_log_write(
+                                LOGIF(LD, (mxs_log(
                                         LOGFILE_DEBUG,
                                         "%lu [gw_read_backend_handshake] after "
                                         "gw_mysql_get_byte3, fd %d, "
@@ -286,7 +286,7 @@ int gw_read_backend_handshake(
 				 */
 				conn->protocol_auth_state = MYSQL_HANDSHAKE_FAILED;
 
-                                LOGIF(LD, (skygw_log_write(
+                                LOGIF(LD, (mxs_log(
                                         LOGFILE_DEBUG,
                                         "%lu [gw_read_backend_handshake] after "
                                         "gw_decode_mysql_server_handshake, fd %d, "
@@ -453,7 +453,7 @@ int gw_receive_backend_auth(
                         char*    err = strndup(&((char *)ptr)[8], 5);
                         char*    bufstr = strndup(&((char *)ptr)[13], len-4-5);
                                         
-                        LOGIF(LD, (skygw_log_write(
+                        LOGIF(LD, (mxs_log(
                                 LOGFILE_DEBUG,
                                 "%lu [gw_receive_backend_auth] Invalid "
                                 "authentication message from backend dcb %p "
@@ -465,7 +465,7 @@ int gw_receive_backend_auth(
                                 err,
                                 bufstr)));
                         
-                        LOGIF(LE, (skygw_log_write_flush(
+                        LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                 "Error : Invalid authentication message "
                                 "from backend. Error : %s, Msg : %s",
@@ -478,7 +478,7 @@ int gw_receive_backend_auth(
                 }
                 else
                 {
-                        LOGIF(LD, (skygw_log_write(
+                        LOGIF(LD, (mxs_log(
                                 LOGFILE_DEBUG,
                                 "%lu [gw_receive_backend_auth] Invalid "
                                 "authentication message from backend dcb %p "
@@ -488,7 +488,7 @@ int gw_receive_backend_auth(
                                 dcb->fd,
                                 ptr[4])));
                         
-                        LOGIF(LE, (skygw_log_write_flush(
+                        LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                 "Error : Invalid authentication message "
                                 "from backend. Packet type : %p",
@@ -506,7 +506,7 @@ int gw_receive_backend_auth(
                  * although no bytes was read.
                  */
                 rc = 0;
-                LOGIF(LD, (skygw_log_write(
+                LOGIF(LD, (mxs_log(
                         LOGFILE_DEBUG,
                         "%lu [gw_receive_backend_auth] Read zero bytes from "
                         "backend dcb %p fd %d in state %s. n %d, head %p, len %d",
@@ -522,7 +522,7 @@ int gw_receive_backend_auth(
         {
                 ss_dassert(n < 0 && head == NULL);
                 rc = -1;
-                LOGIF(LD, (skygw_log_write_flush(
+                LOGIF(LD, (mxs_log_flush(
                         LOGFILE_DEBUG,
                         "%lu [gw_receive_backend_auth] Reading from backend dcb %p "
                         "fd %d in state %s failed. n %d, head %p, len %d",
@@ -769,7 +769,7 @@ int gw_do_connect_to_backend(
 	so = socket(AF_INET,SOCK_STREAM,0);
         
 	if (so < 0) {
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error: Establishing connection to backend server "
                         "%s:%d failed.\n\t\t             Socket creation failed "
@@ -788,7 +788,7 @@ int gw_do_connect_to_backend(
 
 	if(setsockopt(so, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)) != 0)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error: Failed to set socket options "
 			"%s:%d failed.\n\t\t             Socket configuration failed "
@@ -805,7 +805,7 @@ int gw_do_connect_to_backend(
 
 	if(setsockopt(so, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize)) != 0)
 	{
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error: Failed to set socket options "
                         "%s:%d failed.\n\t\t             Socket configuration failed "
@@ -822,7 +822,7 @@ int gw_do_connect_to_backend(
 	int one = 1;
 	if(setsockopt(so, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one)) != 0)
 	{
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error: Failed to set socket options "
                         "%s:%d failed.\n\t\t             Socket configuration failed "
@@ -848,7 +848,7 @@ int gw_do_connect_to_backend(
                 } 
                 else 
 		{                        
-                        LOGIF(LE, (skygw_log_write_flush(
+                        LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                 "Error:  Failed to connect backend server %s:%d, "
                                 "due %d, %s.",
@@ -861,7 +861,7 @@ int gw_do_connect_to_backend(
                 }
 	}
         *fd = so;
-        LOGIF(LD, (skygw_log_write_flush(
+        LOGIF(LD, (mxs_log_flush(
                 LOGFILE_DEBUG,
                 "%lu [gw_do_connect_to_backend] Connected to backend server "
                 "%s:%d, fd %d.",
@@ -880,7 +880,7 @@ close_so:
 	/*< Close newly created socket. */
 	if (close(so) != 0)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error: Failed to "
 			"close socket %d due %d, %s.",
@@ -1460,7 +1460,7 @@ int gw_find_mysql_user_password_sha1(char *username, uint8_t *gateway_password, 
 	key.resource = client_data->db;
 
 	LOGIF(LD,
-		(skygw_log_write_flush(
+		(mxs_log_flush(
 			LOGFILE_DEBUG,
 			"%lu [MySQL Client Auth], checking user [%s@%s]%s%s",
 			pthread_self(),
@@ -1487,7 +1487,7 @@ int gw_find_mysql_user_password_sha1(char *username, uint8_t *gateway_password, 
 			{
  			 	/* Skip the wildcard check and return 1 */
 				LOGIF(LE,
-					(skygw_log_write_flush(
+					(mxs_log_flush(
 						LOGFILE_ERROR,
 						"Error : user %s@%s not found, try set "
 						"'localhost_match_wildcard_host=1' in "
@@ -1541,7 +1541,7 @@ int gw_find_mysql_user_password_sha1(char *username, uint8_t *gateway_password, 
 			key.netmask = 0;
 
 			LOGIF(LD,
-				(skygw_log_write_flush(
+				(mxs_log_flush(
 					LOGFILE_DEBUG,
 					"%lu [MySQL Client Auth], checking user [%s@%s] with wildcard host [%%]",
 					pthread_self(),
@@ -1561,14 +1561,14 @@ int gw_find_mysql_user_password_sha1(char *username, uint8_t *gateway_password, 
  				 */
 
 			    LOGIF(LD,
-			     (skygw_log_write_flush(
+			     (mxs_log_flush(
 				    LOGFILE_DEBUG,
 					      "%lu [MySQL Client Auth], user [%s@%s] not existent",
 					      pthread_self(),
 					      key.user,
 					      dcb->remote)));
 
-			    LOGIF(LT,skygw_log_write_flush(
+			    LOGIF(LT,mxs_log_flush(
 				    LOGFILE_ERROR,
 					     "Authentication Failed: user [%s@%s] not found.",
 					     key.user,
@@ -1632,7 +1632,7 @@ mysql_send_auth_error (
 
         if (dcb->state != DCB_STATE_POLLING)
         {
-                LOGIF(LD, (skygw_log_write(
+                LOGIF(LD, (mxs_log(
                         LOGFILE_DEBUG,
                         "%lu [mysql_send_auth_error] dcb %p is in a state %s, "
                         "and it is not in epoll set anymore. Skip error sending.",
@@ -1840,7 +1840,7 @@ void protocol_archive_srv_command(
         
         s1 = &p->protocol_command;
 #if defined(EXTRA_SS_DEBUG)
-        LOGIF(LT, (skygw_log_write(
+        LOGIF(LT, (mxs_log(
                 LOGFILE_TRACE,
                 "Move command %s from fd %d to command history.",
                 STRPACKETTYPE(s1->scom_cmd), 
@@ -1917,7 +1917,7 @@ void protocol_add_srv_command(
                 p->protocol_command.scom_next = server_command_init(NULL, cmd);
         }
 #if defined(EXTRA_SS_DEBUG)        
-        LOGIF(LT, (skygw_log_write(
+        LOGIF(LT, (mxs_log(
                 LOGFILE_TRACE,
                 "Added command %s to fd %d.",
                 STRPACKETTYPE(cmd),
@@ -1927,7 +1927,7 @@ void protocol_add_srv_command(
 
         while (c != NULL && c->scom_cmd != MYSQL_COM_UNDEFINED)
         {
-                LOGIF(LT, (skygw_log_write(
+                LOGIF(LT, (mxs_log(
                         LOGFILE_TRACE,
                         "fd %d : %d %s",
                         p->owner_dcb->fd,
@@ -1954,7 +1954,7 @@ void protocol_remove_srv_command(
         spinlock_acquire(&p->protocol_lock);
         s = &p->protocol_command;
 #if defined(EXTRA_SS_DEBUG)
-        LOGIF(LT, (skygw_log_write(
+        LOGIF(LT, (mxs_log(
                 LOGFILE_TRACE,
                 "Removed command %s from fd %d.",
                 STRPACKETTYPE(s->scom_cmd),
@@ -1985,7 +1985,7 @@ mysql_server_cmd_t protocol_get_srv_command(
         {
                 protocol_remove_srv_command(p);
         }
-        LOGIF(LD, (skygw_log_write(
+        LOGIF(LD, (mxs_log(
                 LOGFILE_DEBUG,
                 "%lu [protocol_get_srv_command] Read command %s for fd %d.",
                 pthread_self(),
@@ -2244,7 +2244,7 @@ char *create_auth_fail_str(
 	
 	if (errstr == NULL)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Memory allocation failed due to %s.", 
 			strerror(errno)))); 

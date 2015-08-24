@@ -285,7 +285,7 @@ poll_add_dcb(DCB *dcb)
             || DCB_STATE_ZOMBIE == dcb->state
             || DCB_STATE_UNDEFINED == dcb->state)
         {
-            LOGIF(LE, (skygw_log_write_flush(
+            LOGIF(LE, (mxs_log_flush(
                 LOGFILE_ERROR,
                 "%lu [poll_add_dcb] Error : existing state of dcb %p "
                 "is %s, but this should be impossible, crashing.",
@@ -297,7 +297,7 @@ poll_add_dcb(DCB *dcb)
         if (DCB_STATE_POLLING == dcb->state
             || DCB_STATE_LISTENING == dcb->state)
         {
-            LOGIF(LE, (skygw_log_write_flush(
+            LOGIF(LE, (mxs_log_flush(
                 LOGFILE_ERROR,
                 "%lu [poll_add_dcb] Error : existing state of dcb %p "
                 "is %s, but this is probably an error, not crashing.",
@@ -318,7 +318,7 @@ poll_add_dcb(DCB *dcb)
         }
         if (0 == rc) 
         {
-            LOGIF(LD, (skygw_log_write(
+            LOGIF(LD, (mxs_log(
                 LOGFILE_DEBUG,
                 "%lu [poll_add_dcb] Added dcb %p in state %s to poll set.",
                 pthread_self(),
@@ -354,7 +354,7 @@ poll_remove_dcb(DCB *dcb)
         if (DCB_STATE_POLLING != dcb->state
             && DCB_STATE_LISTENING != dcb->state)
         {
-            LOGIF(LE, (skygw_log_write_flush(
+            LOGIF(LE, (mxs_log_flush(
                 LOGFILE_ERROR,
                 "%lu [poll_remove_dcb] Error : existing state of dcb %p "
                 "is %s, but this is probably an error, not crashing.",
@@ -413,7 +413,7 @@ poll_resolve_error(DCB *dcb, int errornum, bool adding)
     {
         if (EEXIST == errornum)
         {
-            LOGIF(LE, (skygw_log_write_flush(
+            LOGIF(LE, (mxs_log_flush(
                 LOGFILE_ERROR,
                 "%lu [poll_resolve_error] Error : epoll_ctl could not add, "
                 "already exists for DCB %p.",
@@ -424,7 +424,7 @@ poll_resolve_error(DCB *dcb, int errornum, bool adding)
         }
         if (ENOSPC == errornum)
         {
-            LOGIF(LE, (skygw_log_write_flush(
+            LOGIF(LE, (mxs_log_flush(
                 LOGFILE_ERROR,
                 "%lu [poll_resolve_error] The limit imposed by "
                 "/proc/sys/fs/epoll/max_user_watches was "
@@ -441,7 +441,7 @@ poll_resolve_error(DCB *dcb, int errornum, bool adding)
         /* Must be removing */
         if (ENOENT == errornum)
         {
-            LOGIF(LE, (skygw_log_write_flush(
+            LOGIF(LE, (mxs_log_flush(
                 LOGFILE_ERROR,
                 "%lu [poll_resolve_error] Error : epoll_ctl could not remove, "
                 "not found, for dcb %p.",
@@ -562,7 +562,7 @@ int		   poll_spins = 0;
 			atomic_add(&n_waiting, -1);
                         int eno = errno;
                         errno = 0;
-                        LOGIF(LD, (skygw_log_write(
+                        LOGIF(LD, (mxs_log(
                                 LOGFILE_DEBUG,
                                 "%lu [poll_waitevents] epoll_wait returned "
                                 "%d, errno %d",
@@ -609,7 +609,7 @@ int		   poll_spins = 0;
 			if (poll_spins <= number_poll_spins + 1)
 				atomic_add(&pollStats.n_nbpollev, 1);
 			poll_spins = 0;
-                        LOGIF(LD, (skygw_log_write(
+                        LOGIF(LD, (mxs_log(
                                 LOGFILE_DEBUG,
                                 "%lu [poll_waitevents] epoll_wait found %d fds",
                                 pthread_self(),
@@ -850,7 +850,7 @@ unsigned long	qtime;
 
 #if defined(FAKE_CODE)
 	if (dcb_fake_write_ev[dcb->fd] != 0) {
-		LOGIF(LD, (skygw_log_write(
+		LOGIF(LD, (mxs_log(
 			LOGFILE_DEBUG,
 			"%lu [poll_waitevents] "
 			"Added fake events %d to ev %d.",
@@ -867,7 +867,7 @@ unsigned long	qtime;
 	ss_dassert(dcb->state != DCB_STATE_FREED);
 	ss_debug(spinlock_release(&dcb->dcb_initlock);)
 
-	LOGIF(LD, (skygw_log_write(
+	LOGIF(LD, (mxs_log(
 		LOGFILE_DEBUG,
 		"%lu [poll_waitevents] event %d dcb %p "
 		"role %s",
@@ -890,7 +890,7 @@ unsigned long	qtime;
 						&tls_log_info.li_enabled_logs)));
 			dcb->func.write_ready(dcb);
 		} else {
-			LOGIF(LD, (skygw_log_write(
+			LOGIF(LD, (mxs_log(
 				LOGFILE_DEBUG,
 				"%lu [poll_waitevents] "
 				"EPOLLOUT due %d, %s. "
@@ -906,7 +906,7 @@ unsigned long	qtime;
 	{
 		if (dcb->state == DCB_STATE_LISTENING)
 		{
-			LOGIF(LD, (skygw_log_write(
+			LOGIF(LD, (mxs_log(
 				LOGFILE_DEBUG,
 				"%lu [poll_waitevents] "
 				"Accept in fd %d",
@@ -922,7 +922,7 @@ unsigned long	qtime;
 		}
 		else
 		{
-			LOGIF(LD, (skygw_log_write(
+			LOGIF(LD, (mxs_log(
 				LOGFILE_DEBUG,
 				"%lu [poll_waitevents] "
 				"Read in dcb %p fd %d",
@@ -944,7 +944,7 @@ unsigned long	qtime;
 #if defined(FAKE_CODE)
 		if (eno == 0) {
 			eno = dcb_fake_write_errno[dcb->fd];
-			LOGIF(LD, (skygw_log_write(
+			LOGIF(LD, (mxs_log(
 				LOGFILE_DEBUG,
 				"%lu [poll_waitevents] "
 				"Added fake errno %d. "
@@ -956,7 +956,7 @@ unsigned long	qtime;
 		dcb_fake_write_errno[dcb->fd] = 0;
 #endif /* FAKE_CODE */
 		if (eno != 0) {
-			LOGIF(LD, (skygw_log_write(
+			LOGIF(LD, (mxs_log(
 				LOGFILE_DEBUG,
 				"%lu [poll_waitevents] "
 				"EPOLLERR due %d, %s.",
@@ -978,7 +978,7 @@ unsigned long	qtime;
 		int eno = 0;
 		eno = gw_getsockerrno(dcb->fd);
 		
-		LOGIF(LD, (skygw_log_write(
+		LOGIF(LD, (mxs_log(
 			LOGFILE_DEBUG,
 			"%lu [poll_waitevents] "
 			"EPOLLHUP on dcb %p, fd %d. "
@@ -1011,7 +1011,7 @@ unsigned long	qtime;
 		int eno = 0;
 		eno = gw_getsockerrno(dcb->fd);
 		
-		LOGIF(LD, (skygw_log_write(
+		LOGIF(LD, (mxs_log(
 			LOGFILE_DEBUG,
 			"%lu [poll_waitevents] "
 			"EPOLLRDHUP on dcb %p, fd %d. "

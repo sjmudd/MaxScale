@@ -275,7 +275,7 @@ char	errmsg[120];
 		tree->value[80] = 0;
 	sprintf(errmsg, "Unsupported show command '%s'", tree->value);
 	maxinfo_send_error(dcb, 0, errmsg);
-	LOGIF(LM, (skygw_log_write(LOGFILE_MESSAGE, errmsg)));
+	LOGIF(LM, (mxs_log(LOGFILE_MESSAGE, errmsg)));
 }
 
 /**

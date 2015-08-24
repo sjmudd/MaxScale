@@ -130,7 +130,7 @@ version()
 void
 ModuleInit()
 {
-	LOGIF(LM, (skygw_log_write(
+	LOGIF(LM, (mxs_log(
                            LOGFILE_MESSAGE,
                            "Initialise MaxInfo router module %s.\n",
                            version_str)));
@@ -178,7 +178,7 @@ int		i;
 		for (i = 0; options[i]; i++)
 		{
 			{
-				LOGIF(LE, (skygw_log_write(
+				LOGIF(LE, (mxs_log(
 					LOGFILE_ERROR,
 					"Unknown option for MaxInfo '%s'\n",
 					options[i])));
@@ -399,7 +399,7 @@ char		*sql;
 		case COM_STATISTICS:
 			return maxinfo_statistics(instance, session, queue);
 		default:
-			LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 				"maxinfo: Unexpected MySQL command 0x%x",
 				MYSQL_COMMAND(queue))));
 		}
@@ -631,7 +631,7 @@ maxinfo_execute_query(INFO_INSTANCE *instance, INFO_SESSION *session, char *sql)
 MAXINFO_TREE	*tree;
 PARSE_ERROR	err;
 
-	LOGIF(LT, (skygw_log_write(LOGFILE_TRACE,
+	LOGIF(LT, (mxs_log(LOGFILE_TRACE,
 			"maxinfo: SQL statement: '%s' for 0x%x.",
 				sql, session->dcb)));
 	if (strcmp(sql, "select @@version_comment limit 1") == 0)
@@ -669,7 +669,7 @@ PARSE_ERROR	err;
 	if ((tree = maxinfo_parse(sql, &err)) == NULL)
 	{
 		maxinfo_send_parse_error(session->dcb, sql, err);
-		LOGIF(LM, (skygw_log_write(
+		LOGIF(LM, (mxs_log(
                            LOGFILE_MESSAGE,
 			"Failed to parse SQL statement: '%s'.",
 			sql)));
@@ -767,7 +767,7 @@ maxinfo_add_mysql_user(SERVICE *service) {
         char	*service_passwd = NULL;
 
 	if (serviceGetUser(service, &service_user, &service_passwd) == 0) {
-		LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 			"maxinfo: failed to get service user details")));
 
 		return 1;
@@ -776,7 +776,7 @@ maxinfo_add_mysql_user(SERVICE *service) {
 	dpwd = decryptPassword(service->credentials.authdata);
 
 	if (!dpwd) {
-		LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 			"maxinfo: decrypt password failed for service user %s",
 			service_user)));
 
@@ -788,7 +788,7 @@ maxinfo_add_mysql_user(SERVICE *service) {
 	newpasswd = create_hex_sha1_sha1_passwd(dpwd);
 
 	if (!newpasswd) {
-		LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 			"maxinfo: create hex_sha1_sha1_password failed for service user %s",
 			service_user)));
 		users_free(service->users);

@@ -172,7 +172,7 @@ int		i, cflags = REG_ICASE;
 				my_instance->user = strdup(params[i]->value);
 			else if (!filter_standard_parameter(params[i]->name))
 			{
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"namedserverfilter: Unexpected parameter '%s'.\n",
 					params[i]->name)));
@@ -193,7 +193,7 @@ int		i, cflags = REG_ICASE;
 				}
 				else
 				{
-					LOGIF(LE, (skygw_log_write_flush(
+					LOGIF(LE, (mxs_log_flush(
 						LOGFILE_ERROR,
 						"namedserverfilter: unsupported option '%s'.\n",
 						options[i])));
@@ -204,7 +204,7 @@ int		i, cflags = REG_ICASE;
 
 		if (my_instance->match == NULL || my_instance->server == NULL)
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"namedserverfilter: Missing required configured"
 				" option. You must specify a match and server "
@@ -216,7 +216,7 @@ int		i, cflags = REG_ICASE;
 		if (regcomp(&my_instance->re, my_instance->match,
 					my_instance->cflags))
 		{
-			LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 				"namedserverfilter: Invalid regular expression '%s'.\n",
 					my_instance->match)));
 			free(my_instance->match);
@@ -244,7 +244,7 @@ updateInstance(FILTER *instance, char **options, FILTER_PARAMETER **params)
 
     if((new_inst = (REGEXHINT_INSTANCE*)createInstance(options,params)) == NULL)
     {
-	skygw_log_write(LE,"Error: Instance update failed for Namedserver filter");
+	mxs_log(LE,"Error: Instance update failed for Namedserver filter");
 	return -1;
     }
 

@@ -192,7 +192,7 @@ CONFIG_PARAMETER	*param, *p1;
 	{
 		if (!strcmp(p1->name, name))
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                 "Error : Configuration object '%s' has multiple "
 				"parameters named '%s'.",
@@ -238,7 +238,7 @@ int config_handle_ssl(SERVICE* service,
     {
 	if(serviceSetSSL(service,mode) != 0)
 	{
-	    skygw_log_write(LE,"Error: Unknown parameter for service '%s': %s",service->name,mode);
+	    mxs_log(LE,"Error: Unknown parameter for service '%s': %s",service->name,mode);
 	    error_count++;
 	}
 	return error_count;
@@ -248,13 +248,13 @@ int config_handle_ssl(SERVICE* service,
     if(ssl_cert == NULL)
     {
 	error_count++;
-	skygw_log_write(LE,"Error: Server certificate missing for service '%s'."
+	mxs_log(LE,"Error: Server certificate missing for service '%s'."
 		"Please provide the path to the server certificate by adding the ssl_cert=<path> parameter",
 		 service->name);
     }
     else if(access(ssl_cert,F_OK) != 0)
     {
-	skygw_log_write(LE,"Error: Server certificate file for service '%s' not found: %s",
+	mxs_log(LE,"Error: Server certificate file for service '%s' not found: %s",
 		 service->name,
 		 ssl_cert);
 	error_count++;
@@ -263,13 +263,13 @@ int config_handle_ssl(SERVICE* service,
     if(ssl_ca_cert == NULL)
     {
 	error_count++;
-	skygw_log_write(LE,"Error: CA Certificate missing for service '%s'."
+	mxs_log(LE,"Error: CA Certificate missing for service '%s'."
 		"Please provide the path to the certificate authority certificate by adding the ssl_ca_cert=<path> parameter",
 		 service->name);
     }
     else if(access(ssl_ca_cert,F_OK) != 0)
     {
-	skygw_log_write(LE,"Error: Certificate authority file for service '%s' not found: %s",
+	mxs_log(LE,"Error: Certificate authority file for service '%s' not found: %s",
 		 service->name,
 		 ssl_ca_cert);
 	error_count++;
@@ -278,13 +278,13 @@ int config_handle_ssl(SERVICE* service,
     if(ssl_key == NULL)
     {
 	error_count++;
-	skygw_log_write(LE,"Error: Server private key missing for service '%s'. "
+	mxs_log(LE,"Error: Server private key missing for service '%s'. "
 		"Please provide the path to the server certificate key by adding the ssl_key=<path> parameter"
 		,service->name);
     }
     else if(access(ssl_key,F_OK) != 0)
     {
-	skygw_log_write(LE,"Error: Server private key file for service '%s' not found: %s",
+	mxs_log(LE,"Error: Server private key file for service '%s' not found: %s",
 		 service->name,
 		 ssl_key);
 	error_count++;
@@ -297,7 +297,7 @@ int config_handle_ssl(SERVICE* service,
     {
 	if(serviceSetSSL(service,mode) != 0)
 	{
-	    skygw_log_write(LE,"Error: Unknown parameter for service '%s': %s",service->name,mode);
+	    mxs_log(LE,"Error: Unknown parameter for service '%s': %s",service->name,mode);
 	    error_count++;
 	}
 	else
@@ -307,7 +307,7 @@ int config_handle_ssl(SERVICE* service,
 	    {
 		if(serviceSetSSLVersion(service,ssl_version) != 0)
 		{
-		    skygw_log_write(LE,"Error: Unknown parameter value for 'ssl_version' for service '%s': %s",service->name,ssl_version);
+		    mxs_log(LE,"Error: Unknown parameter value for 'ssl_version' for service '%s': %s",service->name,ssl_version);
 		    error_count++;
 		}
 	    }
@@ -315,7 +315,7 @@ int config_handle_ssl(SERVICE* service,
 	    {
 		if(serviceSetSSLVerifyDepth(service,atoi(verify_depth)) != 0)
 		{
-		    skygw_log_write(LE,"Error: Invalid parameter value for 'ssl_cert_verify_depth' for service '%s': %s",service->name,verify_depth);
+		    mxs_log(LE,"Error: Invalid parameter value for 'ssl_cert_verify_depth' for service '%s': %s",service->name,verify_depth);
 		    error_count++;
 		}
 	    }
@@ -429,7 +429,7 @@ config_reload_active()
 
 	    if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 	    {
-		skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate monitor configuration check hashtable.");
+		mxs_log(LOGFILE_ERROR,"Error: Failed to allocate monitor configuration check hashtable.");
 		return;
 	    }
 
@@ -517,7 +517,7 @@ int			error_count = 0;
 
 if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 {
-    skygw_log_write(LOGFILE_ERROR,"Error: Failed to allocate monitor configuration check hashtable.");
+    mxs_log(LOGFILE_ERROR,"Error: Failed to allocate monitor configuration check hashtable.");
     return 0;
 }
 
@@ -531,7 +531,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 		char *type = config_get_value(obj->parameters, "type");
 		if (type == NULL)
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                 "Error : Configuration object '%s' has no type.",
                                 obj->object)));
@@ -615,7 +615,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 
                                 if (obj->element == NULL) /*< if module load failed */
                                 {
-					LOGIF(LE, (skygw_log_write_flush(
+					LOGIF(LE, (mxs_log_flush(
                                                 LOGFILE_ERROR,
                                                 "Error : Reading configuration "
                                                 "for router service '%s' failed. "
@@ -644,7 +644,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 					if((((SERVICE *)(obj->element))->version_string = malloc((strlen(version_string) +
 						strlen("5.5.5-") + 1) * sizeof(char))) == NULL)
 					{
-					    skygw_log_write(LE,"[%s] Error: Memory allocation failed when allocating server string.",
+					    mxs_log(LE,"[%s] Error: Memory allocation failed when allocating server string.",
 						     __FUNCTION__);
 					    error_count++;
 					    break;
@@ -721,7 +721,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 				}
 				else if (user && auth == NULL)
 				{
-					LOGIF(LE, (skygw_log_write_flush(
+					LOGIF(LE, (mxs_log_flush(
 		                                LOGFILE_ERROR,
                			                "Error : Service '%s' has a "
 						"user defined but no "
@@ -753,7 +753,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 					
                                         if (!succp)
                                         {
-                                                LOGIF((LM|LE), (skygw_log_write(
+                                                LOGIF((LM|LE), (mxs_log(
                                                         (LM|LE),
                                                         "* Warning : invalid value type "
                                                         "for parameter \'%s.%s = %s\'\n\tExpected "
@@ -792,7 +792,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 					
                                         if (!succp)
                                         {
-                                                LOGIF(LM, (skygw_log_write(
+                                                LOGIF(LM, (mxs_log(
                                                         LOGFILE_MESSAGE,
                                                         "* Warning : invalid value type "
                                                         "for parameter \'%s.%s = %s\'\n\tExpected "
@@ -836,7 +836,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 						if (!succp)
 						{
 							if(param){
-							LOGIF(LM, (skygw_log_write(
+							LOGIF(LM, (mxs_log(
 								LOGFILE_MESSAGE,
 								"* Warning : invalid value type "
 								"for parameter \'%s.%s = %s\'\n\tExpected "
@@ -846,7 +846,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 								param->name,
 								param->value)));
 							}else{
-								LOGIF(LE, (skygw_log_write(
+								LOGIF(LE, (mxs_log(
 								LOGFILE_ERROR,
 								"Error : parameter was NULL")));
 							
@@ -858,7 +858,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 			else
 			{
 				obj->element = NULL;
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Error : No router defined for service "
                                         "'%s'\n",
@@ -888,7 +888,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
                                                             atoi(port));
 				if(obj->element == NULL)
 				{
-				    skygw_log_write(LE,"Error: Server creation failed: %s:%d(%s)",
+				    mxs_log(LE,"Error: Server creation failed: %s:%d(%s)",
 					     address,port,protocol);
 				    error_count++;
 				    break;
@@ -898,7 +898,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 			else
 			{
 				obj->element = NULL;
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Error : Server '%s' is missing a "
                                         "required configuration parameter. A "
@@ -912,7 +912,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 				serverAddMonUser(obj->element, monuser, monpw);
 			else if (monuser && monpw == NULL)
 			{
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 	                                LOGFILE_ERROR,
 					"Error : Server '%s' has a monitoruser"
 					"defined but no corresponding password.",
@@ -954,7 +954,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 		{
 		    if(config_add_filter(obj) != 0)
 		    {
-			skygw_log_write(LE,"Error: Failed to configure filter '%s'.",obj->object);
+			mxs_log(LE,"Error: Failed to configure filter '%s'.",obj->object);
 		    }
 		}
 		obj = obj->next;
@@ -1003,7 +1003,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 					}
 					if (!found)
 					{
-						LOGIF(LE, (skygw_log_write_flush(
+						LOGIF(LE, (mxs_log_flush(
 		                                        LOGFILE_ERROR,
 							"Error: Unable to find "
 							"server '%s' that is "
@@ -1016,7 +1016,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 			}
 			else if (servers == NULL && internalService(router) == 0)
 			{
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Warning: The service '%s' is missing a "
                                         "definition of the servers that provide "
@@ -1078,7 +1078,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 				} 
 				else
 				{
-				    LOGIF(LE, (skygw_log_write_flush(
+				    LOGIF(LE, (mxs_log_flush(
 					    LOGFILE_ERROR,
 					    "Error : Listener '%s', "
 					    "service '%s' not found. "
@@ -1102,7 +1102,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 				}
 				else
 				{
-				    LOGIF(LE, (skygw_log_write_flush(
+				    LOGIF(LE, (mxs_log_flush(
 					    LOGFILE_ERROR,
 					    "Error : Listener '%s', "
 					    "service '%s' not found. "
@@ -1114,7 +1114,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 			}
 			else
 			{
-			    LOGIF(LE, (skygw_log_write_flush(
+			    LOGIF(LE, (mxs_log_flush(
 				    LOGFILE_ERROR,
 				    "Error : Listener '%s' is missing a "
 				    "required "
@@ -1131,7 +1131,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 		else if (strcmp(type, "server") != 0
 			&& strcmp(type, "filter") != 0)
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                 "Error : Configuration object '%s' has an "
                                 "invalid type specified.",
@@ -1144,7 +1144,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 	
 	if (error_count)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : %d errors where encountered processing the "
                         "configuration file '%s'.",
@@ -1472,7 +1472,7 @@ int i;
         }
 	else if (strcmp(name, "ms_timestamp") == 0)
 	{
-		skygw_set_highp(config_truth_value((char*)value));
+		mxs_set_highp(config_truth_value((char*)value));
 	}
 	else
 	{
@@ -1481,9 +1481,9 @@ int i;
 			if (strcasecmp(name, lognames[i].logname) == 0)
 			{
 				if (config_truth_value((char*)value))
-					skygw_log_enable(lognames[i].logfile);
+					mxs_log_enable(lognames[i].logfile);
 				else
-					skygw_log_disable(lognames[i].logfile);
+					mxs_log_disable(lognames[i].logfile);
 			}
 		}
         }
@@ -1618,7 +1618,7 @@ CONFIG_CONTEXT		*obj;
 		if (type == NULL)
                 {
                     LOGIF(LE,
-                          (skygw_log_write_flush(
+                          (mxs_log_flush(
                                   LOGFILE_ERROR,
                                   "Error : Configuration object %s has no type.",
                                   obj->object)));
@@ -1637,7 +1637,7 @@ CONFIG_CONTEXT		*obj;
 		    if(filter_find(obj->object) == NULL &&
 		     config_add_filter(obj) != 0)
 		    {
-			skygw_log_write(LE,"Error: Failed to configure filter '%s'.",obj->object);
+			mxs_log(LE,"Error: Failed to configure filter '%s'.",obj->object);
 		    }
 		}
 
@@ -1673,7 +1673,7 @@ CONFIG_CONTEXT		*obj;
                          strcmp(type, "monitor") != 0 &&
 			 strcmp(type, "filter") != 0)
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                 "Error : Configuration object %s has an invalid "
                                 "type specified.",
@@ -1785,7 +1785,7 @@ int			i;
 					if (!strcmp(params->name, param_set[i]))
 						found = 1;
 				if (found == 0)
-					LOGIF(LE, (skygw_log_write_flush(
+					LOGIF(LE, (mxs_log_flush(
                                                 LOGFILE_ERROR,
                                                 "Error : Unexpected parameter "
                                                 "'%s' for object '%s' of type "
@@ -1867,7 +1867,7 @@ config_truth_value(char *str)
 	{
 		return 0;
 	}
-	skygw_log_write(LOGFILE_ERROR,"Error: Not a boolean value: %s",str);
+	mxs_log(LOGFILE_ERROR,"Error: Not a boolean value: %s",str);
 	return -1;
 }
 
@@ -2106,7 +2106,7 @@ config_enable_feedback_task(void) {
 		/* Add the task to the tasl list */
         	if (hktask_add("send_feedback", module_feedback_send, cfg, cfg->feedback_frequency)) {
 
-			LOGIF(LM, (skygw_log_write_flush(
+			LOGIF(LM, (mxs_log_flush(
 				LOGFILE_MESSAGE,
 				"Notification service feedback task started: URL=%s, User-Info=%s, Frequency %u seconds",
 				cfg->feedback_url,
@@ -2115,13 +2115,13 @@ config_enable_feedback_task(void) {
 		}
 	} else {
 		if (enable_set) {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Error: Notification service feedback cannot start: feedback_enable=1 but"
 				" some required parameters are not set: %s%s%s",
 				url_set == 0 ? "feedback_url is not set" : "", (user_info_set == 0 && url_set == 0) ? ", " : "", user_info_set == 0 ? "feedback_user_info is not set" : "")));
 		} else {
-			LOGIF(LT, (skygw_log_write_flush(
+			LOGIF(LT, (mxs_log_flush(
 				LOGFILE_TRACE,
 				"Notification service feedback is not enabled")));
 		}
@@ -2146,7 +2146,7 @@ void config_add_param(CONFIG_CONTEXT* obj, char* key,char* value)
 
     if(nptr == NULL)
     {
-	skygw_log_write(LOGFILE_ERROR,"Memory allocation failed when adding configuration parameters");
+	mxs_log(LOGFILE_ERROR,"Memory allocation failed when adding configuration parameters");
 	return;
     }
 
@@ -2224,7 +2224,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 				if((service->version_string = malloc((strlen(version_string) +
 											 strlen("5.5.5-") + 1) * sizeof(char))) == NULL)
 				{
-				    skygw_log_write(LE,"[%s] Error: Memory allocation failed.",
+				    mxs_log(LE,"[%s] Error: Memory allocation failed.",
 					     __FUNCTION__);
 				}
 				strcpy(service->version_string,"5.5.5-");
@@ -2291,7 +2291,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 
 					if (!succp && param != NULL)
 					{
-						LOGIF(LM, (skygw_log_write(
+						LOGIF(LM, (mxs_log(
 							LOGFILE_MESSAGE,
 							"* Warning : invalid value type "
 							"for parameter \'%s = %s\'\n\tExpected "
@@ -2332,7 +2332,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 					if (!succp)
 					{
 						if (param) {
-							LOGIF(LM, (skygw_log_write(
+							LOGIF(LM, (mxs_log(
 								LOGFILE_MESSAGE,
 								"* Warning : invalid value type "
 								"for parameter \'%s.%s = %s\'\n\tExpected "
@@ -2342,7 +2342,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 								param->name,
 								param->value)));
 						} else {
-								LOGIF(LE, (skygw_log_write(
+								LOGIF(LE, (mxs_log(
 									LOGFILE_ERROR,
 									"Error : parameter was NULL")));                                                                
 						}
@@ -2444,7 +2444,7 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 	else
 	{
 		obj->element = NULL;
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : No router defined for service "
 			"'%s'.",
@@ -2529,7 +2529,7 @@ void config_server_update(CONFIG_CONTEXT *obj) {
 	}
 	else
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Server '%s' is missing a "
 			"required "
@@ -2650,7 +2650,7 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 
 		    if (!found)
 		    {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 							 "Error: Unable to find "
 				"server '%s' that is "
@@ -2750,7 +2750,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 		}
 		if(obj->element == NULL)
 		{
-		    skygw_log_write(LE,"[%s] Error: Failed to load monitor module."
+		    mxs_log(LE,"[%s] Error: Failed to load monitor module."
 			    " Confirm that the module can be found in the module directory: %s",
 			     obj->object,get_libdir());
 		    error_count++;
@@ -2769,7 +2769,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 			if (interval > 0)
 				monitorSetInterval(obj->element, interval);
 			else
-				skygw_log_write(LOGFILE_ERROR,"Warning: Monitor '%s' "
+				mxs_log(LOGFILE_ERROR,"Warning: Monitor '%s' "
 					    "missing monitor_interval parameter, "
 					    "default value of 10000 miliseconds.",obj->object);
 
@@ -2798,7 +2798,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 						found = 1;
 						if(hashtable_add(monitorhash,obj1->object,"") == 0)
 						{
-						    skygw_log_write(LOGFILE_ERROR,
+						    mxs_log(LOGFILE_ERROR,
 							"Warning: Multiple monitors are monitoring server [%s]. "
 							"This will cause undefined behavior.",
 							obj1->object);
@@ -2814,7 +2814,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 				}
 				if (!found)
 					LOGIF(LE,
-						(skygw_log_write_flush(
+						(mxs_log_flush(
 							LOGFILE_ERROR,
 							"Error: Unable to find "
 							"server '%s' that is "
@@ -2833,7 +2833,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 		}
 		else if (user)
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR, "Error: "
 				"Monitor '%s' defines a "
 				"username with no password.",
@@ -2846,7 +2846,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 	else
 	{
 		obj->element = NULL;
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Monitor '%s' is missing a "
 			"require module parameter.",
@@ -2878,7 +2878,7 @@ void config_set_reload_flag()
     }
     else
     {
-	skygw_log_write(LE,"Errors were found from the configuration file. Configuration reload aborted. "
+	mxs_log(LE,"Errors were found from the configuration file. Configuration reload aborted. "
 		"Please fix the errors and try again.");
     }
 }
@@ -2909,7 +2909,7 @@ int config_reload_service(void* data)
 
     if(ptr == NULL)
     {
-	skygw_log_write(LE, "Service %s was not in the configuration file.\n",
+	mxs_log(LE, "Service %s was not in the configuration file.\n",
 		 service->name);
 	rval = -1;
     }
@@ -3006,7 +3006,7 @@ int config_add_filter(CONFIG_CONTEXT* obj)
     }
     else
     {
-	LOGIF(LE, (skygw_log_write_flush(
+	LOGIF(LE, (mxs_log_flush(
 		LOGFILE_ERROR,"Error: Filter '%s' has no module defined to load.",
 					 obj->object)));
 	error_count++;
@@ -3074,25 +3074,25 @@ bool config_verify_server(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 
     if((config_get_param(section->parameters,"protocol")) == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Server is missing the 'protocol' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Server is missing the 'protocol' parameter.",section->object);
 	rval = false;
     }
 
     if((config_get_param(section->parameters,"address")) == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Server is missing the 'address' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Server is missing the 'address' parameter.",section->object);
 	rval = false;
     }
 
     if((port = config_get_param(section->parameters,"port")) == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Server is missing the 'port' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Server is missing the 'port' parameter.",section->object);
 	rval = false;
     }
 
     if(!config_convert_integer(port->value,&intval) || intval <= 0)
     {
-	skygw_log_write(LE,"[%s] Error: Invalid port value: %s. ",section->object,port->value);
+	mxs_log(LE,"[%s] Error: Invalid port value: %s. ",section->object,port->value);
 	rval = false;
     }
 
@@ -3111,7 +3111,7 @@ bool config_verify_filter(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 
     if(config_get_param(section->parameters,"module") == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Filter is missing the 'module' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Filter is missing the 'module' parameter.",section->object);
 	rval = false;
     }
 
@@ -3135,7 +3135,7 @@ bool config_find_sections_from_string(CONFIG_CONTEXT* context,const char* needle
     {
 	if(config_get_section(context,tok) == NULL)
 	{
-	    skygw_log_write(LE,"Error: '%s' is not a valid section name.",tok);
+	    mxs_log(LE,"Error: '%s' is not a valid section name.",tok);
 	    rval = false;
 	    break;
 	}
@@ -3157,33 +3157,33 @@ bool config_verify_monitor(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 
     if((servers = config_get_param(section->parameters,"servers")) == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Monitor is missing the 'servers' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Monitor is missing the 'servers' parameter.",section->object);
 	rval = false;
     }
     else
     {
 	if(!config_find_sections_from_string(context,", ",servers->value))
 	{
-	    skygw_log_write(LE,"[%s] Error: Monitor has invalid values in the 'servers' parameter: %s",section->object,servers->value);
+	    mxs_log(LE,"[%s] Error: Monitor has invalid values in the 'servers' parameter: %s",section->object,servers->value);
 	    rval = false;
 	}
     }
 
     if(config_get_param(section->parameters,"module") == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Monitor is missing the 'module' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Monitor is missing the 'module' parameter.",section->object);
 	rval = false;
     }
 
     if(config_get_param(section->parameters,"user") == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Monitor is missing the 'user' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Monitor is missing the 'user' parameter.",section->object);
 	rval = false;
     }
 
     if(config_get_param(section->parameters,"passwd") == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Monitor is missing the 'passwd' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Monitor is missing the 'passwd' parameter.",section->object);
 	rval = false;
     }
 
@@ -3206,7 +3206,7 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 
     if((router = config_get_param(section->parameters,"router")) == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Service is missing the 'router' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Service is missing the 'router' parameter.",section->object);
 	rval = false;
     }
 
@@ -3214,7 +3214,7 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
     {
 	if(router != NULL && !internalService(router->value))
 	{
-	    skygw_log_write(LE,"[%s] Error: Service is missing the 'servers' parameter.",section->object);
+	    mxs_log(LE,"[%s] Error: Service is missing the 'servers' parameter.",section->object);
 	    rval = false;
 	}
     }
@@ -3222,7 +3222,7 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
     {
 	if(!config_find_sections_from_string(context,", ",servers->value))
 	{
-	    skygw_log_write(LE,"[%s] Error: Service has invalid values in the 'servers' parameter: %s",section->object,servers->value);
+	    mxs_log(LE,"[%s] Error: Service has invalid values in the 'servers' parameter: %s",section->object,servers->value);
 	    rval = false;
 	}
     }
@@ -3231,7 +3231,7 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
     {
 	if(!config_find_sections_from_string(context,"| ",filters->value))
 	{
-	    skygw_log_write(LE,"[%s] Error: Service has invalid values in the 'filters' parameter: %s",section->object,filters->value);
+	    mxs_log(LE,"[%s] Error: Service has invalid values in the 'filters' parameter: %s",section->object,filters->value);
 	    rval = false;
 	}
     }
@@ -3241,13 +3241,13 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 	if(config_get_param(section->parameters,"user") == NULL)
 	{
 
-	    skygw_log_write(LE,"[%s] Error: Service is missing the 'user' parameter.",section->object);
+	    mxs_log(LE,"[%s] Error: Service is missing the 'user' parameter.",section->object);
 	    rval = false;
 	}
 
 	if(config_get_param(section->parameters,"passwd") == NULL)
 	{
-	    skygw_log_write(LE,"[%s] Error: Service is missing the 'passwd' parameter.",section->object);
+	    mxs_log(LE,"[%s] Error: Service is missing the 'passwd' parameter.",section->object);
 	    rval = false;
 	}
     }
@@ -3271,13 +3271,13 @@ bool config_verify_listener(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 
     if((service = config_get_param(section->parameters,"service")) == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Listener is missing the 'service' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Listener is missing the 'service' parameter.",section->object);
 	rval = false;
     }
 
     if(config_get_section(context,service->value) == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Service '%s' for listener not found.",
+	mxs_log(LE,"[%s] Error: Service '%s' for listener not found.",
 		 section->object,service->value);
 	rval = false;
     }
@@ -3287,7 +3287,7 @@ bool config_verify_listener(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 
     if(port == NULL && socket == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Listener is missing both 'port' and 'socket' parameters. "
+	mxs_log(LE,"[%s] Error: Listener is missing both 'port' and 'socket' parameters. "
 		"At least one of them must be defined for each listener.",
 		 section->object);
 	rval = false;
@@ -3297,7 +3297,7 @@ bool config_verify_listener(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
     {
 	if(!config_convert_integer(port->value,&intval) || intval <= 0)
 	{
-	    skygw_log_write(LE,"[%s] Error: Invalid port value: %s. ",section->object,port->value);
+	    mxs_log(LE,"[%s] Error: Invalid port value: %s. ",section->object,port->value);
 	    rval = false;
 	}
     }
@@ -3306,14 +3306,14 @@ bool config_verify_listener(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
     {
 	if(!is_valid_posix_path(socket->value))
 	{
-	    skygw_log_write(LE,"[%s] Error: Invalid socket path: %s. ",section->object,port->value);
+	    mxs_log(LE,"[%s] Error: Invalid socket path: %s. ",section->object,port->value);
 	    rval = false;
 	}
     }
 
     if(config_get_param(section->parameters,"protocol") == NULL)
     {
-	skygw_log_write(LE,"[%s] Error: Listener is missing the 'protocol' parameter.",section->object);
+	mxs_log(LE,"[%s] Error: Listener is missing the 'protocol' parameter.",section->object);
 	rval = false;
     }
 
@@ -3361,7 +3361,7 @@ bool config_verify_context()
 
     if (config_read_config(&base) != 0)
     {
-	skygw_log_write(LE,"Error: Parsing the configuration file failed.");
+	mxs_log(LE,"Error: Parsing the configuration file failed.");
 	return false;
     }
 
@@ -3372,7 +3372,7 @@ bool config_verify_context()
     {
 	if((param = config_get_param(section->parameters,"type")) == NULL)
 	{
-	    skygw_log_write(LE,"[%s] Error: Missing 'type' parameter.",section->object);
+	    mxs_log(LE,"[%s] Error: Missing 'type' parameter.",section->object);
 	    rval = false;
 	}
 	else
@@ -3404,7 +3404,7 @@ bool config_verify_context()
 	    }
 	    else
 	    {
-		skygw_log_write(LE,"[%s] Error: Invalid value for 'type' parameter. Value was not one of "
+		mxs_log(LE,"[%s] Error: Invalid value for 'type' parameter. Value was not one of "
 			"'server', 'listener', 'monitor', 'filter' or 'server': '%s'",section->object,param->value);
 		return false;
 	    }

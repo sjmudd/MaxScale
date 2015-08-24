@@ -174,7 +174,7 @@ version()
 void
 ModuleInit()
 {
-        LOGIF(LM, (skygw_log_write(
+        LOGIF(LM, (mxs_log(
                            LOGFILE_MESSAGE,
                            "Initialise readconnroute router module %s.\n", version_str)));
         spinlock_init(&instlock);
@@ -236,7 +236,7 @@ void process_options(ROUTER_INSTANCE* inst, char** options)
 	}
 	else
 	{
-	    LOGIF(LM, (skygw_log_write(
+	    LOGIF(LM, (mxs_log(
 		    LOGFILE_MESSAGE,
 				     "* Warning : Unsupported router "
 		    "option \'%s\' for readconnroute. "
@@ -316,7 +316,7 @@ char		*weightby;
 		}
 		if (total == 0)
 		{
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"WARNING: Weighting Parameter for service '%s' "
 				"will be ignored as no servers have values "
 				"for the parameter '%s'.\n",
@@ -335,7 +335,7 @@ char		*weightby;
 				backend->weight = perc;
 				if (perc == 0)
 				{
-					LOGIF(LE, (skygw_log_write(
+					LOGIF(LE, (mxs_log(
 							LOGFILE_ERROR,
 						"Server '%s' has no value "
 						"for weighting parameter '%s', "
@@ -451,7 +451,7 @@ updateInstance(ROUTER *instance, SERVICE *service, char **options)
 	}
 	if (total == 0)
 	{
-	    LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+	    LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				     "WARNING: Weighting Parameter for service '%s' "
 		    "will be ignored as no servers have values "
 		    "for the parameter '%s'.\n",
@@ -470,7 +470,7 @@ updateInstance(ROUTER *instance, SERVICE *service, char **options)
 		backend->weight = perc;
 		if (perc == 0)
 		{
-		    LOGIF(LE, (skygw_log_write(
+		    LOGIF(LE, (mxs_log(
 			LOGFILE_ERROR,
 			 "Server '%s' has no value "
 			"for weighting parameter '%s', "
@@ -503,7 +503,7 @@ BACKEND                 *candidate = NULL;
 int                     i;
 BACKEND *master_host = NULL;
 
-        LOGIF(LD, (skygw_log_write_flush(
+        LOGIF(LD, (mxs_log_flush(
                 LOGFILE_DEBUG,
                 "%lu [newSession] new router session with session "
                 "%p, and inst %p.",
@@ -548,7 +548,7 @@ BACKEND *master_host = NULL;
 	 */
 	for (i = 0; inst->servers[i]; i++) {
 		if(inst->servers[i]) {
-			LOGIF(LD, (skygw_log_write(
+			LOGIF(LD, (mxs_log(
 				LOGFILE_DEBUG,
 				"%lu [newSession] Examine server in port %d with "
                                 "%d connections. Status is %s, "
@@ -640,7 +640,7 @@ BACKEND *master_host = NULL;
 		if (master_host) {
 			candidate = master_host;
 		} else {
-                	LOGIF(LE, (skygw_log_write_flush(
+                	LOGIF(LE, (mxs_log_flush(
                       	  LOGFILE_ERROR,
                       	  "Error : Failed to create new routing session. "
                       	  "Couldn't find eligible candidate server. Freeing "
@@ -658,7 +658,7 @@ BACKEND *master_host = NULL;
 	 */
 	atomic_add(&candidate->current_connection_count, 1);
 	client_rses->backend = candidate;
-        LOGIF(LD, (skygw_log_write(
+        LOGIF(LD, (mxs_log(
                 LOGFILE_DEBUG,
                 "%lu [newSession] Selected server in port %d. "
                 "Connections : %d\n",
@@ -696,7 +696,7 @@ BACKEND *master_host = NULL;
 
         CHK_CLIENT_RSES(client_rses);
 
-	skygw_log_write(
+	mxs_log(
                 LOGFILE_TRACE,
 		 "Readconnroute: New session for server %s. "
                 "Connections : %d",
@@ -751,7 +751,7 @@ static void freeSession(
 	}
 	spinlock_release(&router->lock);
 
-        LOGIF(LD, (skygw_log_write_flush(
+        LOGIF(LD, (mxs_log_flush(
                 LOGFILE_DEBUG,
                 "%lu [freeSession] Unlinked router_client_session %p from "
                 "router %p and from server on port %d. Connections : %d. ",
@@ -849,7 +849,7 @@ routeQuery(ROUTER *instance, void *router_session, GWBUF *queue)
         if (rses_is_closed ||  backend_dcb == NULL ||
             SERVER_IS_DOWN(router_cli_ses->backend->server))
         {
-                LOGIF(LT, (skygw_log_write(
+                LOGIF(LT, (mxs_log(
                         LOGFILE_TRACE|LOGFILE_ERROR,
                         "Error : Failed to route MySQL command %d to backend "
                         "server.%s",
@@ -876,7 +876,7 @@ routeQuery(ROUTER *instance, void *router_session, GWBUF *queue)
 			break;
         }
 
-	LOGIF(LOGFILE_TRACE,skygw_log_write(
+	LOGIF(LOGFILE_TRACE,mxs_log(
                 LOGFILE_DEBUG|LOGFILE_TRACE,
 		 "Routed [%s] to '%s'%s%s",
 		 STRPACKETTYPE(mysql_command),

@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 	arg_vector[2] = "/var/log/maxscale/maxkeys";
 	arg_vector[3] = "-o";
 	arg_vector[4] = NULL;
-	skygw_logmanager_init(arg_count,arg_vector);
+	mxs_logmanager_init(arg_count,arg_vector);
 	free(arg_vector);
 	
 
@@ -73,8 +73,8 @@ int main(int argc, char **argv)
 		rval = 1;
 	}
 
-	skygw_log_sync_all();
-	skygw_logmanager_done();
+	mxs_log_sync_all();
+	mxs_logmanager_done();
 
     return rval;
 }

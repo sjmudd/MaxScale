@@ -113,7 +113,7 @@ SHARED_BUF	*sbuf;
 retblock:
 	if (rval == NULL)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Memory allocation failed due to %s.", 
 			strerror(errno))));
@@ -182,7 +182,7 @@ GWBUF	*rval;
 	if ((rval = (GWBUF *)calloc(1,sizeof(GWBUF))) == NULL)
 	{
 		ss_dassert(rval != NULL);
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Memory allocation failed due to %s.", 
 			strerror(errno))));
@@ -246,7 +246,7 @@ GWBUF *gwbuf_clone_portion(
         if ((clonebuf = (GWBUF *)malloc(sizeof(GWBUF))) == NULL)
         {
 		ss_dassert(clonebuf != NULL);
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Memory allocation failed due to %s.", 
 			strerror(errno))));
@@ -500,7 +500,7 @@ void gwbuf_add_buffer_object(
 	
 	if (newb == NULL)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Memory allocation failed due to %s.", 
 			strerror(errno))));
@@ -591,7 +591,7 @@ BUF_PROPERTY	*prop;
 	{
 		ss_dassert(prop != NULL);
 		
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Memory allocation failed due to %s.", 
 			strerror(errno))));		

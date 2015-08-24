@@ -99,7 +99,7 @@ EXTERNCMD* externcmd_allocate(char* argstr)
 	}
 	if(access(cmd->parameters[0],F_OK) != 0)
 	{
-	    skygw_log_write(LE,
+	    mxs_log(LE,
 		     "Error: Cannot find file: %s",
 		     cmd->parameters[0]);
 	    externcmd_free(cmd);
@@ -108,7 +108,7 @@ EXTERNCMD* externcmd_allocate(char* argstr)
 
 	if(access(cmd->parameters[0],X_OK) != 0)
 	{
-	    skygw_log_write(LE,
+	    mxs_log(LE,
 		     "Error: Cannot execute file: %s",
 		     cmd->parameters[0]);
 	    externcmd_free(cmd);
@@ -147,7 +147,7 @@ int externcmd_execute(EXTERNCMD* cmd)
 
     if(pid < 0)
     {
-        skygw_log_write(LOGFILE_ERROR,"Error: Failed to execute command '%s', fork failed: [%d] %s",
+        mxs_log(LOGFILE_ERROR,"Error: Failed to execute command '%s', fork failed: [%d] %s",
                         cmd->parameters[0],errno,strerror(errno));
         rval = -1;
     }
@@ -161,7 +161,7 @@ int externcmd_execute(EXTERNCMD* cmd)
     {
 	cmd->child = pid;
 	cmd->n_exec++;
-	LOGIF(LD,skygw_log_write(LD,"[monitor_exec_cmd] Forked child process %d : %s.",pid,cmd));
+	LOGIF(LD,mxs_log(LD,"[monitor_exec_cmd] Forked child process %d : %s.",pid,cmd));
     }
 
     return rval;

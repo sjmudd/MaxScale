@@ -214,7 +214,7 @@ HASHTABLE	*oldresources;
 	/* digest compare */
 	if (oldusers != NULL && memcmp(oldusers->cksum, newusers->cksum, SHA_DIGEST_LENGTH) == 0) {
 		/* same data, nothing to do */
-		LOGIF(LD, (skygw_log_write_flush(
+		LOGIF(LD, (mxs_log_flush(
 			LOGFILE_DEBUG,
 			"%lu [replace_mysql_users] users' tables not switched, checksum is the same",
 			pthread_self())));
@@ -224,7 +224,7 @@ HASHTABLE	*oldresources;
 		i = 0;
 	} else {
 		/* replace the service with effective new data */
-		LOGIF(LD, (skygw_log_write_flush(
+		LOGIF(LD, (mxs_log_flush(
 			LOGFILE_DEBUG,
 			"%lu [replace_mysql_users] users' tables replaced, checksum differs",
 			pthread_self())));
@@ -306,7 +306,7 @@ int add_mysql_users_with_host_ipv4(USERS *users, char *user, char *host, char *p
 		key.netmask = normalize_hostname(host, ret_ip);
 
 		if (key.netmask == -1) {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Error : strdup() failed in normalize_hostname for %s@%s",
 				user,
@@ -368,7 +368,7 @@ addDatabases(SERVICE *service, MYSQL *con)
 		return -1;
 
 	if (mysql_query(con, get_showdbs_priv_query)) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Loading database names for service %s encountered "
                         "error: %s.",
@@ -380,7 +380,7 @@ addDatabases(SERVICE *service, MYSQL *con)
 	result = mysql_store_result(con);
 
 	if (result == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Loading database names for service %s encountered "
                         "error: %s.",
@@ -397,7 +397,7 @@ addDatabases(SERVICE *service, MYSQL *con)
 	} else {
 		ndbs = 0;
 
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
             ERROR_NO_SHOW_DATABASES,
             service->name, service_user)));
@@ -412,7 +412,7 @@ addDatabases(SERVICE *service, MYSQL *con)
 	}
 
 	if (mysql_query(con, "SHOW DATABASES")) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Loading database names for service %s encountered "
                         "error: %s.",
@@ -425,7 +425,7 @@ addDatabases(SERVICE *service, MYSQL *con)
 	result = mysql_store_result(con);
 
 	if (result == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Loading database names for service %s encountered "
                         "error: %s.",
@@ -439,7 +439,7 @@ addDatabases(SERVICE *service, MYSQL *con)
 	while ((row = mysql_fetch_row(result))) {
 	    if(resource_add(service->resources, row[0], ""))
 	    {
-		skygw_log_write(LOGFILE_DEBUG,"%s: Adding database %s to the resouce hash.",service->name,row[0]);
+		mxs_log(LOGFILE_DEBUG,"%s: Adding database %s to the resouce hash.",service->name,row[0]);
 	    }
 	}
 
@@ -473,7 +473,7 @@ getDatabases(SERVICE *service, MYSQL *con)
 		return -1;
 
 	if (mysql_query(con, get_showdbs_priv_query)) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Loading database names for service %s encountered "
                         "error: %s.",
@@ -485,7 +485,7 @@ getDatabases(SERVICE *service, MYSQL *con)
 	result = mysql_store_result(con);
 
 	if (result == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Loading database names for service %s encountered "
                         "error: %s.",
@@ -502,7 +502,7 @@ getDatabases(SERVICE *service, MYSQL *con)
 	} else {
 		ndbs = 0;
 
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
             ERROR_NO_SHOW_DATABASES,
             service->name, service_user)));
@@ -517,7 +517,7 @@ getDatabases(SERVICE *service, MYSQL *con)
 	}
 
 	if (mysql_query(con, "SHOW DATABASES")) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Loading database names for service %s encountered "
                         "error: %s.",
@@ -530,7 +530,7 @@ getDatabases(SERVICE *service, MYSQL *con)
 	result = mysql_store_result(con);
   
 	if (result == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Loading database names for service %s encountered "
                         "error: %s.",
@@ -545,7 +545,7 @@ getDatabases(SERVICE *service, MYSQL *con)
 
 	/* insert key and value "" */
 	while ((row = mysql_fetch_row(result))) { 
-	    skygw_log_write(LOGFILE_DEBUG,"%s: Adding database %s to the resouce hash.",service->name,row[0]);
+	    mxs_log(LOGFILE_DEBUG,"%s: Adding database %s to the resouce hash.",service->name,row[0]);
 	    resource_add(service->resources, row[0], "");	    
 	}
 
@@ -613,7 +613,7 @@ getAllUsers(SERVICE *service, USERS *users)
 
 	if(server == NULL)
             {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
                         "Error : Unable to get user data from backend database "
 			"for service [%s]. Missing server information. Make sure the service"
@@ -631,7 +631,7 @@ getAllUsers(SERVICE *service, USERS *users)
 
             if (con == NULL)
             {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                                                  "Error : mysql_init failed: %s",
                                                  mysql_error(con))));
@@ -644,7 +644,7 @@ getAllUsers(SERVICE *service, USERS *users)
                                       DEFAULT_WRITE_TIMEOUT,
                                       DEFAULT_CONNECT_TIMEOUT))
             {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
                         "Error : failed to set timeout values for backend "
 			"connection.")));
@@ -654,7 +654,7 @@ getAllUsers(SERVICE *service, USERS *users)
 
             if (mysql_options(con, MYSQL_OPT_USE_REMOTE_CONNECTION, NULL))
             {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : failed to set external connection. "
                         "It is needed for backend server connections.")));
@@ -679,7 +679,7 @@ getAllUsers(SERVICE *service, USERS *users)
 
 	    if(server == NULL && n_connected == 0)
 	    {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Failed to connect to any of the backend servers for service [%s]. Cannot"
 		    " retrieve authentication data.",service->name)));
@@ -706,7 +706,7 @@ getAllUsers(SERVICE *service, USERS *users)
             
             if (con == NULL) 
             {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                                                  "Error : mysql_init: %s",
                                                  mysql_error(con))));
@@ -719,7 +719,7 @@ getAllUsers(SERVICE *service, USERS *users)
                                       DEFAULT_WRITE_TIMEOUT,
                                       DEFAULT_CONNECT_TIMEOUT))
             {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
                                                  "Error : failed to set timeout values for backend "
 			"connection.")));
@@ -729,7 +729,7 @@ getAllUsers(SERVICE *service, USERS *users)
             
             if (mysql_options(con, MYSQL_OPT_USE_REMOTE_CONNECTION, NULL)) 
             {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                                                  "Error : failed to set external connection. "
                         "It is needed for backend server connections.")));
@@ -755,7 +755,7 @@ getAllUsers(SERVICE *service, USERS *users)
 
             if (server == NULL)
 	    {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Failed to connect to any of the backend servers for service [%s]. Cannot"
 		    " retrieve authentication data.",service->name)));
@@ -767,7 +767,7 @@ getAllUsers(SERVICE *service, USERS *users)
             if (mysql_query(con, MYSQL_USERS_WITH_DB_COUNT)) {
 		if (mysql_errno(con) != ER_TABLEACCESS_DENIED_ERROR) {
                     /* This is an error we cannot handle, return */
-                    LOGIF(LE, (skygw_log_write_flush(
+                    LOGIF(LE, (mxs_log_flush(
                             LOGFILE_ERROR,
                                                      "Error : Loading users for service [%s] encountered "
                             "error: [%s].",
@@ -781,7 +781,7 @@ getAllUsers(SERVICE *service, USERS *users)
                      * try counting users from mysql.user without DB names.
                      */
                     if (mysql_query(con, MYSQL_USERS_COUNT)) {
-                        LOGIF(LE, (skygw_log_write_flush(
+                        LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                                          "Error : Loading users for service [%s] encountered "
                                 "error: [%s].",
@@ -796,7 +796,7 @@ getAllUsers(SERVICE *service, USERS *users)
             result = mysql_store_result(con);
             
             if (result == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                                                  "Error : Loading users for service [%s] encountered "
                         "error: [%s].",
@@ -813,7 +813,7 @@ getAllUsers(SERVICE *service, USERS *users)
             mysql_free_result(result);
             
             if (!nusers) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                                                  "Error : Counting users for service %s returned 0",
                                                  service->name)));
@@ -839,7 +839,7 @@ getAllUsers(SERVICE *service, USERS *users)
 		if (1142 != mysql_errno(con)) {
                     /* This is an error we cannot handle, return */
                     
-                    LOGIF(LE, (skygw_log_write_flush(
+                    LOGIF(LE, (mxs_log_flush(
                             LOGFILE_ERROR,
                                                      "Error : Loading users with dbnames for service [%s] encountered "
                             "error: [%s], MySQL errno %i",
@@ -856,7 +856,7 @@ getAllUsers(SERVICE *service, USERS *users)
                      * try loading users from mysql.user without DB names.
                      */
                     
-                    LOGIF(LE, (skygw_log_write_flush(
+                    LOGIF(LE, (mxs_log_flush(
                             LOGFILE_ERROR,
                             ERROR_NO_SHOW_DATABASES,
                             service->name, service_user)));
@@ -869,7 +869,7 @@ getAllUsers(SERVICE *service, USERS *users)
                     }
                     
                     if (mysql_query(con, users_query)) {
-                        LOGIF(LE, (skygw_log_write_flush(
+                        LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                                          "Error : Loading users for service [%s] encountered "
                                 "error: [%s], code %i",
@@ -884,7 +884,7 @@ getAllUsers(SERVICE *service, USERS *users)
                     
                     /* users successfully loaded but without db grants */
                     
-                    LOGIF(LM, (skygw_log_write_flush(
+                    LOGIF(LM, (mxs_log_flush(
                             LOGFILE_MESSAGE,
                                                      "Loading users from [mysql.user] without access to [mysql.db] for "
                             "service [%s]. MaxScale Authentication with DBname on connect "
@@ -895,14 +895,14 @@ getAllUsers(SERVICE *service, USERS *users)
 		/*
                  * users successfully loaded with db grants.
                  */
-                skygw_log_write(LOGFILE_DEBUG,"[%s] Loading users with db grants.",service->name);
+                mxs_log(LOGFILE_DEBUG,"[%s] Loading users with db grants.",service->name);
 		db_grants = 1;
             }
             
             result = mysql_store_result(con);
             
             if (result == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                                                  "Error : Loading users for service %s encountered "
                         "error: %s.",
@@ -918,7 +918,7 @@ getAllUsers(SERVICE *service, USERS *users)
             users_data = (char *)calloc(nusers, (users_data_row_len * sizeof(char)) + 1);
             
             if (users_data == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
                                                  "Error : Memory allocation for user data failed due to "
 			"%d, %s.",
@@ -944,7 +944,7 @@ getAllUsers(SERVICE *service, USERS *users)
 		if (row[2] != NULL) {
                     /* detect mysql_old_password (pre 4.1 protocol) */
                     if (strlen(row[2]) == 16) {
-                        LOGIF(LE, (skygw_log_write_flush(
+                        LOGIF(LE, (mxs_log_flush(
                                 LOGFILE_ERROR,
                                                          "%s: The user %s@%s has on old password in the "
                                 "backend database. MaxScale does not support these "
@@ -977,7 +977,7 @@ getAllUsers(SERVICE *service, USERS *users)
 			havedb = true;
 			if(service->strip_db_esc) {
 			    strip_escape_chars(dbnm);
-			    LOGIF(LD, (skygw_log_write(
+			    LOGIF(LD, (mxs_log(
 				    LOGFILE_DEBUG,
 						     "[%s]: %s -> %s",
 						     service->name,
@@ -989,14 +989,14 @@ getAllUsers(SERVICE *service, USERS *users)
 		    if(havedb && wildcard_db_grant(dbnm) && service->optimize_wildcard)
 		    {
 			rc = add_wildcard_users(users, row[0], row[1], password, row[4], dbnm, service->resources);
-			skygw_log_write(LOGFILE_DEBUG|LOGFILE_TRACE,"%s: Converted '%s' to %d individual database grants.",service->name,dbnm,rc);
+			mxs_log(LOGFILE_DEBUG|LOGFILE_TRACE,"%s: Converted '%s' to %d individual database grants.",service->name,dbnm,rc);
 		    }
 		    else
 		    {
 			rc = add_mysql_users_with_host_ipv4(users, row[0], row[1], password, row[4], havedb ? dbnm : NULL);
 		    }
 		    
-		    LOGIF(LD,(skygw_log_write(LOGFILE_DEBUG,"%s: Adding user:%s host:%s anydb:%s db:%s.",
+		    LOGIF(LD,(mxs_log(LOGFILE_DEBUG,"%s: Adding user:%s host:%s anydb:%s db:%s.",
 			     service->name,row[0],row[1],row[4],
 			     havedb ? dbnm : NULL)));
 		} else {
@@ -1020,7 +1020,7 @@ getAllUsers(SERVICE *service, USERS *users)
                             strcpy(dbgrant, "no db");
                         
                         /* Log the user being added with its db grants */
-                        LOGIF(LD, (skygw_log_write_flush(
+                        LOGIF(LD, (mxs_log_flush(
                                 LOGFILE_DEBUG|LOGFILE_TRACE,
                                                          "%s: User %s@%s for database %s added to "
                                 "service user table.",
@@ -1030,7 +1030,7 @@ getAllUsers(SERVICE *service, USERS *users)
                                                          dbgrant)));
                     } else {
                         /* Log the user being added (without db grants) */
-                        LOGIF(LD, (skygw_log_write_flush(
+                        LOGIF(LD, (mxs_log_flush(
                                 LOGFILE_DEBUG|LOGFILE_TRACE,
                                                          "%s: User %s@%s added to service user table.",
                                                          service->name,
@@ -1045,13 +1045,13 @@ getAllUsers(SERVICE *service, USERS *users)
 
 		} else if(rc == -1) {
 		    /** Duplicate user*/
-		    LOGIF(LT,(skygw_log_write(LT,
+		    LOGIF(LT,(mxs_log(LT,
 					     "Duplicate MySQL user found for service [%s]: %s@%s%s%s",
 					     service->name,
 					     row[0],row[1],havedb?" for database: ":"",
 					     havedb ?dbnm:"")));
 		} else {
-                    LOGIF(LE, (skygw_log_write_flush(
+                    LOGIF(LE, (mxs_log_flush(
                             LOGFILE_ERROR|LOGFILE_TRACE,
                                                      "Warning: Failed to add user %s@%s for service [%s]. "
                             "This user will be unavailable via MaxScale.",
@@ -1146,7 +1146,7 @@ getUsers(SERVICE *service, USERS *users)
 	con = mysql_init(NULL);
 
  	if (con == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : mysql_init: %s",
                         mysql_error(con))));
@@ -1158,7 +1158,7 @@ getUsers(SERVICE *service, USERS *users)
 		DEFAULT_WRITE_TIMEOUT,
 		DEFAULT_CONNECT_TIMEOUT))
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : failed to set timeout values for backend "
 			"connection.")));
@@ -1167,7 +1167,7 @@ getUsers(SERVICE *service, USERS *users)
 	}
 
 	if (mysql_options(con, MYSQL_OPT_USE_REMOTE_CONNECTION, NULL)) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : failed to set external connection. "
                         "It is needed for backend server connections.")));
@@ -1203,7 +1203,7 @@ getUsers(SERVICE *service, USERS *users)
 			server->server->port, 
 			NULL, 0) != NULL)) 
 	{
-		LOGIF(LD, (skygw_log_write_flush(
+		LOGIF(LD, (mxs_log_flush(
 			LOGFILE_DEBUG,
 			"Dbusers : Loading data from backend database with "
 			"Master role [%s:%i] for service [%s]",
@@ -1236,7 +1236,7 @@ getUsers(SERVICE *service, USERS *users)
 		}
 		
 		if (server != NULL) {
-			LOGIF(LD, (skygw_log_write_flush(
+			LOGIF(LD, (mxs_log_flush(
 				LOGFILE_DEBUG,
 				"Dbusers : Loading data from backend database "
 				"[%s:%i] for service [%s]",
@@ -1250,7 +1250,7 @@ getUsers(SERVICE *service, USERS *users)
 
 	if (server == NULL)
 	{
-	    LOGIF(LE, (skygw_log_write_flush(
+	    LOGIF(LE, (mxs_log_flush(
 		    LOGFILE_ERROR,
 		    "Error : Failed to connect to any of the backend servers for service [%s]. Cannot"
 		    " retrieve authentication data.",service->name)));
@@ -1262,7 +1262,7 @@ getUsers(SERVICE *service, USERS *users)
 	if (mysql_query(con, MYSQL_USERS_WITH_DB_COUNT)) {
 		if (mysql_errno(con) != ER_TABLEACCESS_DENIED_ERROR) {
                         /* This is an error we cannot handle, return */
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Error : Loading users for service [%s] encountered "
 				"error: [%s].",
@@ -1276,7 +1276,7 @@ getUsers(SERVICE *service, USERS *users)
 			 * try counting users from mysql.user without DB names.
 			 */
 			if (mysql_query(con, MYSQL_USERS_COUNT)) {
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Error : Loading users for service [%s] encountered "
 					"error: [%s].",
@@ -1291,7 +1291,7 @@ getUsers(SERVICE *service, USERS *users)
 	result = mysql_store_result(con);
 
 	if (result == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Loading users for service [%s] encountered "
                         "error: [%s].",
@@ -1308,7 +1308,7 @@ getUsers(SERVICE *service, USERS *users)
 	mysql_free_result(result);
 
 	if (!nusers) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Counting users for service %s returned 0",
                         service->name)));
@@ -1334,7 +1334,7 @@ getUsers(SERVICE *service, USERS *users)
 		if (1142 != mysql_errno(con)) {
 			/* This is an error we cannot handle, return */
 
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Error : Loading users with dbnames for service [%s] encountered "
 				"error: [%s], MySQL errno %i",
@@ -1351,7 +1351,7 @@ getUsers(SERVICE *service, USERS *users)
 			 * try loading users from mysql.user without DB names.
 			 */
 
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
                 ERROR_NO_SHOW_DATABASES,
                 service->name, service_user)));
@@ -1364,7 +1364,7 @@ getUsers(SERVICE *service, USERS *users)
 			}
 
 			if (mysql_query(con, users_query)) {
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Error : Loading users for service [%s] encountered "
 					"error: [%s], code %i",
@@ -1379,7 +1379,7 @@ getUsers(SERVICE *service, USERS *users)
 
 			/* users successfully loaded but without db grants */
 
-			LOGIF(LM, (skygw_log_write_flush(
+			LOGIF(LM, (mxs_log_flush(
 				LOGFILE_MESSAGE,
 				"Loading users from [mysql.user] without access to [mysql.db] for "
 				"service [%s]. MaxScale Authentication with DBname on connect "
@@ -1397,7 +1397,7 @@ getUsers(SERVICE *service, USERS *users)
 	result = mysql_store_result(con);
   
 	if (result == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Loading users for service %s encountered "
                         "error: %s.",
@@ -1413,7 +1413,7 @@ getUsers(SERVICE *service, USERS *users)
 	users_data = (char *)calloc(nusers, (users_data_row_len * sizeof(char)) + 1);
 
 	if (users_data == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Memory allocation for user data failed due to "
 			"%d, %s.",
@@ -1429,7 +1429,7 @@ getUsers(SERVICE *service, USERS *users)
 		/* load all mysql database names */
 		dbnames = getDatabases(service, con);
 
-		LOGIF(LD, (skygw_log_write(
+		LOGIF(LD, (mxs_log(
 			LOGFILE_DEBUG,
 			"Loaded %d MySQL Database Names for service [%s]",
 			dbnames,
@@ -1452,7 +1452,7 @@ getUsers(SERVICE *service, USERS *users)
 		if (row[2] != NULL) {
 			/* detect mysql_old_password (pre 4.1 protocol) */
 			if (strlen(row[2]) == 16) {
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"%s: The user %s@%s has on old password in the "
 					"backend database. MaxScale does not support these "
@@ -1485,7 +1485,7 @@ getUsers(SERVICE *service, USERS *users)
 			havedb = true;
 			if(service->strip_db_esc) {
 			    strip_escape_chars(dbnm);
-			    LOGIF(LD, (skygw_log_write(
+			    LOGIF(LD, (mxs_log(
 				    LOGFILE_DEBUG,
 						     "[%s]: %s -> %s",
 						     service->name,
@@ -1499,7 +1499,7 @@ getUsers(SERVICE *service, USERS *users)
 			if(service->optimize_wildcard)
 			{
 			    rc = add_wildcard_users(users, row[0], row[1], password, row[4], dbnm, service->resources);
-			    skygw_log_write(LOGFILE_DEBUG|LOGFILE_TRACE,"%s: Converted '%s' to %d individual database grants.",service->name,row[5],rc);
+			    mxs_log(LOGFILE_DEBUG|LOGFILE_TRACE,"%s: Converted '%s' to %d individual database grants.",service->name,row[5],rc);
 			}
 			else
 			{
@@ -1533,7 +1533,7 @@ getUsers(SERVICE *service, USERS *users)
 					strcpy(dbgrant, "no db");
 
 				/* Log the user being added with its db grants */
-				LOGIF(LD, (skygw_log_write_flush(
+				LOGIF(LD, (mxs_log_flush(
 						LOGFILE_DEBUG|LOGFILE_TRACE,
 						"%s: User %s@%s for database %s added to "
 						"service user table.",
@@ -1543,7 +1543,7 @@ getUsers(SERVICE *service, USERS *users)
 						dbgrant)));
 			} else {
 				/* Log the user being added (without db grants) */
-				LOGIF(LD, (skygw_log_write_flush(
+				LOGIF(LD, (mxs_log_flush(
 					LOGFILE_DEBUG|LOGFILE_TRACE,
 						"%s: User %s@%s added to service user table.",
 						service->name,
@@ -1558,13 +1558,13 @@ getUsers(SERVICE *service, USERS *users)
 
 		} else if(rc == -1) {
 		    /** Duplicate user*/
-		    LOGIF(LE,(skygw_log_write(LT|LE,
+		    LOGIF(LE,(mxs_log(LT|LE,
 					     "Warning: Duplicate MySQL user found for service [%s]: %s@%s%s%s",
 					     service->name,
 					     row[0],row[1],db_grants?" for database: ":"",
 					     db_grants ?row[5]:"")));
 		} else {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR|LOGFILE_TRACE,
 				"Warning: Failed to add user %s@%s for service [%s]. "
 				"This user will be unavailable via MaxScale.",
@@ -2020,7 +2020,7 @@ static int gw_mysql_set_timeouts(
 		MYSQL_OPT_READ_TIMEOUT, 
 		(void *)&read_timeout)))
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : failed to set read timeout for backend "
 			"connection.")));
@@ -2031,7 +2031,7 @@ static int gw_mysql_set_timeouts(
 			MYSQL_OPT_CONNECT_TIMEOUT, 
 			(void *)&connect_timeout)))
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : failed to set connect timeout for backend "
 			"connection.")));
@@ -2042,7 +2042,7 @@ static int gw_mysql_set_timeouts(
 			MYSQL_OPT_WRITE_TIMEOUT, 
 			(void *)&write_timeout)))
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : failed to set write timeout for backend "
 			"connection.")));
@@ -2303,7 +2303,7 @@ int add_wildcard_users(USERS *users, char* name, char* host, char* password, cha
     if((err = regcomp(&re,restr,REG_ICASE|REG_NOSUB)))
     {
 	regerror(err,&re,errbuf,1024);
-	skygw_log_write(LOGFILE_ERROR,"Error: Failed to compile regex "
+	mxs_log(LOGFILE_ERROR,"Error: Failed to compile regex "
 		"when resolving wildcard database grants: %s",
 		 errbuf);
 	free(restr);

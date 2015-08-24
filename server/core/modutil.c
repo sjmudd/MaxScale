@@ -580,7 +580,7 @@ GWBUF* modutil_get_complete_packets(GWBUF** p_readbuf)
     /** The next packet is a partial, split into complete and partial packets */
     if((buff = gwbuf_clone_portion(packet,0,total)) == NULL)
     {
-	skygw_log_write(LOGFILE_ERROR,
+	mxs_log(LOGFILE_ERROR,
 		 "Error: Failed to partially clone buffer.");
 	return NULL;
     }
@@ -727,7 +727,7 @@ static void modutil_reply_routing_error(
 	
 	if (buf == NULL)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Creating routing error message failed."))); 
 		return;

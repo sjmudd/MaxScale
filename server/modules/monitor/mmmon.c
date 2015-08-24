@@ -79,7 +79,7 @@ version()
 void
 ModuleInit()
 {
-	LOGIF(LM, (skygw_log_write(
+	LOGIF(LM, (mxs_log(
                            LOGFILE_MESSAGE,
                            "Initialise the Multi-Master Monitor module %s.",
                            version_str)));
@@ -153,13 +153,13 @@ startMonitor(void *arg,void* opt)
 		script_error = true;
 		if(access(params->value,F_OK) == 0)
 		{
-		skygw_log_write(LE,
+		mxs_log(LE,
 			 "Error: The file cannot be executed: %s",
 			 params->value);
 		}
 		else
 		{
-		skygw_log_write(LE,
+		mxs_log(LE,
 			 "Error: The file cannot be found: %s",
 			 params->value);
 		}
@@ -177,7 +177,7 @@ startMonitor(void *arg,void* opt)
     }
     if(script_error)
     {
-	skygw_log_write(LE,"Error: Errors were found in the script configuration parameters "
+	mxs_log(LE,"Error: Errors were found in the script configuration parameters "
 		"for the monitor '%s'. The script will not be used.",mon->name);
 	free(handle->script);
 	handle->script = NULL;
@@ -309,7 +309,7 @@ char 		  *server_string;
                         
                         if (mon_print_fail_status(database))
                         {
-                                LOGIF(LE, (skygw_log_write_flush(
+                                LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Error : Monitor was unable to connect to "
                                         "server %s:%d : \"%s\"",
@@ -372,7 +372,7 @@ char 		  *server_string;
 		if(mysql_field_count(database->con) != 1)
 		{
 		    mysql_free_result(result);
-		    skygw_log_write(LE,"Error: Unexpected result for 'SELECT @@server_id'. Expected 1 column."
+		    mxs_log(LE,"Error: Unexpected result for 'SELECT @@server_id'. Expected 1 column."
 				    " MySQL Version: %s",version_str);
 		    return;
 		}
@@ -406,7 +406,7 @@ char 		  *server_string;
 			if(mysql_field_count(database->con) < 42)
 			{
 			    mysql_free_result(result);
-			    skygw_log_write(LE,"Error: \"SHOW ALL SLAVES STATUS\" "
+			    mxs_log(LE,"Error: \"SHOW ALL SLAVES STATUS\" "
 				    "returned less than the expected amount of columns. Expected 42 columns"
 				    " MySQL Version: %s",version_str);
 			    return;
@@ -459,7 +459,7 @@ char 		  *server_string;
 			    {
 				if(database->log_version_err)
 				{
-				    skygw_log_write(LE,"Error: \"SHOW SLAVE STATUS\" "
+				    mxs_log(LE,"Error: \"SHOW SLAVE STATUS\" "
 					    " for versions less than 5.5 does not have master_server_id, "
 					    "replication tree cannot be resolved for server %s."
 					    " MySQL Version: %s",database->server->unique_name,version_str);
@@ -468,7 +468,7 @@ char 		  *server_string;
 			    }
 			    else
 			    {
-				skygw_log_write(LE,"Error: \"SHOW SLAVE STATUS\" "
+				mxs_log(LE,"Error: \"SHOW SLAVE STATUS\" "
 					"returned less than the expected amount of columns. Expected 40 columns."
 					" MySQL Version: %s",version_str);
 			    }
@@ -509,7 +509,7 @@ char 		  *server_string;
 		if(mysql_field_count(database->con) < 2)
 		{
 		    mysql_free_result(result);
-		    skygw_log_write(LE,"Error: Unexpected result for \"SHOW GLOBAL VARIABLES LIKE 'read_only'\". Expected 2 columns."
+		    mxs_log(LE,"Error: Unexpected result for \"SHOW GLOBAL VARIABLES LIKE 'read_only'\". Expected 2 columns."
 				    " MySQL Version: %s",version_str);
 		    return;
 		}
@@ -577,7 +577,7 @@ detect_stale_master = handle->detectStaleMaster;
 
 	if (mysql_thread_init())
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                                    LOGFILE_ERROR,
                                    "Fatal : mysql_thread_init failed in monitor "
                                    "module. Exiting.\n")));
@@ -631,7 +631,7 @@ detect_stale_master = handle->detectStaleMaster;
                         if (mon_status_changed(ptr) || 
                                 mon_print_fail_status(ptr))
                         {
-                                LOGIF(LD, (skygw_log_write_flush(
+                                LOGIF(LD, (mxs_log_flush(
                                         LOGFILE_DEBUG,
                                         "Backend server %s:%d state : %s",
                                         ptr->server->name,
@@ -664,7 +664,7 @@ detect_stale_master = handle->detectStaleMaster;
 				/* If "detect_stale_master" option is On, let's use the previus master */
 				if (detect_stale_master && root_master && (!strcmp(ptr->server->name, root_master->server->name) && ptr->server->port == root_master->server->port) && (ptr->server->status & SERVER_MASTER) && !(ptr->pending_status & SERVER_MASTER)) {
 					/* in this case server->status will not be updated from pending_status */
-					LOGIF(LM, (skygw_log_write_flush(
+					LOGIF(LM, (mxs_log_flush(
 						LOGFILE_MESSAGE, "[mysql_mon]: root server [%s:%i] is no longer Master, let's use it again even if it could be a stale master, you have been warned!", ptr->server->name, ptr->server->port)));
 					/* Set the STALE bit for this server in server struct */
 					server_set_status(ptr->server, SERVER_STALE_STATUS);
@@ -684,7 +684,7 @@ detect_stale_master = handle->detectStaleMaster;
 			evtype = mon_get_event_type(ptr);
 			if(isMySQLEvent(evtype))
 			{
-			    skygw_log_write(LOGFILE_TRACE,"Server changed state: %s[%s:%u]: %s",
+			    mxs_log(LOGFILE_TRACE,"Server changed state: %s[%s:%u]: %s",
 				     ptr->server->unique_name,
 				     ptr->server->name,ptr->server->port,
 				     mon_get_event_name(ptr));

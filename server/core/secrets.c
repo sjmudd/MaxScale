@@ -82,7 +82,7 @@ static int	reported = 0;
 		{
 			if (!reported)
 			{
-				LOGIF(LM, (skygw_log_write(
+				LOGIF(LM, (mxs_log(
 				LOGFILE_MESSAGE,
 				"Encrypted password file %s can't be accessed "
 				"(%s). Password encryption is not used.",
@@ -93,7 +93,7 @@ static int	reported = 0;
 		}
 		else
 		{
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"Error : access for secrets file "
 				"[%s] failed. Error %d, %s.",
@@ -109,7 +109,7 @@ static int	reported = 0;
 	{
                 int eno = errno;
                 errno = 0;
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Failed opening secret "
                         "file [%s]. Error %d, %s.",
@@ -125,7 +125,7 @@ static int	reported = 0;
                 int eno = errno;
                 errno = 0;
 		close(fd);
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : fstat for secret file %s "
                         "failed. Error %d, %s.",
@@ -140,7 +140,7 @@ static int	reported = 0;
                 int eno = errno;
                 errno = 0;
 		close(fd);
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Secrets file %s has "
                         "incorrect size. Error %d, %s.",
@@ -152,7 +152,7 @@ static int	reported = 0;
 	if (secret_stats.st_mode != (S_IRUSR|S_IFREG))
 	{
 		close(fd);
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Ignoring secrets file "
                         "%s, invalid permissions.",
@@ -163,7 +163,7 @@ static int	reported = 0;
 	if ((keys = (MAXKEYS *)malloc(sizeof(MAXKEYS))) == NULL)
 	{
 		close(fd);
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Memory allocation failed "
                         "for key structure.")));
@@ -182,7 +182,7 @@ static int	reported = 0;
                 errno = 0;
 		close(fd);
 		free(keys);
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Read from secrets file "
                         "%s failed. Read %d, expected %d bytes. Error %d, %s.",
@@ -199,7 +199,7 @@ static int	reported = 0;
                 int eno = errno;
                 errno = 0;
 		free(keys);
-                LOGIF(LE, (skygw_log_write_flush(
+                LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Failed closing the "
                         "secrets file %s. Error %d, %s.",
@@ -230,7 +230,7 @@ char secret_file[PATH_MAX + 10];
 
 if(strlen(path) > PATH_MAX)
 {
-    skygw_log_write(LOGFILE_ERROR,"Error: Pathname too long.");
+    mxs_log(LOGFILE_ERROR,"Error: Pathname too long.");
     return 1;
 }
 
@@ -240,7 +240,7 @@ if(strlen(path) > PATH_MAX)
 	/* Open for writing | Create | Truncate the file for writing */
         if ((fd = open(secret_file, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR)) < 0)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : failed opening secret "
                         "file [%s]. Error %d, %s.",
@@ -253,7 +253,7 @@ if(strlen(path) > PATH_MAX)
 	/* Open for writing | Create | Truncate the file for writing */
         if ((randfd = open("/dev/random", O_RDONLY)) < 0)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : failed opening /dev/random. Error %d, %s.",
                         errno,
@@ -264,7 +264,7 @@ if(strlen(path) > PATH_MAX)
 
 		if(read(randfd,(void*)&randval,sizeof(unsigned int)) < 1)
     {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
 						"Error : failed to read /dev/random.")));
 		close(fd);
@@ -280,7 +280,7 @@ if(strlen(path) > PATH_MAX)
 	/* Write data */
 	if (write(fd, &key, sizeof(key)) < 0)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : failed writing into "
                         "secret file [%s]. Error %d, %s.",
@@ -294,7 +294,7 @@ if(strlen(path) > PATH_MAX)
 	/* close file */
 	if (close(fd) < 0)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : failed closing the "
                         "secret file [%s]. Error %d, %s.",
@@ -305,7 +305,7 @@ if(strlen(path) > PATH_MAX)
 
 	if( chmod(secret_file, S_IRUSR) < 0)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : failed to change the permissions of the"
                         "secret file [%s]. Error %d, %s.",

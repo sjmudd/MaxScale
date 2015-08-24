@@ -135,7 +135,7 @@ version()
 void
 ModuleInit()
 {
-        LOGIF(LM, (skygw_log_write(
+        LOGIF(LM, (mxs_log(
                            LOGFILE_MESSAGE,
                            "Initialise binlog router module %s.\n", version_str)));
         spinlock_init(&instlock);
@@ -180,7 +180,7 @@ char	*defuuid;
 	if(service->credentials.name == NULL ||
 	   service->credentials.authdata == NULL)
 	{
-	    skygw_log_write(LE,"%s: Error: Service is missing user credentials."
+	    mxs_log(LE,"%s: Error: Service is missing user credentials."
 		    " Add the missing username or passwd parameter to the service.",
 			    service->name);
 	    return NULL;
@@ -188,7 +188,7 @@ char	*defuuid;
 
 	if(options == NULL || options[0] == NULL)
 	{
-	    skygw_log_write(LE,
+	    mxs_log(LE,
 		     "%s: Error: No router options supplied for binlogrouter",
 		     service->name);
 	    return NULL;
@@ -206,7 +206,7 @@ char	*defuuid;
 	 */
 	if (service->servers == NULL || service->servers->next != NULL)
 	{
-		skygw_log_write(LE,
+		mxs_log(LE,
 			"%s: Error : Exactly one database server may be "
 			"for use with the binlog router.",
 			service->name);
@@ -275,7 +275,7 @@ char	*defuuid;
 		{
 			if ((value = strchr(options[i], '=')) == NULL)
 			{
-                            LOGIF(LE, (skygw_log_write(
+                            LOGIF(LE, (mxs_log(
 				LOGFILE_ERROR, "Warning : Unsupported router "
 					"option %s for binlog router.",
 					options[i])));
@@ -374,7 +374,7 @@ char	*defuuid;
 				}
 				else
 				{
-					LOGIF(LE, (skygw_log_write(
+					LOGIF(LE, (mxs_log(
 						LOGFILE_ERROR,
 						"Warning : Unsupported router "
 						"option %s for binlog router.",
@@ -385,7 +385,7 @@ char	*defuuid;
 	}
 	else
 	{
-		LOGIF(LE, (skygw_log_write(
+		LOGIF(LE, (mxs_log(
 			LOGFILE_ERROR, "%s: Error: No router options supplied for binlogrouter",
 				service->name)));
 	}
@@ -425,14 +425,14 @@ char	*defuuid;
 	 */
 	if (blr_file_init(inst) == 0)
 	{
-		LOGIF(LE, (skygw_log_write(
+		LOGIF(LE, (mxs_log(
 			LOGFILE_ERROR,
 			"%s: Service not started due to lack of binlog directory.",
 				service->name)));
 		free(inst);
 		return NULL;
 	}
-	LOGIF(LT, (skygw_log_write(
+	LOGIF(LT, (mxs_log(
 			LOGFILE_TRACE,
 			"Binlog router: current binlog file is: %s, current position %u\n",
 						inst->binlog_name, inst->binlog_position)));
@@ -482,7 +482,7 @@ static int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     if(service->servers == NULL ||
        service->servers->next != NULL)
     {
-	LOGIF(LE, (skygw_log_write(
+	LOGIF(LE, (mxs_log(
 		LOGFILE_ERROR,
 				 "Error : Exactly one database server may be "
 		"for use with the binlog router.")));
@@ -497,7 +497,7 @@ static int updateInstance(ROUTER *instance,SERVICE *service, char **options)
 	{
 	    if ((value = strchr(options[i], '=')) == NULL)
 	    {
-		LOGIF(LE, (skygw_log_write(
+		LOGIF(LE, (mxs_log(
 			LOGFILE_ERROR, "Warning : Unsupported router "
 			"option %s for binlog router.",
 					 options[i])));
@@ -599,7 +599,7 @@ static int updateInstance(ROUTER *instance,SERVICE *service, char **options)
 		}
 		else
 		{
-		    LOGIF(LE, (skygw_log_write(
+		    LOGIF(LE, (mxs_log(
 			    LOGFILE_ERROR,
 					     "Warning : Unsupported router "
 			    "option %s for binlog router.",
@@ -611,7 +611,7 @@ static int updateInstance(ROUTER *instance,SERVICE *service, char **options)
     }
     else
     {
-	LOGIF(LE, (skygw_log_write(
+	LOGIF(LE, (mxs_log(
 		LOGFILE_ERROR, "%s: No router options supplied for binlogrouter",
 				 service->name)));
 	return -1;
@@ -638,7 +638,7 @@ newSession(ROUTER *instance, SESSION *session)
 ROUTER_INSTANCE		*inst = (ROUTER_INSTANCE *)instance;
 ROUTER_SLAVE		*slave;
 
-        LOGIF(LD, (skygw_log_write_flush(
+        LOGIF(LD, (mxs_log_flush(
                 LOGFILE_DEBUG,
                 "binlog router: %lu [newSession] new router session with "
                 "session %p, and inst %p.",
@@ -649,7 +649,7 @@ ROUTER_SLAVE		*slave;
 
 	if ((slave = (ROUTER_SLAVE *)calloc(1, sizeof(ROUTER_SLAVE))) == NULL)
 	{
-		LOGIF(LD, (skygw_log_write_flush(
+		LOGIF(LD, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Insufficient memory to create new slave session for binlog router")));
                 return NULL;
@@ -733,7 +733,7 @@ int			prev_val;
 	}
 	spinlock_release(&router->lock);
 
-        LOGIF(LD, (skygw_log_write_flush(
+        LOGIF(LD, (mxs_log_flush(
                 LOGFILE_DEBUG,
                 "%lu [freeSession] Unlinked router_client_session %p from "
                 "router %p. Connections : %d. ",
@@ -770,13 +770,13 @@ ROUTER_SLAVE	 *slave = (ROUTER_SLAVE *)router_session;
 		/*
 		 * We must be closing the master session.
 		 */
-		LOGIF(LM, (skygw_log_write_flush(
+		LOGIF(LM, (mxs_log_flush(
 			LOGFILE_MESSAGE,
 			"%s: Master %s disconnected after %ld seconds. "
 			"%d events read,",
 			router->service->name, router->service->servers->server->name,
 			time(0) - router->connect_time, router->stats.n_binlogs_ses)));
-        	LOGIF(LE, (skygw_log_write_flush(
+        	LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Binlog router close session with master server %s",
 			router->service->servers->server->unique_name)));
@@ -793,7 +793,7 @@ ROUTER_SLAVE	 *slave = (ROUTER_SLAVE *)router_session;
 		/* decrease server registered slaves counter */
 		atomic_add(&router->stats.n_registered, -1);
 
-		LOGIF(LM, (skygw_log_write_flush(
+		LOGIF(LM, (mxs_log_flush(
 			LOGFILE_MESSAGE,
 			"%s: Slave %s, server id %d, disconnected after %ld seconds. "
 			"%d SQL commands, %d events sent (%lu bytes).",
@@ -1268,7 +1268,7 @@ char		msg[85], *errmsg;
 		strcpy(msg, "");
 
 	errmsg = extract_message(message);
-       	LOGIF(LE, (skygw_log_write_flush(
+       	LOGIF(LE, (mxs_log_flush(
 		LOGFILE_ERROR, "%s: Master connection error '%s' in state '%s', "
 		"%sattempting reconnect to master",
 			router->service->name, errmsg,
@@ -1276,7 +1276,7 @@ char		msg[85], *errmsg;
 	if (errmsg)
 		free(errmsg);
 	*succp = true;
-	LOGIF(LM, (skygw_log_write_flush(
+	LOGIF(LM, (mxs_log_flush(
 		LOGFILE_MESSAGE,
 		"%s: Master %s disconnected after %ld seconds. "
 		"%d events read.",

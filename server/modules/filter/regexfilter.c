@@ -182,7 +182,7 @@ char		*logfile = NULL;
 			}
 			else if (!filter_standard_parameter(params[i]->name))
 			{
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"regexfilter: Unexpected parameter '%s'.\n",
 					params[i]->name)));
@@ -203,7 +203,7 @@ char		*logfile = NULL;
 				}
 				else
 				{
-					LOGIF(LE, (skygw_log_write_flush(
+					LOGIF(LE, (mxs_log_flush(
 						LOGFILE_ERROR,
 						"regexfilter: unsupported option '%s'.\n",
 						options[i])));
@@ -220,7 +220,7 @@ char		*logfile = NULL;
 
 		if (regcomp(&my_instance->re, my_instance->match, REG_ICASE))
 		{
-			LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 				"regexfilter: Invalid regular expression '%s'.\n",
 					my_instance->match)));
 			free(my_instance->match);
@@ -234,7 +234,7 @@ char		*logfile = NULL;
 		{
 		    if((my_instance->logfile = fopen(logfile,"a")) == NULL)
 		    {
-			LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 				"regexfilter: Failed to open file '%s'.\n",
 					logfile)));
 			free(my_instance->match);
@@ -289,7 +289,7 @@ updateInstance(FILTER *instance,char **options, FILTER_PARAMETER **params)
 	    logfile = strdup(params[i]->value);
 	else if (!filter_standard_parameter(params[i]->name))
 	{
-	    LOGIF(LE, (skygw_log_write_flush(
+	    LOGIF(LE, (mxs_log_flush(
 		    LOGFILE_ERROR,
 					     "regexfilter: Unexpected parameter '%s'.\n",
 					     params[i]->name)));
@@ -310,7 +310,7 @@ updateInstance(FILTER *instance,char **options, FILTER_PARAMETER **params)
 	    }
 	    else
 	    {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 						 "regexfilter: unsupported option '%s'.\n",
 						 options[i])));
@@ -330,7 +330,7 @@ updateInstance(FILTER *instance,char **options, FILTER_PARAMETER **params)
 
     if (regcomp(&re, match, REG_ICASE))
     {
-	LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+	LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 					 "regexfilter: Invalid regular expression '%s'.\n",
 					 match)));
 	free(match);
@@ -345,7 +345,7 @@ updateInstance(FILTER *instance,char **options, FILTER_PARAMETER **params)
     {
 	if((file = fopen(logfile,"a")) == NULL)
 	{
-	    LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,
+	    LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,
 					     "regexfilter: Failed to open file '%s'.\n",
 					     logfile)));
 	free(match);
@@ -635,7 +635,7 @@ void log_match(REGEX_INSTANCE* inst, char* re, char* old, char* new)
     }
     if(inst->log_trace)
     {
-	LOGIF(LT,(skygw_log_write(LT,"Match %s: [%s] -> [%s]",re,old,new)));
+	LOGIF(LT,(mxs_log(LT,"Match %s: [%s] -> [%s]",re,old,new)));
     }
 }
 
@@ -654,6 +654,6 @@ void log_nomatch(REGEX_INSTANCE* inst, char* re, char* old)
     }
     if(inst->log_trace)
     {
-	LOGIF(LT,(skygw_log_write(LT,"No match %s: [%s]",re,old)));
+	LOGIF(LT,(mxs_log(LT,"No match %s: [%s]",re,old)));
     }
 }

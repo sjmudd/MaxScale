@@ -427,7 +427,7 @@ int			syseno = 0;
                    sizeof(one));
 
 	if(syseno != 0){
-		skygw_log_write_flush(LOGFILE_ERROR,"Error: Failed to set socket options. Error %d: %s",errno,strerror(errno));
+		mxs_log_flush(LOGFILE_ERROR,"Error: Failed to set socket options. Error %d: %s",errno,strerror(errno));
 		return 0;
 	}
         /* set NONBLOCKING mode */
@@ -442,7 +442,7 @@ int			syseno = 0;
         rc = listen(listener->fd, SOMAXCONN);
         
         if (rc == 0) {
-            LOGIF(LM, (skygw_log_write_flush(LOGFILE_MESSAGE,"Listening httpd connections at %s", config)));
+            LOGIF(LM, (mxs_log_flush(LOGFILE_MESSAGE,"Listening httpd connections at %s", config)));
         } else {
             int eno = errno;
             errno = 0;

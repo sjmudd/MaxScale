@@ -68,7 +68,7 @@ int setnonblocking(int fd) {
 	int fl;
 
 	if ((fl = fcntl(fd, F_GETFL, 0)) == -1) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Can't GET fcntl for %i, errno = %d, %s.",
                         fd,
@@ -78,7 +78,7 @@ int setnonblocking(int fd) {
 	}
 
 	if (fcntl(fd, F_SETFL, fl | O_NONBLOCK) == -1) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                         LOGFILE_ERROR,
                         "Error : Can't SET fcntl for %i, errno = %d, %s",
                         fd,

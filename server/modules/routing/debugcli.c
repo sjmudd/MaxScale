@@ -105,7 +105,7 @@ version()
 void
 ModuleInit()
 {
-	LOGIF(LM, (skygw_log_write(
+	LOGIF(LM, (mxs_log(
                            LOGFILE_MESSAGE,
                            "Initialise debug CLI router module %s.\n",
                            version_str)));
@@ -164,7 +164,7 @@ int		i;
 			}
 			else
 			{
-				LOGIF(LE, (skygw_log_write(
+				LOGIF(LE, (mxs_log(
 					LOGFILE_ERROR,
 					"Unknown option for CLI '%s'\n",
 					options[i])));

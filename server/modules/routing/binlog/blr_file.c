@@ -94,7 +94,7 @@ struct dirent	*dp;
 	}
 	if (access(router->binlogdir, R_OK) == -1)
 	{
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 			"%s: Unable to read the binlog directory %s.",
 					router->service->name, router->binlogdir)));
 		return 0;
@@ -104,7 +104,7 @@ struct dirent	*dp;
 	root_len = strlen(router->fileroot);
 	if ((dirp = opendir(path)) == NULL)
 	{
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 			"%s: Unable to read the binlog directory %s, %s.",
 				router->service->name, router->binlogdir,
 				strerror(errno))));
@@ -201,7 +201,7 @@ int		fd;
 	}
 	else
 	{
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 			"%s: Failed to create binlog file %s, %s.",
 				router->service->name, path, strerror(errno))));
 		return 0;
@@ -234,7 +234,7 @@ int		fd;
 
 	if ((fd = open(path, O_RDWR|O_APPEND, 0666)) == -1)
 	{
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 			"Failed to open binlog file %s for append.",
 				path)));
 		return;
@@ -250,7 +250,7 @@ int		fd;
 		} else {
 			/* If for any reason the file's length is between 1 and 3 bytes
 			 * then report an error. */
-	                LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+	                LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"%s: binlog file %s has an invalid length %d.",
 				router->service->name, path, router->binlog_position)));
 			close(fd);
@@ -278,7 +278,7 @@ int	n;
 	if ((n = pwrite(router->binlog_fd, buf, hdr->event_size,
 				hdr->next_pos - hdr->event_size)) != hdr->event_size)
 	{
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 			"%s: Failed to write binlog record at %d of %s, %s. "
 			"Truncating to previous record.",
 			router->service->name, hdr->next_pos - hdr->event_size,
@@ -347,7 +347,7 @@ BLFILE		*file;
 
 	if ((file->fd = open(path, O_RDONLY, 0666)) == -1)
 	{
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 			"Failed to open binlog file %s", path)));
 		free(file);
 		spinlock_release(&router->fileslock);
@@ -388,7 +388,7 @@ struct	stat	statb;
 		filelen = statb.st_size;
 	if (pos >= filelen)
 	{
-		LOGIF(LD, (skygw_log_write(LOGFILE_ERROR,
+		LOGIF(LD, (mxs_log(LOGFILE_ERROR,
 			"Attempting to read off the end of the binlog file %s, "
 			"event at %lu.", file->binlogname, pos)));
 		return NULL;
@@ -407,23 +407,23 @@ struct	stat	statb;
 		switch (n)
 		{
 		case 0:
-			LOGIF(LD, (skygw_log_write(LOGFILE_DEBUG,
+			LOGIF(LD, (mxs_log(LOGFILE_DEBUG,
 				"Reached end of binlog file at %d.",
 					pos)));
 			break;
 		case -1:
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"Failed to read binlog file %s at position %d"
 				" (%s).", file->binlogname,
 						pos, strerror(errno))));
 			if (errno == EBADF)
-				LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+				LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 					"Bad file descriptor in read binlog for file %s"
 					", reference count is %d, descriptor %d.",
 						file->binlogname, file->refcnt, file->fd)));
 			break;
 		default:
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"Short read when reading the header. "
 				"Expected 19 bytes but got %d bytes. "
 				"Binlog file is %s, position %d",
@@ -441,7 +441,7 @@ struct	stat	statb;
 
 	if (router->mariadb10_compat) {
 		if (hdr->event_type > MAX_EVENT_TYPE_MARIADB10) {
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"Invalid MariaDB 10 event type 0x%x. "
 				"Binlog file is %s, position %d",
 				hdr->event_type,
@@ -450,7 +450,7 @@ struct	stat	statb;
 		}
 	} else {
 		if (hdr->event_type > MAX_EVENT_TYPE) {
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"Invalid event type 0x%x. " 
 				"Binlog file is %s, position %d",
 				hdr->event_type,
@@ -462,7 +462,7 @@ struct	stat	statb;
 
 	if (hdr->next_pos < pos && hdr->event_type != ROTATE_EVENT)
 	{
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 			"Next position in header appears to be incorrect "
 			"rereading event header at pos %ul in file %s, "
 			"file size is %ul. Master will write %ul in %s next.",
@@ -473,23 +473,23 @@ struct	stat	statb;
 			switch (n)
 			{
 			case 0:
-				LOGIF(LD, (skygw_log_write(LOGFILE_DEBUG,
+				LOGIF(LD, (mxs_log(LOGFILE_DEBUG,
 					"Reached end of binlog file at %d.",
 						pos)));
 				break;
 			case -1:
-				LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+				LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 					"Failed to read binlog file %s at position %d"
 					" (%s).", file->binlogname,
 							pos, strerror(errno))));
 				if (errno == EBADF)
-					LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+					LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 						"Bad file descriptor in read binlog for file %s"
 						", reference count is %d, descriptor %d.",
 							file->binlogname, file->refcnt, file->fd)));
 				break;
 			default:
-				LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+				LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 					"Short read when reading the header. "
 					"Expected 19 bytes but got %d bytes. "
 					"Binlog file is %s, position %d",
@@ -507,21 +507,21 @@ struct	stat	statb;
 
 		if (hdr->next_pos < pos && hdr->event_type != ROTATE_EVENT)
 		{
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"Next position still incorrect after "
 				"rereading")));
 			return NULL;
 		}
 		else
 		{
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"Next position corrected by "
 				"rereading")));
 		}
 	}
 	if ((result = gwbuf_alloc(hdr->event_size)) == NULL)
 	{
-		LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+		LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 			"Failed to allocate memory for binlog entry, "
                         "size %d at %d.",
                         hdr->event_size, pos)));
@@ -534,7 +534,7 @@ struct	stat	statb;
 	{
 		if (n == -1)
 		{
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"Error reading the event at %ld in %s. "
 				"%s, expected %d bytes.",
 				pos, file->binlogname, 
@@ -542,13 +542,13 @@ struct	stat	statb;
 		}
 		else
 		{
-			LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+			LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 				"Short read when reading the event at %ld in %s. "
 				"Expected %d bytes got %d bytes.",
 				pos, file->binlogname, hdr->event_size - 19, n)));
 			if (filelen != 0 && filelen - pos < hdr->event_size)
 			{
-				LOGIF(LE, (skygw_log_write(LOGFILE_ERROR,
+				LOGIF(LE, (mxs_log(LOGFILE_ERROR,
 					"Binlog event is close to the end of the binlog file, "
 					"current file size is %u.",
 					filelen)));
@@ -615,7 +615,7 @@ int	i;
 	bufp += sprintf(bufp, "%s: ", msg);
 	for (i = 0; i < 19; i++)
 		bufp += sprintf(bufp, "0x%02x ", ptr[i]);
-	skygw_log_write_flush(file, "%s", buf);
+	mxs_log_flush(file, "%s", buf);
 	
 }
 

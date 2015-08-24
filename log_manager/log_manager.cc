@@ -476,7 +476,7 @@ return_succp:
  * @return true if succeed, otherwise false
  *
  */
-bool skygw_logmanager_init(
+bool mxs_logmanager_init(
         int    argc,
         char*  argv[])
 {
@@ -549,9 +549,9 @@ static void logmanager_done_nomutex(void)
 /** 
  * This function is provided for atexit() system function. 
  */
-void skygw_logmanager_exit(void)
+void mxs_logmanager_exit(void)
 {
-        skygw_logmanager_done();
+        mxs_logmanager_done();
 }
 
 /** 
@@ -560,7 +560,7 @@ void skygw_logmanager_exit(void)
  * Stops file writing thread, releases filewriter, and logfiles.
  *
  */
-void skygw_logmanager_done(void)
+void mxs_logmanager_done(void)
 {
         acquire_lock(&lmlock);
 
@@ -1233,7 +1233,7 @@ static blockbuf_t* blockbuf_init(
 }
 
 
-int skygw_log_enable(
+int mxs_log_enable(
         logfile_id_t id)
 {
         bool err = 0;
@@ -1258,7 +1258,7 @@ return_err:
         return err;
 }
 
-int skygw_log_disable(
+int mxs_log_disable(
 	logfile_id_t id) /*< no locking */
 {
 	int rc;
@@ -1366,7 +1366,7 @@ return_succp:
 }
 
 
-int skygw_log_write_flush(
+int mxs_log_flush(
         logfile_id_t  id,
         const char*   str,
         ...)
@@ -1375,7 +1375,7 @@ int skygw_log_write_flush(
         va_list valist;
         size_t  len;
 
-        if(!LOG_IS_ENABLED(id))
+        if(!mxs_log_enabed(id))
             return err;
 
         if (!logmanager_register(true)) 
@@ -1404,7 +1404,7 @@ int skygw_log_write_flush(
              * If particular log is disabled in general and it is not enabled for
              * the current session, check the next log.
              */
-            if (!LOG_IS_ENABLED(i) || (i & id) == 0)
+            if (!mxs_log_enabed(i) || (i & id) == 0)
             {
                 continue;
             }
@@ -1426,7 +1426,7 @@ return_err:
 
 
 
-int skygw_log_write(
+int mxs_log(
         logfile_id_t  id,
         const char*   str,
         ...)
@@ -1435,7 +1435,7 @@ int skygw_log_write(
         va_list valist;
         size_t  len;
 
-        if(!LOG_IS_ENABLED(id))
+        if(!mxs_log_enabed(id))
             return err;
 
         if (!logmanager_register(true)) 
@@ -1470,7 +1470,7 @@ int skygw_log_write(
              * If particular log is disabled in general and it is not enabled for
              * the current session, check the next log.
              */
-            if (!LOG_IS_ENABLED(i) || (i & id) == 0)
+            if (!mxs_log_enabed(i) || (i & id) == 0)
             {
                 continue;
             }
@@ -1491,7 +1491,7 @@ return_err:
 }
 
 
-int skygw_log_flush(
+int mxs_flush_file(
         logfile_id_t  id)
 {
         int err = 0;
@@ -1520,7 +1520,7 @@ return_err:
  * Replace current logfile with new file with increased sequence number on 
  * its name.
  */
-int skygw_log_rotate(
+int mxs_log_rotate(
 	logfile_id_t  id)
 {
 	int        err = 0;
@@ -1536,7 +1536,7 @@ int skygw_log_rotate(
 	CHK_LOGMANAGER(lm);
 	lf = &lm->lm_logfile[id];
 	
-	LOGIF(LM, (skygw_log_write(
+	LOGIF(LM, (mxs_log(
 		LOGFILE_MESSAGE,
 		"Log rotation is called for %s.",
 		lf->lf_full_file_name)));
@@ -1545,7 +1545,7 @@ int skygw_log_rotate(
 	
 	if (err != 0) 
 	{
-		LOGIF(LE, (skygw_log_write(
+		LOGIF(LE, (mxs_log(
 			LOGFILE_ERROR,
 			"Log file rotation failed for file %s.",
 			lf->lf_full_file_name)));
@@ -1555,7 +1555,7 @@ int skygw_log_rotate(
 	}
 		
 return_unregister:
-	LOGIF(LM, (skygw_log_write_flush(
+	LOGIF(LM, (mxs_log_flush(
 		LOGFILE_MESSAGE,
 		"File %s use for log writing..",
 		lf->lf_full_file_name)));
@@ -2893,7 +2893,7 @@ static void* thr_filewriter_fun(
 				
 				if (!succp)
 				{
-					LOGIF(LE, (skygw_log_write(
+					LOGIF(LE, (mxs_log(
 						LOGFILE_ERROR,
 						"Error : Log rotation failed. "
 						"Creating replacement file %s "
@@ -3141,9 +3141,9 @@ void flushall_logfiles(bool flush)
 /**
  * Flush all log files synchronously
  */
-void skygw_log_sync_all(void)
+void mxs_log_sync_all(void)
 {
-	if(!use_stdout)skygw_log_write(LOGFILE_TRACE,"Starting log flushing to disk.");
+	if(!use_stdout)mxs_log(LOGFILE_TRACE,"Starting log flushing to disk.");
 	flushall_logfiles(true);
 	skygw_message_send(lm->lm_logmes);
 	skygw_message_wait(lm->lm_clientmes);
@@ -3153,7 +3153,7 @@ void skygw_log_sync_all(void)
  * Toggle high precision logging
  * @param val 0 for disabled, 1 for enabled
  */
-void skygw_set_highp(int val)
+void mxs_set_highp(int val)
 {
         highprec = val;
 }
@@ -3163,7 +3163,7 @@ void skygw_set_highp(int val)
  * Toggle syslog logging
  * @param val 0 for disabled, 1 for enabled
  */
-void logmanager_enable_syslog(int val)
+void mxs_enable_syslog(int val)
 {
     do_syslog = val;
 }
@@ -3172,7 +3172,18 @@ void logmanager_enable_syslog(int val)
  * Toggle syslog logging
  * @param val 0 for disabled, 1 for enabled
  */
-void logmanager_enable_maxscalelog(int val)
+void mxs_enable_maxscalelog(int val)
 {
     do_maxscalelog = val;
+}
+
+/**
+ * Check if a particular log is enabled.
+ * @param id Log file ID
+ * @return True if the log is enabled
+ */
+bool mxs_log_enabed(int id)
+{
+    return (lm_enabled_logfiles_bitmask & id) ||
+            (log_ses_count[id] > 0 && tls_log_info.li_enabled_logs & id);
 }

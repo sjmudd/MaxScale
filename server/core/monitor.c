@@ -70,7 +70,7 @@ MONITOR	*mon;
 
 	if ((mon->module = load_module(module, MODULE_MONITOR)) == NULL)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                                    LOGFILE_ERROR,
                                    "Error : Unable to load monitor module '%s'.",
                                    name)));
@@ -457,7 +457,7 @@ monitorSetNetworkTimeout(MONITOR *mon, int type, int value) {
 	    memcpy(&mon->connect_timeout, &value, sizeof(int));
 	} else {
 	    memcpy(&mon->connect_timeout, &new_timeout, sizeof(int));
-	    LOGIF(LE, (skygw_log_write_flush(
+	    LOGIF(LE, (mxs_log_flush(
 		    LOGFILE_ERROR,
 					     "warning : Monitor Connect Timeout %i is greater than monitor interval ~%i seconds"
 		    ", lowering to %i seconds", value, max_timeout, new_timeout)));
@@ -469,7 +469,7 @@ monitorSetNetworkTimeout(MONITOR *mon, int type, int value) {
 	    memcpy(&mon->read_timeout, &value, sizeof(int));
 	} else {
 	    memcpy(&mon->read_timeout, &new_timeout, sizeof(int));
-	    LOGIF(LE, (skygw_log_write_flush(
+	    LOGIF(LE, (mxs_log_flush(
 		    LOGFILE_ERROR,
 					     "warning : Monitor Read Timeout %i is greater than monitor interval ~%i seconds"
 		    ", lowering to %i seconds", value, max_timeout, new_timeout)));
@@ -481,14 +481,14 @@ monitorSetNetworkTimeout(MONITOR *mon, int type, int value) {
 	    memcpy(&mon->write_timeout, &value, sizeof(int));
 	} else {
 	    memcpy(&mon->write_timeout, &new_timeout, sizeof(int));
-	    LOGIF(LE, (skygw_log_write_flush(
+	    LOGIF(LE, (mxs_log_flush(
 		    LOGFILE_ERROR,
 					     "warning : Monitor Write Timeout %i is greater than monitor interval ~%i seconds"
 		    ", lowering to %i seconds", value, max_timeout, new_timeout)));
 	}
 	break;
     default:
-	LOGIF(LE, (skygw_log_write_flush(
+	LOGIF(LE, (mxs_log_flush(
 		LOGFILE_ERROR,
 					 "Error : Monitor setNetworkTimeout received an unsupported action type %i", type)));
 	break;

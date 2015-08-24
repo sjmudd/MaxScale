@@ -271,13 +271,13 @@ HINT_MODE	mode = HM_EXECUTE;
 				break;
 			default:
 				/* Error: expected hint, name or STOP */
-                                LOGIF(LT, (skygw_log_write(
+                                LOGIF(LT, (mxs_log(
                                         LOGFILE_TRACE,
                                         "Error : Syntax error in hint. Expected "
                                         "'route', 'stop' or hint name instead of "
                                         "'%s'. Hint ignored.",
                                         token_get_keyword(tok))));
-                                LOGIF(LE, (skygw_log_write_flush(
+                                LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Error : Syntax error in hint. Expected "
                                         "'route', 'stop' or hint name instead of "
@@ -291,12 +291,12 @@ HINT_MODE	mode = HM_EXECUTE;
 			if (tok->token != TOK_TO)
                         {
                                 /* Error, expect TO */;
-                                LOGIF(LT, (skygw_log_write(
+                                LOGIF(LT, (mxs_log(
                                         LOGFILE_TRACE,
                                         "Error : Syntax error in hint. Expected "
                                         "'to' instead of '%s'. Hint ignored.",
                                         token_get_keyword(tok))));
-                                LOGIF(LE, (skygw_log_write_flush(
+                                LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Error : Syntax error in hint. Expected "
                                         "'to' instead of '%s'. Hint ignored.",
@@ -322,13 +322,13 @@ HINT_MODE	mode = HM_EXECUTE;
 				break;
 			default:
                                 /* Error expected MASTER, SLAVE or SERVER */
-                                LOGIF(LT, (skygw_log_write(
+                                LOGIF(LT, (mxs_log(
                                         LOGFILE_TRACE,
                                         "Error : Syntax error in hint. Expected "
                                         "'master', 'slave', or 'server' instead "
                                         "of '%s'. Hint ignored.",
                                         token_get_keyword(tok))));
-                                LOGIF(LE, (skygw_log_write_flush(
+                                LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Error : Syntax error in hint. Expected "
                                         "'master', 'slave', or 'server' instead "
@@ -348,13 +348,13 @@ HINT_MODE	mode = HM_EXECUTE;
 			else
 			{
                                 /* Error: Expected server name */
-                                LOGIF(LT, (skygw_log_write(
+                                LOGIF(LT, (mxs_log(
                                         LOGFILE_TRACE,
                                         "Error : Syntax error in hint. Expected "
                                         "server name instead of '%s'. Hint "
                                         "ignored.",
                                         token_get_keyword(tok))));
-                                LOGIF(LE, (skygw_log_write_flush(
+                                LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Error : Syntax error in hint. Expected "
                                         "server name instead of '%s'. Hint "
@@ -383,13 +383,13 @@ HINT_MODE	mode = HM_EXECUTE;
 				break;
 			default:
 				/* Error, token tok->value not expected */
-                                LOGIF(LT, (skygw_log_write(
+                                LOGIF(LT, (mxs_log(
                                         LOGFILE_TRACE,
                                         "Error : Syntax error in hint. Expected "
                                         "'=', 'prepare', or 'start' instead of "
                                         "'%s'. Hint ignored.",
                                         token_get_keyword(tok))));
-                                LOGIF(LE, (skygw_log_write_flush(
+                                LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Error : Syntax error in hint. Expected "
                                         "'=', 'prepare', or 'start' instead of "
@@ -418,13 +418,13 @@ HINT_MODE	mode = HM_EXECUTE;
 				break;
 			default:
 				/* Error, token tok->value not expected */
-                                LOGIF(LT, (skygw_log_write(
+                                LOGIF(LT, (mxs_log(
                                         LOGFILE_TRACE,
                                         "Error : Syntax error in hint. Expected "
                                         "'route' or hint name instead of "
                                         "'%s'. Hint ignored.",
                                         token_get_keyword(tok))));
-                                LOGIF(LE, (skygw_log_write_flush(
+                                LOGIF(LE, (mxs_log_flush(
                                         LOGFILE_ERROR,
                                         "Error : Syntax error in hint. Expected "
                                         "'route' or hint name instead of "

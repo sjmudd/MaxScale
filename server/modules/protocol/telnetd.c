@@ -121,7 +121,7 @@ version()
 void
 ModuleInit()
 {
-	LOGIF(LT, (skygw_log_write(
+	LOGIF(LT, (mxs_log(
                            LOGFILE_TRACE,
                            "Initialise Telnetd Protocol module.\n")));
 }
@@ -381,7 +381,7 @@ int			syseno = 0;
 	syseno = setsockopt(listener->fd, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(one));
 	
 	if(syseno != 0){
-		LOGIF(LE, (skygw_log_write_flush(LOGFILE_ERROR,"Error: Failed to set socket options. Error %d: %s",errno,strerror(errno))));
+		LOGIF(LE, (mxs_log_flush(LOGFILE_ERROR,"Error: Failed to set socket options. Error %d: %s",errno,strerror(errno))));
 		return 0;
 	}
         // set NONBLOCKING mode
@@ -395,7 +395,7 @@ int			syseno = 0;
         rc = listen(listener->fd, SOMAXCONN);
         
         if (rc == 0) {
-		LOGIF(LM, (skygw_log_write_flush(LOGFILE_MESSAGE,"Listening telnet connections at %s", config)));
+		LOGIF(LM, (mxs_log_flush(LOGFILE_MESSAGE,"Listening telnet connections at %s", config)));
         } else {
             int eno = errno;
             errno = 0;

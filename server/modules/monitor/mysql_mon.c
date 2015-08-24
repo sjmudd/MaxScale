@@ -106,7 +106,7 @@ version()
 void
 ModuleInit()
 {
-	LOGIF(LM, (skygw_log_write(
+	LOGIF(LM, (mxs_log(
                            LOGFILE_MESSAGE,
                            "Initialise the MySQL Monitor module %s.",
                            version_str)));
@@ -181,13 +181,13 @@ startMonitor(void *arg, void* opt)
 		script_error = true;
 		if(access(params->value,F_OK) == 0)
 		{
-		skygw_log_write(LE,
+		mxs_log(LE,
 			 "Error: The file cannot be executed: %s",
 			 params->value);
 		}
 		else
 		{
-		skygw_log_write(LE,
+		mxs_log(LE,
 			 "Error: The file cannot be found: %s",
 			 params->value);
 		}
@@ -209,7 +209,7 @@ startMonitor(void *arg, void* opt)
     }
     if(script_error)
     {
-	skygw_log_write(LE,"Error: Errors were found in the script configuration parameters "
+	mxs_log(LE,"Error: Errors were found in the script configuration parameters "
 		"for the monitor '%s'. The script will not be used.",monitor->name);
 	free(handle->script);
 	handle->script = NULL;
@@ -337,7 +337,7 @@ static inline void monitor_mysql100_db(MONITOR_SERVERS* database)
 	if(mysql_field_count(database->con) < 42)
 	{
 	    mysql_free_result(result);
-	    skygw_log_write(LE,"Error: \"SHOW ALL SLAVES STATUS\" "
+	    mxs_log(LE,"Error: \"SHOW ALL SLAVES STATUS\" "
 		    "returned less than the expected amount of columns. Expected 42 columns."
 		    " MySQL Version: %s",version_str);
 	    return;
@@ -411,7 +411,7 @@ static inline void monitor_mysql55_db(MONITOR_SERVERS* database)
 	if(mysql_field_count(database->con) < 40)
 	{
 	    mysql_free_result(result);
-	    skygw_log_write(LE,"Error: \"SHOW SLAVE STATUS\" "
+	    mxs_log(LE,"Error: \"SHOW SLAVE STATUS\" "
 		    "returned less than the expected amount of columns. Expected 40 columns."
 		    " MySQL Version: %s",version_str);
 	    return;
@@ -477,7 +477,7 @@ static inline void monitor_mysql51_db(MONITOR_SERVERS* database)
 	{
 	    mysql_free_result(result);
 
-	    skygw_log_write(LE,"Error: \"SHOW SLAVE STATUS\" "
+	    mxs_log(LE,"Error: \"SHOW SLAVE STATUS\" "
 		    "returned less than the expected amount of columns. Expected 38 columns."
 		    " MySQL Version: %s",version_str);
 	    return;
@@ -542,7 +542,7 @@ static MONITOR_SERVERS *build_mysql51_replication_tree(MONITOR *mon)
 		if(mysql_field_count(database->con) < 4)
 		{
 		    mysql_free_result(result);
-		    skygw_log_write_flush(LE,"Error: \"SHOW SLAVE HOSTS\" "
+		    mxs_log_flush(LE,"Error: \"SHOW SLAVE HOSTS\" "
 			    "returned less than the expected amount of columns. Expected 4 columns."
 			    " MySQL Version: %s",version_str);
 		    return NULL;
@@ -556,7 +556,7 @@ static MONITOR_SERVERS *build_mysql51_replication_tree(MONITOR *mon)
 			/* get Slave_IO_Running and Slave_SQL_Running values*/
 			database->server->slaves[nslaves] = atol(row[0]);
 			nslaves++;
-			LOGIF(LD,(skygw_log_write_flush(LD,"Found slave at %s:%d",row[1],row[2])));
+			LOGIF(LD,(mxs_log_flush(LD,"Found slave at %s:%d",row[1],row[2])));
 		    }
 		    database->server->slaves[nslaves] = 0;
 		}
@@ -568,7 +568,7 @@ static MONITOR_SERVERS *build_mysql51_replication_tree(MONITOR *mon)
 	    /* Set the Slave Role */
 	    if (ismaster)
 	    {
-		LOGIF(LD,(skygw_log_write(LD,"Master server found at %s:%d with %d slaves",
+		LOGIF(LD,(mxs_log(LD,"Master server found at %s:%d with %d slaves",
 					 database->server->name,
 					 database->server->port,
 					 nslaves)));
@@ -676,7 +676,7 @@ monitorDatabase(MONITOR *mon, MONITOR_SERVERS *database)
 	    /* Log connect failure only once */
 	    if (mon_status_changed(database) && mon_print_fail_status(database))
 	    {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 						 "Error : Monitor was unable to connect to "
 			"server %s:%d : \"%s\"",
@@ -712,7 +712,7 @@ monitorDatabase(MONITOR *mon, MONITOR_SERVERS *database)
 	if(mysql_field_count(database->con) != 1)
 	{
 	    mysql_free_result(result);
-	    skygw_log_write(LE,"Error: Unexpected result for 'SELECT @@server_id'. Expected 1 column."
+	    mxs_log(LE,"Error: Unexpected result for 'SELECT @@server_id'. Expected 1 column."
 		    " MySQL Version: %s",version_str);
 	    return;
 	}
@@ -748,7 +748,7 @@ monitorDatabase(MONITOR *mon, MONITOR_SERVERS *database)
 	else if(report_version_err)
 	{
 	    report_version_err = false;
-	    skygw_log_write(LE,"Error: MySQL version is lower than 5.5 and 'mysql51_replication' option is not enabled,"
+	    mxs_log(LE,"Error: MySQL version is lower than 5.5 and 'mysql51_replication' option is not enabled,"
 		    " replication tree cannot be resolved. To enable MySQL 5.1 replication detection, "
 		    "add 'mysql51_replication=true' to the monitor section.");
 	}
@@ -782,7 +782,7 @@ detect_stale_master = handle->detectStaleMaster;
 
 	if (mysql_thread_init())
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
                                    LOGFILE_ERROR,
                                    "Fatal : mysql_thread_init failed in monitor "
                                    "module. Exiting.\n")));
@@ -845,7 +845,7 @@ detect_stale_master = handle->detectStaleMaster;
 				if (SRV_MASTER_STATUS(ptr->mon_prev_status))
 				{
 					/** Master failed, can't recover */
-					LOGIF(LM, (skygw_log_write(
+					LOGIF(LM, (mxs_log(
 						LOGFILE_MESSAGE,
 						"Server %s:%d lost the master status.",
 						ptr->server->name,
@@ -873,14 +873,14 @@ detect_stale_master = handle->detectStaleMaster;
                         if (mon_status_changed(ptr))
                         {
 #if defined(SS_DEBUG)
-                                LOGIF(LT, (skygw_log_write_flush(
+                                LOGIF(LT, (mxs_log_flush(
                                         LOGFILE_TRACE,
                                         "Backend server %s:%d state : %s",
                                         ptr->server->name,
                                         ptr->server->port,
                                         STRSRVSTATUS(ptr->server))));
 #else
-				LOGIF(LD, (skygw_log_write_flush(
+				LOGIF(LD, (mxs_log_flush(
 					LOGFILE_DEBUG,
 					"Backend server %s:%d state : %s",
 					ptr->server->name,
@@ -949,7 +949,7 @@ detect_stale_master = handle->detectStaleMaster;
 
 					/* log it once */
                         		if (mon_status_changed(ptr)) {
-						LOGIF(LM, (skygw_log_write_flush(
+						LOGIF(LM, (mxs_log_flush(
 							LOGFILE_MESSAGE, 
 							"[mysql_mon]: root server "
 							"[%s:%i] is no longer Master,"
@@ -976,7 +976,7 @@ detect_stale_master = handle->detectStaleMaster;
 			evtype = mon_get_event_type(ptr);
 			if(isMySQLEvent(evtype))
 			{
-			    skygw_log_write(LOGFILE_TRACE,"Server changed state: %s[%s:%u]: %s",
+			    mxs_log(LOGFILE_TRACE,"Server changed state: %s[%s:%u]: %s",
 				     ptr->server->unique_name,
 				     ptr->server->name,ptr->server->port,
 				     mon_get_event_name(ptr));
@@ -998,14 +998,14 @@ detect_stale_master = handle->detectStaleMaster;
 				if (!(root_master->mon_prev_status & SERVER_STALE_STATUS) && 
 					!(root_master->server->status & SERVER_MAINT)) 
 				{
-					LOGIF(LM, (skygw_log_write(
+					LOGIF(LM, (mxs_log(
 						LOGFILE_MESSAGE,
 						"Info : A Master Server is now available: %s:%i",
 						root_master->server->name,
 						root_master->server->port)));
 				}
 			} else {
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Error : No Master can be determined. Last known was %s:%i",
 					root_master->server->name,
@@ -1015,7 +1015,7 @@ detect_stale_master = handle->detectStaleMaster;
 		} else {
 			if (!root_master && log_no_master) 
 			{
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"Error : No Master can be determined")));
 				log_no_master = 0;
@@ -1146,7 +1146,7 @@ static void set_master_heartbeat(MYSQL_MONITOR *handle, MONITOR_SERVERS *databas
 	char heartbeat_purge_query[512]="";
 
 	if (handle->master == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"[mysql_mon]: set_master_heartbeat called without an available Master server")));
 		return;
@@ -1154,7 +1154,7 @@ static void set_master_heartbeat(MYSQL_MONITOR *handle, MONITOR_SERVERS *databas
 
 	/* create the maxscale_schema database */
 	if (mysql_query(database->con, "CREATE DATABASE IF NOT EXISTS maxscale_schema")) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"[mysql_mon]: Error creating maxscale_schema database in Master server"
 			": %s", mysql_error(database->con))));
@@ -1170,7 +1170,7 @@ static void set_master_heartbeat(MYSQL_MONITOR *handle, MONITOR_SERVERS *databas
 			"master_timestamp INT UNSIGNED NOT NULL, "
 			"PRIMARY KEY ( master_server_id, maxscale_id ) ) "
 			"ENGINE=MYISAM DEFAULT CHARSET=latin1")) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"[mysql_mon]: Error creating maxscale_schema.replication_heartbeat table in Master server"
 			": %s", mysql_error(database->con))));
@@ -1184,7 +1184,7 @@ static void set_master_heartbeat(MYSQL_MONITOR *handle, MONITOR_SERVERS *databas
 	sprintf(heartbeat_purge_query, "DELETE FROM maxscale_schema.replication_heartbeat WHERE master_timestamp < %lu", purge_time);
 
 	if (mysql_query(database->con, heartbeat_purge_query)) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 		LOGFILE_ERROR,
 		"[mysql_mon]: Error deleting from maxscale_schema.replication_heartbeat table: [%s], %s",
 		heartbeat_purge_query,
@@ -1203,7 +1203,7 @@ static void set_master_heartbeat(MYSQL_MONITOR *handle, MONITOR_SERVERS *databas
 
 		database->server->rlag = -1;
 
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"[mysql_mon]: Error updating maxscale_schema.replication_heartbeat table: [%s], %s",
 			heartbeat_insert_query,
@@ -1217,7 +1217,7 @@ static void set_master_heartbeat(MYSQL_MONITOR *handle, MONITOR_SERVERS *databas
 
 				database->server->rlag = -1;
 
-				LOGIF(LE, (skygw_log_write_flush(
+				LOGIF(LE, (mxs_log_flush(
 					LOGFILE_ERROR,
 					"[mysql_mon]: Error inserting into maxscale_schema.replication_heartbeat table: [%s], %s",
 					heartbeat_insert_query,
@@ -1226,7 +1226,7 @@ static void set_master_heartbeat(MYSQL_MONITOR *handle, MONITOR_SERVERS *databas
 				/* Set replication lag to 0 for the master */
 				database->server->rlag = 0;
 
-				LOGIF(LD, (skygw_log_write_flush(
+				LOGIF(LD, (mxs_log_flush(
 					LOGFILE_DEBUG,
 					"[mysql_mon]: heartbeat table inserted data for %s:%i", database->server->name, database->server->port)));
 			}
@@ -1234,7 +1234,7 @@ static void set_master_heartbeat(MYSQL_MONITOR *handle, MONITOR_SERVERS *databas
 			/* Set replication lag as 0 for the master */
 			database->server->rlag = 0;
 
-			LOGIF(LD, (skygw_log_write_flush(
+			LOGIF(LD, (mxs_log_flush(
 				LOGFILE_DEBUG,
 				"[mysql_mon]: heartbeat table updated for Master %s:%i", database->server->name, database->server->port)));
 		}
@@ -1258,7 +1258,7 @@ static void set_slave_heartbeat(MONITOR* mon, MONITOR_SERVERS *database) {
 	MYSQL_RES *result;
 
 	if (handle->master == NULL) {
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"[mysql_mon]: set_slave_heartbeat called without an available Master server")));
 		return;
@@ -1304,7 +1304,7 @@ static void set_slave_heartbeat(MONITOR* mon, MONITOR_SERVERS *database) {
 				database->server->rlag = -1;
 			}
 
-			LOGIF(LD, (skygw_log_write_flush(
+			LOGIF(LD, (mxs_log_flush(
 				LOGFILE_DEBUG,
 				"[mysql_mon]: replication heartbeat: "
 				"Slave %s:%i has %i seconds lag",
@@ -1323,14 +1323,14 @@ static void set_slave_heartbeat(MONITOR* mon, MONITOR_SERVERS *database) {
 		database->server->node_ts = 0;
 
 		if (handle->master->server->node_id < 0) {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"[mysql_mon]: error: replication heartbeat: "
 				"master_server_id NOT available for %s:%i",
 				database->server->name,
 				database->server->port)));
 		} else {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 				"[mysql_mon]: error: replication heartbeat: "
 				"failed selecting from hearthbeat table of %s:%i : [%s], %s",

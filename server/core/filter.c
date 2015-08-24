@@ -334,7 +334,7 @@ DOWNSTREAM	*me;
 
 	if ((me = (DOWNSTREAM *)calloc(1, sizeof(DOWNSTREAM))) == NULL)
 	{
-		LOGIF(LE, (skygw_log_write_flush(
+		LOGIF(LE, (mxs_log_flush(
 			LOGFILE_ERROR,
 			"Error : Memory allocation for filter session failed "
 			"due to %d,%s.",

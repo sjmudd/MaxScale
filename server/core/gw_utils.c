@@ -79,7 +79,7 @@ setipaddress(struct in_addr *a, char *p) {
 		hint.ai_flags = AI_PASSIVE;
 		hint.ai_family = AF_UNSPEC;
 		if ((rc = getaddrinfo(p, NULL, &hint, &ai)) != 0) {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 					"Error: Failed to obtain address for host %s, %s",
 					p,
@@ -92,7 +92,7 @@ setipaddress(struct in_addr *a, char *p) {
 		hint.ai_family = AF_INET;
 
 		if ((rc = getaddrinfo(p, NULL, &hint, &ai)) != 0) {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 					"Error: Failed to obtain address for host %s, %s",
 					p,
@@ -120,7 +120,7 @@ setipaddress(struct in_addr *a, char *p) {
         
 	if (h == NULL) {
 		if ((a->s_addr = inet_addr(p)) == -1) {
-			LOGIF(LE, (skygw_log_write_flush(
+			LOGIF(LE, (mxs_log_flush(
 				LOGFILE_ERROR,
 					"Error : gethostbyname failed for [%s]",
 					p)));
@@ -210,7 +210,7 @@ struct hostent		*hp;
 			}
 			else
 			{
-                		LOGIF(LE, (skygw_log_write_flush(
+                		LOGIF(LE, (mxs_log_flush(
 		                        LOGFILE_ERROR,
                        			 "Error : Failed to lookup host '%s'. ",
 		                        buf)));
