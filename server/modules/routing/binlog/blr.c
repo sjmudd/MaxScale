@@ -238,6 +238,7 @@ char	*defuuid;
 	inst->burst_size = DEF_BURST_SIZE;
 	inst->retry_backoff = 1;
 	inst->binlogdir = NULL;
+        inst->master = NULL;
 	inst->heartbeat = 300;	// Default is every 5 minutes
 	inst->mariadb10_compat = false;
 
@@ -489,7 +490,11 @@ static int updateInstance(ROUTER *instance,SERVICE *service, char **options)
 	return -1;
     }
 
-    dcb_close(inst->master);
+    if(inst->master)
+    {
+        dcb_close(inst->master);
+        inst->master = NULL;
+    }
 
     if (options)
     {

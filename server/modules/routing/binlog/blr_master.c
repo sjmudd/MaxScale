@@ -272,6 +272,7 @@ void
 blr_master_close(ROUTER_INSTANCE *router)
 {
 	dcb_close(router->master);
+        router->master = NULL;
 	router->master_state = BLRM_UNCONNECTED;
 }
 
