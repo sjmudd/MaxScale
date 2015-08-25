@@ -1894,6 +1894,7 @@ static char *InternalRouters[] = {
 	"debugcli",
 	"cli",
 	"maxinfo",
+    "testroute",
 	NULL
 };
 
