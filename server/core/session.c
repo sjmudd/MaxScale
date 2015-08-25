@@ -235,7 +235,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
 		spinlock_release(&session->ses_lock);		
 		spinlock_acquire(&session_spin);
 		/** Assign a session id and increase */
-		session->ses_id = session_id++;
+		session->ses_id = ++session_id;
 		session->next = allSessions;
                 allSessions = session;
                 spinlock_release(&session_spin);
@@ -259,7 +259,7 @@ session_alloc(SERVICE *service, DCB *client_dcb)
 				session->client->remote)));			
 		}
 		atomic_add(&service->stats.n_sessions, 1);
-		ss_dassert(session->service->stats.n_current > 0);
+                atomic_add(&service->stats.n_current, 1);
                 CHK_SESSION(session);
         }        
 return_session:
@@ -403,7 +403,6 @@ bool session_free(
 	}
 	spinlock_release(&session_spin);
 	atomic_add(&session->service->stats.n_current, -1);
-	ss_dassert(session->service->stats.n_current >= 0);
 
 	/**
 	 * If session is not child of some other session, free router_session.
