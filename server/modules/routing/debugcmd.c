@@ -1190,8 +1190,10 @@ reload_service(DCB *dcb, SERVICE* service)
 static void
 reload_config(DCB *dcb)
 {
-	dcb_printf(dcb, "Reloading configuration from file.\n");
-	config_set_reload_flag();
+	if(config_set_reload_flag())
+            dcb_printf(dcb, "Reloading configuration from file.\n");
+        else
+            dcb_printf(dcb, "Failed to reload configuration. Read the error log for more details.\n");
 }
 
 /**

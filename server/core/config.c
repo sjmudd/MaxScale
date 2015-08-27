@@ -2452,7 +2452,6 @@ void config_service_update(CONFIG_CONTEXT *obj) {
 			obj->object)));
 	}
 }
-
 /*
  * Server configuration update
  * For an old server, the protocol, user, password, address and port are updated.
@@ -2870,9 +2869,11 @@ GATEWAY_CONF* config_get_global_options()
 /**
  * Check that the configuration is valid and if so, signal the threads that the
  * configuration should be reloaded.
+ * @return True if configuration was valid, false if errors were detected
  */
-void config_set_reload_flag()
+bool config_set_reload_flag()
 {
+    bool rval = true;
     if(config_verify_context())
     {
 	reload_state = RELOAD_START;
@@ -2881,7 +2882,9 @@ void config_set_reload_flag()
     {
 	skygw_log_write(LE,"Errors were found from the configuration file. Configuration reload aborted. "
 		"Please fix the errors and try again.");
+        rval = false;
     }
+    return rval;
 }
 
 /**
@@ -3136,7 +3139,7 @@ bool config_find_sections_from_string(CONFIG_CONTEXT* context,const char* needle
     {
 	if(config_get_section(context,tok) == NULL)
 	{
-	    skygw_log_write(LE,"Error: '%s' is not a valid section name.",tok);
+	    skygw_log_write(LE,"Error: Could not find '%s' from the configuration file.",tok);
 	    rval = false;
 	    break;
 	}
