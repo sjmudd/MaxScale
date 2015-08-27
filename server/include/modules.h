@@ -70,5 +70,6 @@ extern	void	dprintAllModules(DCB *);
 extern 	RESULTSET	*moduleGetList();
 extern void module_feedback_send(void*);
 extern void moduleShowFeedbackReport(DCB *dcb);
+bool module_is_accessible(char* name);
 
 #endif

@@ -68,6 +68,7 @@ static void register_module(const char *module,
 static void unregister_module(const char *module);
 int module_create_feedback_report(GWBUF **buffer, MODULES *modules, FEEDBACK_CONF *cfg);
 int do_http_post(GWBUF *buffer, void *cfg);
+bool module_is_accessible(char* name);
 
 struct MemoryStruct {
   char *data;
@@ -881,3 +882,10 @@ do_http_post(GWBUF *buffer, void *cfg) {
 	return ret_code;
 }
 
+bool module_is_accessible(char* name)
+{
+    char pathbuf[PATH_MAX + 1];
+
+    snprintf(pathbuf,PATH_MAX,"%s/lib%s.so",get_libdir(),name);
+    return access(pathbuf,F_OK) == 0;
+}

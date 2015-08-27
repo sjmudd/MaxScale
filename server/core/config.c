@@ -113,7 +113,8 @@ int	config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 int config_add_filter(CONFIG_CONTEXT* obj);
 void service_debug_show(char* service_name);
 bool config_convert_integer(char* value, int* iptr);
-bool config_verify_context();
+bool config_verify_config_file();
+bool config_verify_context(CONFIG_CONTEXT*);
 static	char		*config_file = NULL;
 static	GATEWAY_CONF	gateway;
 static	FEEDBACK_CONF	feedback;
@@ -381,6 +382,9 @@ int		rval;
 		return 0;
 
 	config_file = file;
+
+        if(!config_verify_context(config.next))
+            return 0;
 
 	check_config_objects(config.next);
 	rval = process_config_context(config.next);
@@ -2874,7 +2878,7 @@ GATEWAY_CONF* config_get_global_options()
 bool config_set_reload_flag()
 {
     bool rval = true;
-    if(config_verify_context())
+    if(config_verify_config_file())
     {
 	reload_state = RELOAD_START;
     }
@@ -3072,14 +3076,22 @@ CONFIG_CONTEXT* config_get_section(CONFIG_CONTEXT* context, char* name)
  */
 bool config_verify_server(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 {
-    CONFIG_PARAMETER *port;
+    CONFIG_PARAMETER *port,*module;
     int intval;
     bool rval = true;
 
-    if((config_get_param(section->parameters,"protocol")) == NULL)
+    if((module = config_get_param(section->parameters,"protocol")) == NULL)
     {
 	skygw_log_write(LE,"[%s] Error: Server is missing the 'protocol' parameter.",section->object);
 	rval = false;
+    }
+    else
+    {
+        if(!module_is_accessible(module->value))
+        {
+            skygw_log_write(LE,"[%s] Error: Could not find 'lib%s.so' at '%s'.",section->object,module->value,get_libdir());
+            rval = false;
+        }
     }
 
     if((config_get_param(section->parameters,"address")) == NULL)
@@ -3112,11 +3124,20 @@ bool config_verify_server(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 bool config_verify_filter(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 {
     bool rval = true;
+    CONFIG_PARAMETER *module;
 
-    if(config_get_param(section->parameters,"module") == NULL)
+    if((module = config_get_param(section->parameters,"module")) == NULL)
     {
 	skygw_log_write(LE,"[%s] Error: Filter is missing the 'module' parameter.",section->object);
 	rval = false;
+    }
+    else
+    {
+        if(!module_is_accessible(module->value))
+        {
+            skygw_log_write(LE,"[%s] Error: Could not find 'lib%s.so' at '%s'.",section->object,module->value,get_libdir());
+            rval = false;
+        }
     }
 
     return rval;
@@ -3157,7 +3178,7 @@ bool config_find_sections_from_string(CONFIG_CONTEXT* context,const char* needle
 bool config_verify_monitor(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 {
     bool rval = true;
-    CONFIG_PARAMETER* servers;
+    CONFIG_PARAMETER* servers,*module;
 
     if((servers = config_get_param(section->parameters,"servers")) == NULL)
     {
@@ -3173,10 +3194,18 @@ bool config_verify_monitor(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 	}
     }
 
-    if(config_get_param(section->parameters,"module") == NULL)
+    if((module = config_get_param(section->parameters,"module")) == NULL)
     {
 	skygw_log_write(LE,"[%s] Error: Monitor is missing the 'module' parameter.",section->object);
 	rval = false;
+    }
+    else
+    {
+        if(!module_is_accessible(module->value))
+        {
+            skygw_log_write(LE,"[%s] Error: Could not find 'lib%s.so' at '%s'.",section->object,module->value,get_libdir());
+            rval = false;
+        }
     }
 
     if(config_get_param(section->parameters,"user") == NULL)
@@ -3212,6 +3241,14 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
     {
 	skygw_log_write(LE,"[%s] Error: Service is missing the 'router' parameter.",section->object);
 	rval = false;
+    }
+    else
+    {
+        if(!module_is_accessible(router->value))
+        {
+            skygw_log_write(LE,"[%s] Error: Could not find 'lib%s.so' at '%s'.",section->object,router->value,get_libdir());
+            rval = false;
+        }
     }
 
     if((servers = config_get_param(section->parameters,"servers")) == NULL)
@@ -3269,7 +3306,7 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 bool config_verify_listener(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 {
     CONFIG_CONTEXT* *search;
-    CONFIG_PARAMETER *service,*port,*socket,*protocol;
+    CONFIG_PARAMETER *service,*port,*socket,*protocol,*module;
     int intval;
     bool rval = true;
 
@@ -3315,10 +3352,18 @@ bool config_verify_listener(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 	}
     }
 
-    if(config_get_param(section->parameters,"protocol") == NULL)
+    if((module = config_get_param(section->parameters,"protocol")) == NULL)
     {
 	skygw_log_write(LE,"[%s] Error: Listener is missing the 'protocol' parameter.",section->object);
 	rval = false;
+    }
+        else
+    {
+        if(!module_is_accessible(module->value))
+        {
+            skygw_log_write(LE,"[%s] Error: Could not find 'lib%s.so' at '%s'.",section->object,module->value,get_libdir());
+            rval = false;
+        }
     }
 
     return rval;
@@ -3351,17 +3396,14 @@ bool config_convert_integer(char* value, int* iptr)
 }
 
 /**
- * Verify the in-memory representation of the configuration file. This function
- * checks that all mandatory parameters are defined for each of the module types.
- * @param context Configuration context
- * @return true if the context is valid, false if errors were found.
+ * Read the configuration file and verify that its contents are valid and that
+ * all mandatory parameters are defined.
+ * @return True if the configuration is valid
  */
-bool config_verify_context()
+bool config_verify_config_file()
 {
-
-    CONFIG_CONTEXT base,*context,*section,*search;
-    CONFIG_PARAMETER *param;
-    bool rval = true;
+    CONFIG_CONTEXT base;
+    bool rval;
 
     if (config_read_config(&base) != 0)
     {
@@ -3369,7 +3411,25 @@ bool config_verify_context()
 	return false;
     }
 
-    context = base.next;
+    rval = config_verify_context(base.next);
+    config_free_config(base.next);
+
+    return rval;
+}
+
+/**
+ * Verify the in-memory representation of the configuration file. This function
+ * checks that all mandatory parameters are defined for each of the module types.
+ * @param context Configuration context
+ * @return true if the context is valid, false if errors were found.
+ */
+bool config_verify_context(CONFIG_CONTEXT* context)
+{
+
+    CONFIG_CONTEXT *section;
+    CONFIG_PARAMETER *param;
+    bool rval = true;
+
     section = context;
 
     while(section)
@@ -3415,8 +3475,6 @@ bool config_verify_context()
 	}
 	section = section->next;
     }
-
-    free_config_context(base.next);
 
     return rval;
 }
