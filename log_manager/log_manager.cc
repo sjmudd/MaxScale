@@ -1398,7 +1398,7 @@ int skygw_log_write_flush(
         /**
          * Write log string to buffer and add to file write list.
          */
-        for (i = LOGFILE_FIRST; i<LOGFILE_LAST ;i <<=1)
+        for (i = LOGFILE_FIRST; i<=LOGFILE_LAST ;i <<=1)
         {
             /**
              * If particular log is disabled in general and it is not enabled for
@@ -2987,7 +2987,7 @@ static void* thr_filewriter_fun(
                                                != 0);
                                         node = node->mlnode_next;
                                         vn2 = bb_list->mlist_versno;
-                                } while (vn1 != vn2);
+                                } while (vn1 != vn2 && node);
                     
                         } /* while (node != NULL) */
 
