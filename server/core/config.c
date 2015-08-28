@@ -122,6 +122,8 @@ char			*version_string = NULL;
 static HASHTABLE	*monitorhash;
 static int		reload_state = RELOAD_INACTIVE;
 static SPINLOCK         reload_lock = SPINLOCK_INIT;
+static CONFIG_CONTEXT* active_context = NULL;
+
 /**
  * Trim whitespace from the front and rear of a string
  *
@@ -186,6 +188,9 @@ CONFIG_PARAMETER	*param, *p1;
 		ptr->next = cntxt->next;
 		ptr->element = NULL;
 		cntxt->next = ptr;
+                ptr->prev = cntxt;
+                if(ptr->next)
+                    ptr->next->prev = ptr;
 	}
 	/* Check to see if the parameter already exists for the section */
 	p1 = ptr->parameters;
@@ -209,6 +214,10 @@ CONFIG_PARAMETER	*param, *p1;
 	param->name = strdup(name);
 	param->value = strdup(value);
 	param->next = ptr->parameters;
+        param->prev = NULL;
+        if(ptr->parameters)
+            ptr->parameters->prev = param;
+
 	param->qfd_param_type = UNDEFINED_TYPE;
 	ptr->parameters = param;
 
@@ -388,10 +397,12 @@ int		rval;
 
 	check_config_objects(config.next);
 	rval = process_config_context(config.next);
-	free_config_context(config.next);
+        config.next->prev = NULL;
+        active_context = config.next;
 	monitorStartAll();
 	return rval;
 }
+
 /**
  * Start the configuration reload process. This closes all current connections,
  * prevents new connections from being made by closing the listeners and stops all
@@ -446,7 +457,9 @@ config_reload_active()
 		return;
 
 	    process_config_update(config.next);
-	    free_config_context(config.next);
+	    free_config_context(active_context);
+            config.next->prev = NULL;
+            active_context = config.next;
 
 	    /** Enable/disable feedback task */
 	    config_disable_feedback_task();
@@ -988,7 +1001,8 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 			if (servers && obj->element)
 			{
 				char *lasts;
-				char *s = strtok_r(servers, ",", &lasts);
+                                char* server_dup = strdup(servers);
+				char *s = strtok_r(server_dup, ",", &lasts);
 				while (s)
 				{
 					CONFIG_CONTEXT *obj1 = context;
@@ -1017,6 +1031,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 					}
 					s = strtok_r(NULL, ",", &lasts);
 				}
+                                free(server_dup);
 			}
 			else if (servers == NULL && internalService(router) == 0)
 			{
@@ -1030,12 +1045,14 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 			if (roptions && obj->element)
 			{
 				char *lasts;
-				char *s = strtok_r(roptions, ",", &lasts);
+                                char* options_dup = strdup(roptions);
+				char *s = strtok_r(options_dup, ",", &lasts);
 				while (s)
 				{
 					serviceAddRouterOption(obj->element, s);
 					s = strtok_r(NULL, ",", &lasts);
 				}
+                                free(options_dup);
 			}
 			if (filters && obj->element)
 			{
@@ -2629,7 +2646,8 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 	    if (servers)
 	    {
 		char *lasts;
-		char *s = strtok_r(servers, ",", &lasts);
+                char* server_dup = strdup(servers);
+		char *s = strtok_r(server_dup, ",", &lasts);
 		serviceClearBackends(obj->element);
 		while (s)
 		{
@@ -2664,6 +2682,7 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 		    }
 		    s = strtok_r(NULL, ",", &lasts);
 		}
+                free(server_dup);
 	    }
 	    
 	    /** Clear out the old router options before adding new ones */
@@ -2671,12 +2690,14 @@ void config_service_update_objects(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context)
 	    if (roptions)
 	    {
 		char *lasts;
-		char *s = strtok_r(roptions, ",", &lasts);
+                char *options_dup = strdup(roptions);
+		char *s = strtok_r(options_dup, ",", &lasts);
 		while (s)
 		{
 		    serviceAddRouterOption(obj->element, s);
 		    s = strtok_r(NULL, ",", &lasts);
 		}
+                free(options_dup);
 	    }
 
 	    serviceUpdateFilters(obj->element,context, filters);
@@ -2789,7 +2810,8 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 			monitorClearServers(obj->element);
 
 			/* get the servers to monitor */
-			s = strtok_r(servers, ",", &lasts);
+                        char* server_dup = strdup(servers);
+			s = strtok_r(server_dup, ",", &lasts);
 			while (s)
 			{
 				CONFIG_CONTEXT *obj1 = context;
@@ -2828,6 +2850,7 @@ int config_add_monitor(CONFIG_CONTEXT *obj, CONFIG_CONTEXT *context, MONITOR *ru
 
 				s = strtok_r(NULL, ",", &lasts);
 			}
+                        free(server_dup);
 		}
 		if (user && passwd)
 		{
@@ -3022,12 +3045,14 @@ int config_add_filter(CONFIG_CONTEXT* obj)
     if (obj->element && options)
     {
 	char *lasts;
-	char *s = strtok_r(options, ",", &lasts);
+        char* options_dup = strdup(options);
+	char *s = strtok_r(options_dup, ",", &lasts);
 	while (s)
 	{
 	    filterAddOption(obj->element, s);
 	    s = strtok_r(NULL, ",", &lasts);
 	}
+        free(options_dup);
     }
     if (obj->element)
     {
@@ -3477,4 +3502,48 @@ bool config_verify_context(CONFIG_CONTEXT* context)
     }
 
     return rval;
+}
+
+/**
+ * Dump the contents of the active configuration
+ * @param dcb DCB where the output is written
+ */
+void config_dump_config(DCB* dcb)
+{
+    CONFIG_CONTEXT* ptr;
+    CONFIG_PARAMETER* params;
+    GATEWAY_CONF* config = config_get_global_options();
+    spinlock_acquire(&reload_lock);
+
+    dcb_printf(dcb,"[maxscale]\n",config->n_threads);
+    dcb_printf(dcb,"threads=%d\n",config->n_threads);
+    if(config->n_nbpoll != DEFAULT_NBPOLLS)
+        dcb_printf(dcb,"non_blocking_polls=%d\n",config->n_nbpoll);
+    if(config->pollsleep != DEFAULT_POLLSLEEP)
+        dcb_printf(dcb,"poll_sleep=%d\n",config->pollsleep);
+    dcb_printf(dcb,"\n");
+
+    ptr = active_context;
+
+    while(ptr && ptr->next)
+        ptr = ptr->next;
+
+    while(ptr)
+    {
+        dcb_printf(dcb,"[%s]\n",ptr->object);
+        params = ptr->parameters;
+
+        while(params && params->next)
+            params = params->next;
+
+        while(params)
+        {
+            dcb_printf(dcb,"%s=%s\n",params->name,params->value);
+            params = params->prev;
+        }
+        dcb_printf(dcb,"\n");
+        ptr = ptr->prev;
+    }
+
+    spinlock_release(&reload_lock);
 }

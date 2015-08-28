@@ -199,6 +199,11 @@ struct subcommand showoptions[] = {
 			"Show statistics and user names for the debug interface",
 			"Show statistics and user names for the debug interface",
 				{0, 0, 0} },
+        { "config",	0, config_dump_config,
+			"Display the active configuration",
+			"Display the active configuration",
+				{0, 0, 0} },
+
 	{ NULL,		0, NULL,		NULL,	NULL,
 				{0, 0, 0} }
 };

@@ -20,6 +20,7 @@
 #include <skygw_utils.h>
 #include <stdint.h>
 #include <openssl/sha.h>
+#include <dcb.h>
 /**
  * @file config.h The configuration handling elements
  *
@@ -79,6 +80,7 @@ typedef struct config_parameter {
         } qfd;
         config_param_type_t     qfd_param_type; 
 	struct config_parameter	*next;		/**< Next pointer in the linked list */
+        struct config_parameter	*prev;	/**< Previous pointer in the linked list */
 } CONFIG_PARAMETER;
 
 /**
@@ -90,6 +92,7 @@ typedef struct	config_context {
 	CONFIG_PARAMETER	*parameters;	/**< The list of parameter values */
 	void			*element;	/**< The element created from the data */
 	struct config_context	*next;		/**< Next pointer in the linked list */
+        struct config_context	*prev;		/**< Next pointer in the linked list */
 } CONFIG_CONTEXT;
 
 /**
@@ -156,4 +159,5 @@ void config_enable_feedback_task(void);
 void config_disable_feedback_task(void);
 unsigned long  config_get_gateway_id(void);
 GATEWAY_CONF* config_get_global_options();
+void config_dump_config(DCB* dcb);
 #endif
