@@ -80,7 +80,6 @@ typedef struct config_parameter {
         } qfd;
         config_param_type_t     qfd_param_type; 
 	struct config_parameter	*next;		/**< Next pointer in the linked list */
-        struct config_parameter	*prev;	/**< Previous pointer in the linked list */
 } CONFIG_PARAMETER;
 
 /**
@@ -92,7 +91,6 @@ typedef struct	config_context {
 	CONFIG_PARAMETER	*parameters;	/**< The list of parameter values */
 	void			*element;	/**< The element created from the data */
 	struct config_context	*next;		/**< Next pointer in the linked list */
-        struct config_context	*prev;		/**< Next pointer in the linked list */
 } CONFIG_CONTEXT;
 
 /**

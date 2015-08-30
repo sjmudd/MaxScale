@@ -160,7 +160,8 @@ handler(void *userdata, const char *section, const char *name, const char *value
 {
 CONFIG_CONTEXT		*cntxt = (CONFIG_CONTEXT *)userdata;
 CONFIG_CONTEXT		*ptr = cntxt;
-CONFIG_PARAMETER	*param, *p1;
+CONFIG_CONTEXT		*prev = ptr;
+CONFIG_PARAMETER	*param, *p1, *prev_param;
 
 	if (strcmp(section, "gateway") == 0 || strcasecmp(section, "MaxScale") == 0)
 	{
@@ -178,22 +179,24 @@ CONFIG_PARAMETER	*param, *p1;
 	 * a new object.
 	 */
 	while (ptr && strcmp(ptr->object, section) != 0)
+        {
+                prev = ptr;
 		ptr = ptr->next;
+
+        }
 	if (!ptr)
 	{
 		if ((ptr = (CONFIG_CONTEXT *)malloc(sizeof(CONFIG_CONTEXT))) == NULL)
 			return 0;
 		ptr->object = strdup(section);
 		ptr->parameters = NULL;
-		ptr->next = cntxt->next;
+		ptr->next = NULL;
 		ptr->element = NULL;
-		cntxt->next = ptr;
-                ptr->prev = cntxt;
-                if(ptr->next)
-                    ptr->next->prev = ptr;
+		prev->next = ptr;
 	}
 	/* Check to see if the parameter already exists for the section */
 	p1 = ptr->parameters;
+        prev_param = p1;
 	while (p1)
 	{
 		if (!strcmp(p1->name, name))
@@ -205,6 +208,7 @@ CONFIG_PARAMETER	*param, *p1;
                                 ptr->object, name)));
 			return 0;
 		}
+                prev_param = p1;
 		p1 = p1->next;
 	}
 
@@ -213,13 +217,16 @@ CONFIG_PARAMETER	*param, *p1;
 		return 0;
 	param->name = strdup(name);
 	param->value = strdup(value);
-	param->next = ptr->parameters;
-        param->prev = NULL;
-        if(ptr->parameters)
-            ptr->parameters->prev = param;
-
-	param->qfd_param_type = UNDEFINED_TYPE;
-	ptr->parameters = param;
+	param->next = NULL;
+        param->qfd_param_type = UNDEFINED_TYPE;
+        if(prev_param == NULL)
+        {
+            ptr->parameters = param;
+        }
+        else
+        {
+            prev_param->next = param;
+        }
 
 	return 1;
 }
@@ -397,7 +404,6 @@ int		rval;
 
 	check_config_objects(config.next);
 	rval = process_config_context(config.next);
-        config.next->prev = NULL;
         active_context = config.next;
 	monitorStartAll();
 	return rval;
@@ -458,7 +464,6 @@ config_reload_active()
 
 	    process_config_update(config.next);
 	    free_config_context(active_context);
-            config.next->prev = NULL;
             active_context = config.next;
 
 	    /** Enable/disable feedback task */
@@ -3525,24 +3530,18 @@ void config_dump_config(DCB* dcb)
 
     ptr = active_context;
 
-    while(ptr && ptr->next)
-        ptr = ptr->next;
-
     while(ptr)
     {
         dcb_printf(dcb,"[%s]\n",ptr->object);
         params = ptr->parameters;
 
-        while(params && params->next)
-            params = params->next;
-
         while(params)
         {
             dcb_printf(dcb,"%s=%s\n",params->name,params->value);
-            params = params->prev;
+            params = params->next;
         }
         dcb_printf(dcb,"\n");
-        ptr = ptr->prev;
+        ptr = ptr->next;
     }
 
     spinlock_release(&reload_lock);
