@@ -320,9 +320,9 @@ static void sigusr1_handler (int i)
 static void sigterm_handler (int i) {
         extern void shutdown_server();
         
-	LOGIF(LE, (skygw_log_write_flush(
+	skygw_log_write_flush(
                 LOGFILE_ERROR,
-                "MaxScale received signal SIGTERM. Exiting.")));
+                "MaxScale received signal SIGTERM. Exiting.");
 	skygw_log_sync_all();
 	shutdown_server();
 }
@@ -332,9 +332,9 @@ sigint_handler (int i)
 {
         extern void shutdown_server();
 
-	LOGIF(LE, (skygw_log_write_flush(
+	skygw_log_write_flush(
                 LOGFILE_ERROR,
-                "MaxScale received signal SIGINT. Shutting down.")));
+                "MaxScale received signal SIGINT. Shutting down.");
 	skygw_log_sync_all();
 	shutdown_server();
 	fprintf(stderr, "\n\nShutting down MaxScale\n\n");
@@ -391,9 +391,9 @@ sigfatal_handler (int i)
 
 	fprintf(stderr, "\n\nMaxScale received fatal signal %d\n", i);
 
-	LOGIF(LE, (skygw_log_write_flush(
+	skygw_log_write_flush(
                 LOGFILE_ERROR,
-                "Fatal: MaxScale received fatal signal %d. Attempting backtrace.", i)));
+                "Fatal: MaxScale received fatal signal %d. Attempting backtrace.", i);
 
 	{
 		void *addrs[128];
@@ -402,9 +402,9 @@ sigfatal_handler (int i)
 
 		if (symbols) {
 			for( n = 0; n < count; n++ ) {
-				LOGIF(LE, (skygw_log_write_flush(
+				skygw_log_write_flush(
 					LOGFILE_ERROR,
-					"  %s\n", symbols[n])));
+					"  %s\n", symbols[n]);
 			}
 			free(symbols);
 		} else {
@@ -449,12 +449,12 @@ static int signal_set (int sig, void (*handler)(int)) {
         {
                 int eno = errno;
                 errno = 0;
-		LOGIF(LE, (skygw_log_write_flush(
+		skygw_log_write_flush(
                         LOGFILE_ERROR,
                         "Error : Failed call sigaction() in %s due to %d, %s.",
                         program_invocation_short_name,
                         eno,
-                        strerror(eno))));
+                        strerror(eno));
                 rc = 1;
 	}
         return rc;
@@ -478,13 +478,13 @@ int ntfw_cb(
                 int eno = errno;
                 errno = 0;
                 
-                LOGIF(LE, (skygw_log_write(
+                skygw_log_write(
                         LOGFILE_ERROR,
                         "Error : Failed to remove the data directory %s of "
                         "MaxScale due to %d, %s.",
                         datadir,
                         eno,
-                        strerror(eno))));
+                        strerror(eno));
         }
         return rc;
 }
@@ -846,13 +846,13 @@ static bool file_is_writable(
                                 eno,
                                 strerror(eno));
                 }
-                LOGIF(LE, (skygw_log_write_flush(
+                skygw_log_write_flush(
                         LOGFILE_ERROR,
                         "Error : unable to open file %s for write due "
                         "to %d, %s.",
                         absolute_pathname,
                         eno,
-                        strerror(eno))));
+                        strerror(eno));
                 succp = false;
         }
         return succp;
@@ -906,14 +906,14 @@ static char* get_expanded_pathname(
                         relative_path,
                         strerror(eno));
                 
-                LOGIF(LE, (skygw_log_write_flush(
+                skygw_log_write_flush(
                         LOGFILE_ERROR,
                         "Warning : Failed to read the "
                         "directory %s, due "
                         "to %d, %s.",
                         relative_path,
                         eno,
-                        strerror(eno))));
+                        strerror(eno));
                 free(expanded_path);
                 *output_path = NULL;
                 goto return_cnf_file_buf;
@@ -935,10 +935,10 @@ static char* get_expanded_pathname(
                 {
 			ss_dassert(cnf_file_buf != NULL);
 			
-			LOGIF(LE, (skygw_log_write_flush(
+			skygw_log_write_flush(
 				LOGFILE_ERROR,
 				"Error : Memory allocation failed due to %s.", 
-				strerror(errno))));		
+				strerror(errno));
 			
                         free(expanded_path);
                         expanded_path = NULL;
