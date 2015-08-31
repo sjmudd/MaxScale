@@ -1375,8 +1375,7 @@ int skygw_log_write_flush(
         va_list valist;
         size_t  len;
 
-        if(!LOG_IS_ENABLED(id))
-            return err;
+
 
         if (!logmanager_register(true)) 
 	{
@@ -1385,6 +1384,11 @@ int skygw_log_write_flush(
         }
         CHK_LOGMANAGER(lm);
 
+        if(!LOG_IS_ENABLED(id))
+        {
+            logmanager_unregister();
+            return err;
+        }
         /**
          * Find out the length of log string (to be formatted str).
          */
@@ -1435,9 +1439,6 @@ int skygw_log_write(
         va_list valist;
         size_t  len;
 
-        if(!LOG_IS_ENABLED(id))
-            return err;
-
         if (!logmanager_register(true)) 
 	{
 		err = -1;
@@ -1445,6 +1446,11 @@ int skygw_log_write(
         }
         CHK_LOGMANAGER(lm);
 
+        if(!LOG_IS_ENABLED(id))
+        {
+            logmanager_unregister();
+            return err;
+        }
         /**
          * If particular log is disabled in general and it is not enabled for
 	 * the current session, then unregister and return.
