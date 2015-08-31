@@ -866,7 +866,7 @@ Please note that changes made via this interface will not persist across restart
 
 ## Reloading The Configuration
 
-A command, reload config, is available that will cause MaxScale to reload the maxscale.cnf configuration file.
+A command, `reload config`, is available that will cause MaxScale to reload the maxscale.cnf configuration file. You can view the active configuration with `show config`. This will print the currently used configuration to the standard output.
 
 ## Shutting Down MaxScale
 
