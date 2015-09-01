@@ -388,12 +388,16 @@ sigfatal_handler (int i)
 		_exit(1);
 	}
 	fatal_handling = 1;
-
-	fprintf(stderr, "\n\nMaxScale received fatal signal %d\n", i);
+        GATEWAY_CONF* cnf = config_get_global_options();
+	fprintf(stderr, "\n\nMaxScale "MAXSCALE_VERSION" received fatal signal %d\n", i);
 
 	skygw_log_write_flush(
                 LOGFILE_ERROR,
-                "Fatal: MaxScale received fatal signal %d. Attempting backtrace.", i);
+                "Fatal: MaxScale "MAXSCALE_VERSION" received fatal signal %d. Attempting backtrace.", i);
+
+        skygw_log_write_flush(LE,"Commit ID: "MAXSCALE_COMMIT" System name: %s "
+                "Release string: %s Embedded library version: %s",
+                cnf->sysname, cnf->release_string, cnf->version_string);
 
 	{
 		void *addrs[128];
@@ -1050,6 +1054,7 @@ int main(int argc, char **argv)
         int 	 l;
         int	 i;
         int      n;
+        int      ini_rval;
 	intptr_t thread_id;
         int      n_threads; /*< number of epoll listener threads */ 
         int      n_services;
@@ -1147,7 +1152,7 @@ int main(int argc, char **argv)
 			
 		case 'v':
 		  rc = EXIT_SUCCESS;
-          printf("%s\n",MAXSCALE_VERSION);
+                  printf("MaxScale %s\n", MAXSCALE_VERSION);
                   goto return_main;		  
 
 		case 'l':
@@ -1586,8 +1591,27 @@ int main(int argc, char **argv)
                 goto return_main;
         }
 
-	if(ini_parse(cnf_file_path,cnf_preparser,NULL) != 0)
+	if((ini_rval = ini_parse(cnf_file_path, cnf_preparser,NULL)) != 0)
 	{
+            char errorbuffer[STRING_BUFFER_SIZE];
+
+            if(ini_rval > 0)
+                snprintf(errorbuffer, sizeof(errorbuffer),
+                         "Error: Failed to pre-parse configuration file. Error on line %d.", ini_rval);
+            else if(ini_rval == -1)
+                snprintf(errorbuffer, sizeof(errorbuffer),
+                         "Error: Failed to pre-parse configuration file. Failed to open file.");
+            else
+                snprintf(errorbuffer, sizeof(errorbuffer),
+                         "Error: Failed to pre-parse configuration file. Memory allocation failed.");
+
+            skygw_log_write(LE, errorbuffer);
+            if(!daemon_mode)
+            {
+                strncat(errorbuffer, "\n", STRING_BUFFER_SIZE);
+                fprintf(stderr, errorbuffer);
+            }
+
 	    rc = MAXSCALE_BADCONFIG;
 	    goto return_main;
 	}

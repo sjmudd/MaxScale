@@ -77,10 +77,10 @@
 #include <string.h>
 #include <sys/utsname.h>
 #include <gwdirs.h>
+#include <pcre.h>
 
-#ifdef SS_DEBUG
-#include <gwdirs.h>
-#endif
+/** According to the PCRE manual, this should be a multiple of 3 */
+#define MAXSCALE_PCRE_BUFSZ 24
 
 /** Defined in log_manager.cc */
 extern int            lm_enabled_logfiles_bitmask;
@@ -99,7 +99,7 @@ static	void	global_defaults();
 static	void	feedback_defaults();
 static	void	check_config_objects(CONFIG_CONTEXT *context);
 int	config_truth_value(char *str);
-static	int	internalService(char *router);
+bool	isInternalService(char *router);
 int	config_get_ifaddr(unsigned char *output);
 int	config_get_release_string(char* release);
 FEEDBACK_CONF * config_get_feedback_data();
@@ -146,6 +146,57 @@ char	*ptr;
 	return str;
 }
 
+/**
+ * Remove extra commas and whitespace from a string. This string is interpreted
+ * as a list of string values separated by commas.
+ * @param strptr String to clean
+ * @return pointer to a new string or NULL if an error occurred
+ */
+char* config_clean_string_list(char* str)
+{
+    char *tmp;
+
+    if((tmp = malloc(sizeof(char)*(strlen(str) + 1))) != NULL)
+    {
+        char *ptr;
+        int match[MAXSCALE_PCRE_BUFSZ];
+        pcre* re;
+        const char *re_err;
+        int err_offset,rval;
+
+
+        tmp[0] = '\0';
+
+        if((re = pcre_compile("\\s*+([^,]*[^,\\s])",0,&re_err,&err_offset,NULL)) == NULL)
+        {
+            skygw_log_write(LE,"[%s] Error: Regular expression compilation failed at %d: %s",
+                            __FUNCTION__,err_offset,re_err);
+            free(tmp);
+            return NULL;
+        }
+
+        ptr = str;
+
+        while((rval =  pcre_exec(re,NULL,ptr,strlen(ptr),0,0,(int*)&match,MAXSCALE_PCRE_BUFSZ)) > 1)
+        {
+            const char* substr;
+
+            pcre_get_substring(ptr,(int*)&match,rval,1,&substr);
+            if(strlen(tmp) > 0)
+                strcat(tmp,",");
+            strcat(tmp,substr);
+            pcre_free_substring(substr);
+            ptr = &ptr[match[1]];
+        }
+        pcre_free(re);
+    }
+    else
+    {
+        skygw_log_write(LE,"[%s] Error: Memory allocation failed.",__FUNCTION__);
+    }
+
+    return tmp;
+}
 /**
  * Config item handler for the ini file reader
  *
@@ -201,12 +252,24 @@ CONFIG_PARAMETER	*param, *p1, *prev_param;
 	{
 		if (!strcmp(p1->name, name))
 		{
-			LOGIF(LE, (skygw_log_write_flush(
-                                LOGFILE_ERROR,
-                                "Error : Configuration object '%s' has multiple "
-				"parameters named '%s'.",
-                                ptr->object, name)));
-			return 0;
+                    char *tmp;
+                    int paramlen = strlen(p1->value) + strlen(value) + 2;
+
+                    if((tmp = realloc(p1->value,sizeof(char) * (paramlen))) == NULL)
+                    {
+                        skygw_log_write(LE,"[%s] Error: Memory allocation failed.",__FUNCTION__);
+                        return 0;
+                    }
+
+                    strcat(tmp,value);
+                    if((p1->value = config_clean_string_list(tmp)) == NULL)
+                    {
+                        p1->value = tmp;
+                        skygw_log_write(LE,"[%s] Error: Cleaning configuration parameter failed.",__FUNCTION__);
+                        return 0;
+                    }
+                    free(tmp);
+                    return 1;
 		}
                 prev_param = p1;
 		p1 = p1->next;
@@ -351,7 +414,7 @@ int
 config_load(char *file)
 {
 CONFIG_CONTEXT	config;
-int		rval;
+int		rval, ini_rval;
 
 	MYSQL *conn;
 	conn = mysql_init(NULL);
@@ -394,8 +457,23 @@ int		rval;
 	config.object = "";
 	config.next = NULL;
 
-	if (ini_parse(file, handler, &config) < 0)
+	if (( ini_rval = ini_parse(file, handler, &config)) != 0)
+        {
+             char errorbuffer[1024 + 1];
+
+            if (ini_rval > 0)
+                snprintf(errorbuffer, sizeof(errorbuffer),
+                         "Error: Failed to parse configuration file. Error on line %d.", ini_rval);
+            else if(ini_rval == -1)
+                snprintf(errorbuffer, sizeof(errorbuffer),
+                         "Error: Failed to parse configuration file. Failed to open file.");
+            else
+                snprintf(errorbuffer, sizeof(errorbuffer),
+                         "Error: Failed to parse configuration file. Memory allocation failed.");
+
+            skygw_log_write(LE, errorbuffer);
 		return 0;
+        }
 
 	config_file = file;
 
@@ -1038,7 +1116,7 @@ if((monitorhash = hashtable_alloc(5,simple_str_hash,strcmp)) == NULL)
 				}
                                 free(server_dup);
 			}
-			else if (servers == NULL && internalService(router) == 0)
+			else if (servers == NULL && !isInternalService(router) && strcmp(router,"binlogrouter"))
 			{
 				LOGIF(LE, (skygw_log_write_flush(
                                         LOGFILE_ERROR,
@@ -1931,18 +2009,16 @@ static char *InternalRouters[] = {
  * @param router	The router name
  * @return	Non-zero if the router is in the InternalRouters table
  */
-static int
-internalService(char *router)
+bool
+isInternalService(char *router)
 {
-int	i;
-
 	if (router)
 	{
-		for (i = 0; InternalRouters[i]; i++)
+		for (int i = 0; InternalRouters[i]; i++)
 			if (strcmp(router, InternalRouters[i]) == 0)
-				return 1;
+				return true;
 	}
-	return 0;
+	return false;
 }
 /**
  * Get the MAC address of first network interface
@@ -3219,7 +3295,7 @@ bool config_verify_monitor(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
     {
 	if(!config_find_sections_from_string(context,", ",servers->value))
 	{
-	    skygw_log_write(LE,"[%s] Error: Monitor has invalid values in the 'servers' parameter: %s",section->object,servers->value);
+	    skygw_log_write(LE,"Error: Monitor '%s' has invalid values in the 'servers' parameter: %s",section->object,servers->value);
 	    rval = false;
 	}
     }
@@ -3283,7 +3359,7 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
 
     if((servers = config_get_param(section->parameters,"servers")) == NULL)
     {
-	if(router != NULL && !internalService(router->value))
+	if(router != NULL && !isInternalService(router->value))
 	{
 	    skygw_log_write(LE,"[%s] Error: Service is missing the 'servers' parameter.",section->object);
 	    rval = false;
@@ -3293,7 +3369,7 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
     {
 	if(!config_find_sections_from_string(context,", ",servers->value))
 	{
-	    skygw_log_write(LE,"[%s] Error: Service has invalid values in the 'servers' parameter: %s",section->object,servers->value);
+	    skygw_log_write(LE,"Error: Service '%s' has invalid values in the 'servers' parameter: %s",section->object,servers->value);
 	    rval = false;
 	}
     }
@@ -3302,12 +3378,12 @@ bool config_verify_service(CONFIG_CONTEXT* context, CONFIG_CONTEXT* section)
     {
 	if(!config_find_sections_from_string(context,"| ",filters->value))
 	{
-	    skygw_log_write(LE,"[%s] Error: Service has invalid values in the 'filters' parameter: %s",section->object,filters->value);
+	    skygw_log_write(LE,"Error: Service '%s' has invalid values in the 'filters' parameter: %s",section->object,filters->value);
 	    rval = false;
 	}
     }
 
-    if(router != NULL && !internalService(router->value))
+    if(router != NULL && !isInternalService(router->value))
     {
 	if(config_get_param(section->parameters,"user") == NULL)
 	{
